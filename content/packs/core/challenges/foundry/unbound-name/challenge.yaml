@@ -1,0 +1,29 @@
+id: foundry.py.unbound-name
+title: The Unbound Name
+version: 1
+realm: foundry
+kind: code
+concepts: [py.basics.variables]
+tags: [variables, assignment, missing-key, empty-input]
+difficulty: 3
+tier: 0
+languages: [python, javascript]
+estimated_minutes: 8
+enemy: { template: null-wraith, hp_override: null }
+constraints:
+  max_lines: 35
+  banned_tokens: []
+targets:
+  time_ms: 200
+retreatable: true
+scoring: { crit: true, efficiency: false, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "The Null Wraith feeds on names that were never given a value. Keep the Guild's register tidy."
+  defeat: "Every name holds its value. The wraith has nothing left to be."
+author: core
+generated: null

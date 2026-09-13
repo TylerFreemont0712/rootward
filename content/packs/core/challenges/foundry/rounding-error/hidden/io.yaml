@@ -1,0 +1,30 @@
+# Backend-only. The player sees hidden tests by category and pass/fail, never by content.
+form: io
+cases:
+  - id: h1
+    name: empty input prints nothing
+    category: empty-input
+    stdin: ""
+    expected_stdout: ""
+  - id: h2
+    name: amounts that floats cannot store exactly
+    category: precision
+    stdin: "4.35 5\n19.99 20\n1.15 2\n"
+    expected_stdout: "65\n1\n85\n"
+  - id: h3
+    name: an exact payment and a single cent
+    category: boundary
+    stdin: "5 5\n0 0.01\n"
+    expected_stdout: "0\n1\n"
+  - id: h4
+    name: a short payment that truncation gets wrong
+    category: precision
+    stdin: "1.13 1\n\n"
+    expected_stdout: "short 13\n"
+  # Reserve cases join the fight only when an enemy's Edge Case move reveals one of their category.
+  - id: r1
+    name: an amount written without a leading zero
+    category: format
+    reserve: true
+    stdin: "0.5 .75\n"
+    expected_stdout: "25\n"

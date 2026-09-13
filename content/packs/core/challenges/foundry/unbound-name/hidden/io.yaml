@@ -1,0 +1,30 @@
+# Backend-only. The player sees hidden tests by category and pass/fail, never by content.
+form: io
+cases:
+  - id: h1
+    name: empty input prints nothing
+    category: empty-input
+    stdin: ""
+    expected_stdout: ""
+  - id: h2
+    name: add and copy report the name they could not read
+    category: missing-name
+    stdin: "add ghost 1\ncopy y ghost\nprint y\n"
+    expected_stdout: "unbound ghost\nunbound ghost\nunbound y\n"
+  - id: h3
+    name: set replaces an old value
+    category: rebinding
+    stdin: "set x 1\nset x 2\ncopy y x\nset x 3\nprint y\nprint x\n"
+    expected_stdout: "2\n3\n"
+  - id: h4
+    name: a name copied onto itself
+    category: boundary
+    stdin: "set a 7\ncopy a a\nadd a 1\nprint a\n"
+    expected_stdout: "8\n"
+  # Reserve cases join the fight only when an enemy's Edge Case move reveals one of their category.
+  - id: r1
+    name: blank lines between commands
+    category: empty-input
+    reserve: true
+    stdin: "\n  \nset n 1\n\nprint n\n"
+    expected_stdout: "1\n"

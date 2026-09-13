@@ -95,6 +95,12 @@ language feature took more than a minute to understand.
   which gives every ordering the same chance.
 - **Breadth-first search.** `findPath` in `packages/core/src/map/path.ts` explores tiles in order of distance, so the
   first route it finds is a shortest one.
+- **Real data finds what synthetic tests miss.** Previewing dungeons from the real content for a fresh learner showed
+  a dictionary challenge in a first expedition. The fix (familiar concepts in `packages/core/src/planner/select.ts`)
+  then became a property in `planner-properties.test.ts`, so it holds for every random catalog too.
+- **Floats are approximations.** `0.29 * 100` is `28.999999999999996` in both Python and JavaScript. The Rounding
+  Error challenge (`content/packs/core/challenges/foundry/rounding-error/`) is built on that, and its test values came
+  from a brute-force search rather than guesses (an earlier guess, `5.00 - 3.10`, turned out to be exact).
 
 ## Server and client
 

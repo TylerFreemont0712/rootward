@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: binds a name and prints it
+    stdin: "set x 5\nprint x\n"
+    expected_stdout: "5\n"
+  - id: v2
+    name: add rebinds the name to a new value
+    stdin: "set x 5\nadd x 3\nadd x -10\nprint x\n"
+    expected_stdout: "-2\n"
+  - id: v3
+    name: copy takes the value, not the name
+    stdin: "set gold 5\ncopy saved gold\nadd gold 3\nprint gold\nprint saved\nprint silver\n"
+    expected_stdout: "8\n5\nunbound silver\n"

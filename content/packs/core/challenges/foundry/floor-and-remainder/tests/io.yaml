@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: divides positive numbers
+    stdin: "7 2\n"
+    expected_stdout: "3 1\n"
+  - id: v2
+    name: rounds down when the dividend is negative
+    stdin: "-7 2\n"
+    expected_stdout: "-4 1\n"
+  - id: v3
+    name: refuses to divide by zero
+    stdin: "7 0\n"
+    expected_stdout: "undefined\n"

@@ -1,0 +1,19 @@
+id: type-mimic
+name: Type Mimic
+tier: 1
+realm_affinity: [foundry]
+base_atk: 5
+moves:
+  - { move: strike, weight: 3 }
+  - { move: edge-case, weight: 2, params: { category: format } }
+loot_table: tier1-common
+flavor:
+  intro: "A treasure chest that is really a string that is really a number. Or the other way round."
+  taunt: ["\"85\" or 85? Choose carefully.", "I look exact. I am not.", "Close enough is a type, right?"]
+  defeat: "It settles into a single, honest type."
+art: |2
+     ________
+    |  "85"  |
+    |[o]  [o]|
+    | vvvvvv |
+    |________|

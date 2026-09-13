@@ -1,0 +1,29 @@
+id: foundry.py.mirror-gate
+title: The Mirror Gate
+version: 1
+realm: foundry
+kind: code
+concepts: [py.strings.basics]
+tags: [strings, indexing, normalization, off-by-one]
+difficulty: 2
+tier: 0
+languages: [python, javascript]
+estimated_minutes: 6
+enemy: { template: off-by-one-goblin, hp_override: null }
+constraints:
+  max_lines: 20
+  banned_tokens: []
+targets:
+  time_ms: 200
+retreatable: true
+scoring: { crit: true, efficiency: false, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "The Mirror Gate opens only for phrases that read the same both ways. Its guard, the Off-By-One Goblin, always miscounts the middle."
+  defeat: "The gate swings open, and the Goblin finally finds the middle."
+author: core
+generated: null

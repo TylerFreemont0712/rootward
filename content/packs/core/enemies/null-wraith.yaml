@@ -1,0 +1,20 @@
+id: null-wraith
+name: Null Wraith
+tier: 1
+realm_affinity: [foundry]
+base_atk: 5
+moves:
+  - { move: strike, weight: 3 }
+  - { move: edge-case, weight: 2, params: { category: empty-input } }
+loot_table: tier1-common
+flavor:
+  intro: "A shape made of missing values drifts out of an unassigned register. Where it passes, names forget what they meant."
+  taunt: ["What was that name again?", "Nothing is also an answer.", "You never set me. I set myself."]
+  defeat: "Every name holds its value. The wraith has nothing left to be."
+art: |2
+     .-~~~-.
+    ( o   o )
+     |  ^  |
+     |     |
+      \/\/\/
+    null null

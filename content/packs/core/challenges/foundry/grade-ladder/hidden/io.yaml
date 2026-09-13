@@ -1,0 +1,30 @@
+# Backend-only. The player sees hidden tests by category and pass/fail, never by content.
+form: io
+cases:
+  - id: h1
+    name: empty input prints nothing
+    category: empty-input
+    stdin: ""
+    expected_stdout: ""
+  - id: h2
+    name: scores exactly on a boundary
+    category: boundary
+    stdin: "90\n80\n70\n60\n100\n0\n"
+    expected_stdout: "A\nB\nC\nD\nA\nF\n"
+  - id: h3
+    name: scores outside 0 to 100
+    category: boundary
+    stdin: "100.5\n-1\n-0.01\n"
+    expected_stdout: "invalid\ninvalid\ninvalid\n"
+  - id: h4
+    name: text that only looks like a number
+    category: format
+    stdin: "nan\n9O\n\n12abc\n"
+    expected_stdout: "invalid\ninvalid\ninvalid\n"
+  # Reserve cases join the fight only when an enemy's Edge Case move reveals one of their category.
+  - id: r1
+    name: a leading zero and surrounding spaces
+    category: format
+    reserve: true
+    stdin: "085\n 72 \n"
+    expected_stdout: "B\nC\n"

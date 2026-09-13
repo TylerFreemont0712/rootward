@@ -1,0 +1,29 @@
+id: foundry.py.leap-year
+title: The Leap Year Gate
+version: 1
+realm: foundry
+kind: code
+concepts: [py.control.conditionals]
+tags: [conditionals, boolean-logic, boundary]
+difficulty: 2
+tier: 0
+languages: [python, javascript]
+estimated_minutes: 5
+enemy: { template: off-by-one-goblin, hp_override: null }
+constraints:
+  max_lines: 20
+  banned_tokens: []
+targets:
+  time_ms: 200
+retreatable: true
+scoring: { crit: true, efficiency: false, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "The calendar gate counts the days before it lets anyone through. The Off-By-One Goblin insists every fourth year is special, no exceptions."
+  defeat: "The gate's calendar lines up with the sun again."
+author: core
+generated: null

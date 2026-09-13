@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: capitalizes words and keeps small words lowercase
+    stdin: "the lord OF the rings\n"
+    expected_stdout: "The Lord of the Rings\n"
+  - id: v2
+    name: lowercases the rest of each word
+    stdin: "A TALE of two cities\n"
+    expected_stdout: "A Tale of Two Cities\n"
+  - id: v3
+    name: capitalizes a small word at either end
+    stdin: "something to hold on to\n"
+    expected_stdout: "Something to Hold on To\n"

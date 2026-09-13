@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: a single mirrored word
+    stdin: "Racecar\n"
+    expected_stdout: "open\n"
+  - id: v2
+    name: words that do not mirror
+    stdin: "Guild hall\n"
+    expected_stdout: "shut\n"
+  - id: v3
+    name: ignores spaces and punctuation
+    stdin: "A man, a plan, a canal: Panama!\n"
+    expected_stdout: "open\n"

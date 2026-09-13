@@ -1,0 +1,29 @@
+id: foundry.py.running-total
+title: The Running Total
+version: 1
+realm: foundry
+kind: code
+concepts: [py.basics.variables]
+tags: [variables, accumulator, empty-input]
+difficulty: 1
+tier: 0
+languages: [python, javascript]
+estimated_minutes: 4
+enemy: { template: tally-wisp, hp_override: null }
+constraints:
+  max_lines: 20
+  banned_tokens: []
+targets:
+  time_ms: 200
+retreatable: true
+scoring: { crit: true, efficiency: false, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "The Tally Wisp is keeping the Guild's accounts again, and it forgets the total between entries."
+  defeat: "The ledger balances, down to the last entry."
+author: core
+generated: null

@@ -1,0 +1,29 @@
+id: foundry.py.floor-division
+title: Floor and Remainder
+version: 1
+realm: foundry
+kind: code
+concepts: [py.basics.values]
+tags: [values, integer-division, modulo, boundary]
+difficulty: 3
+tier: 0
+languages: [python, javascript]
+estimated_minutes: 6
+enemy: { template: off-by-one-goblin, hp_override: null }
+constraints:
+  max_lines: 20
+  banned_tokens: []
+targets:
+  time_ms: 200
+retreatable: true
+scoring: { crit: true, efficiency: false, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "The Off-By-One Goblin stacks the vault's coins in piles, and it never agrees with you about negative coins."
+  defeat: "Every coin lands in exactly one pile, and the remainder is counted."
+author: core
+generated: null

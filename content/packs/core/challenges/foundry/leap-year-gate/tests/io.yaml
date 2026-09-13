@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: every fourth year is a leap year
+    stdin: "2024\n2023\n"
+    expected_stdout: "leap\ncommon\n"
+  - id: v2
+    name: a century is a common year
+    stdin: "1900\n"
+    expected_stdout: "common\n"
+  - id: v3
+    name: every fourth century is a leap year again
+    stdin: "2000\n"
+    expected_stdout: "leap\n"

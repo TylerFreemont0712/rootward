@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: prints the total after each number
+    stdin: "1\n2\n3\n"
+    expected_stdout: "1\n3\n6\nmax 6\n"
+  - id: v2
+    name: adds negative numbers too
+    stdin: "5\n-2\n10\n"
+    expected_stdout: "5\n3\n13\nmax 13\n"
+  - id: v3
+    name: remembers the largest total
+    stdin: "4\n-1\n-1\n"
+    expected_stdout: "4\n3\n2\nmax 4\n"

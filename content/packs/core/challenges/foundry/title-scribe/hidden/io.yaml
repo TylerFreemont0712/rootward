@@ -1,0 +1,30 @@
+# Backend-only. The player sees hidden tests by category and pass/fail, never by content.
+form: io
+cases:
+  - id: h1
+    name: empty input prints nothing
+    category: empty-input
+    stdin: ""
+    expected_stdout: ""
+  - id: h2
+    name: a line that is a single small word
+    category: boundary
+    stdin: "of\nTHE\n"
+    expected_stdout: "Of\nThe\n"
+  - id: h3
+    name: empty lines stay in place
+    category: empty-input
+    stdin: "\nan owl\n\nthe end\n"
+    expected_stdout: "\nAn Owl\n\nThe End\n"
+  - id: h4
+    name: apostrophes and digits inside words
+    category: normalization
+    stdin: "don't PANIC at the 2nd gate\n"
+    expected_stdout: "Don't Panic at the 2nd Gate\n"
+  # Reserve cases join the fight only when an enemy's Edge Case move reveals one of their category.
+  - id: r1
+    name: a lone empty line
+    category: empty-input
+    reserve: true
+    stdin: "\n"
+    expected_stdout: "\n"

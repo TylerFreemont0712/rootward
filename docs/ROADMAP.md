@@ -94,6 +94,9 @@ Task breakdown:
 - [ ] Learner model: mastery 0-5 evidence rules, Elo update, error tags, FSRS glue, Commits, Version
 - [x] Planner v1 in `packages/core` (ADR-0007, `docs/PLANNER.md`): language tracks, Elo selection, spine with safe
       branches, rationale, unit tests and a 1,000-seed property test
+- [x] Planner fixes found by previewing real content for a fresh learner (ADR-0007 amendment): a thin frontier grows
+      into the concepts built on it, fights only use familiar concepts, and nodes of one track no longer stand in for
+      each other; all three are properties in the 1,000-seed test
 - [x] Map layout and pathfinding in `packages/core`, property-tested for reachability and overlaps
 - [x] Run flow over a plan (ADR-0008): plan saved in `RunStarted`, `EnterRoom` checked against the plan's edges, any
       fight outcome clears the room, Elite and Boss tiers come from the room, the boss room ends the run, `AbandonRun`;
@@ -108,7 +111,9 @@ Task breakdown:
 - [ ] Screens: Bastion (character creation, Artificer, Oath of the Foundry), Debrief, Chronicle (the Guild Board stands
       in for the Bastion; the Expedition map is done)
 - [ ] Content: `content:new`, `content:stats`, seed content per section 13.4 (Foundry Python + JS, Grove, puzzles,
-      cards, 15 enemies, 12 items, Warden class data)
+      cards, 15 enemies, 12 items, Warden class data). Progress: 9 Foundry challenges in Python and JavaScript
+      (values, variables, strings, conditionals, dictionaries) and 4 enemies (Tally Wisp, Off-By-One Goblin, Null
+      Wraith, Type Mimic)
 
 ## Later milestones (summaries; full text in PROMPT.md section 15)
 
@@ -137,12 +142,13 @@ Task breakdown:
 
 State (2026-09-14): M0 is done. M1 has the Python runner, SQLite persistence with resume, planner v1, and expeditions
 playable end to end: Guild Board, walkable ASCII map with fog of war, fights room by room, and a boss that ends the run
-(ADR-0008). Content is now the bottleneck: with one challenge, every expedition is two rooms (the fight, then the same
-fight as the boss). Suggested order for the rest of M1:
-1. Content: more Foundry challenges in Python and JavaScript so expeditions get real floors and branches, the
-   JavaScript track nodes, and the concepts-per-language ADR.
-2. Learner model (mastery rules, Elo, FSRS via ts-fsrs, Commits, Version) feeding the planner's learner snapshot, then
-   the Bastion and Debrief screens.
+(ADR-0008). Nine Foundry challenges exist, so a brand-new Python player's long expedition has nine rooms across values,
+variables, strings, and conditionals (JavaScript: seven rooms, because the shared concept graph reaches strings later).
+Nothing is learned between runs yet: every expedition plans for a brand-new player. Suggested order for the rest of M1:
+1. Learner model (mastery rules, Elo, FSRS via ts-fsrs, Commits, Version) feeding the planner's learner snapshot, then
+   the Debrief and Bastion screens, so each expedition builds on the last.
+2. Content: loops, lists, and functions challenges (the next frontier after a first run), more alternatives per node
+   so floors branch, the JavaScript track nodes, and the concepts-per-language ADR.
 3. Shrine, Puzzle, and Rest rooms.
 4. `db:export` / `db:import`.
 

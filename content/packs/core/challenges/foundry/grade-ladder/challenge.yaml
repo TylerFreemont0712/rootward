@@ -1,0 +1,29 @@
+id: foundry.py.grade-ladder
+title: The Grade Ladder
+version: 1
+realm: foundry
+kind: code
+concepts: [py.control.conditionals]
+tags: [conditionals, boundary, validation]
+difficulty: 2
+tier: 0
+languages: [python, javascript]
+estimated_minutes: 5
+enemy: { template: type-mimic, hp_override: null }
+constraints:
+  max_lines: 30
+  banned_tokens: []
+targets:
+  time_ms: 200
+retreatable: true
+scoring: { crit: true, efficiency: false, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "The Type Mimic has slipped fake scores onto the Guild's exam sheets. Grade the real ones and unmask the rest."
+  defeat: "Every sheet carries an honest grade, and the Mimic has nowhere left to hide."
+author: core
+generated: null

@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: gives change in whole cents
+    stdin: "0.29 1.00\n"
+    expected_stdout: "71\n"
+  - id: v2
+    name: reads amounts with fewer decimal places
+    stdin: "3.1 5\n0.35 1\n"
+    expected_stdout: "190\n65\n"
+  - id: v3
+    name: reports a short payment
+    stdin: "2 1.5\n"
+    expected_stdout: "short 50\n"

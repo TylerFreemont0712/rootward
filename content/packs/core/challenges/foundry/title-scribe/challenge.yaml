@@ -1,0 +1,29 @@
+id: foundry.py.title-case
+title: The Title Scribe
+version: 1
+realm: foundry
+kind: code
+concepts: [py.strings.basics]
+tags: [strings, string-methods, empty-input]
+difficulty: 3
+tier: 0
+languages: [python, javascript]
+estimated_minutes: 8
+enemy: { template: null-wraith, hp_override: null }
+constraints:
+  max_lines: 25
+  banned_tokens: []
+targets:
+  time_ms: 200
+retreatable: true
+scoring: { crit: true, efficiency: false, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "The Guild's scribe copies book titles into the catalog, and the Null Wraith keeps smudging the capitals."
+  defeat: "The catalog reads cleanly, from the first title to the last."
+author: core
+generated: null

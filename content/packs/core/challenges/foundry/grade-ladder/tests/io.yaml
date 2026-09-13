@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: grades whole scores
+    stdin: "95\n85\n75\n65\n55\n"
+    expected_stdout: "A\nB\nC\nD\nF\n"
+  - id: v2
+    name: never rounds a decimal score
+    stdin: "89.99\n"
+    expected_stdout: "B\n"
+  - id: v3
+    name: rejects a score that is not a number
+    stdin: "banana\n"
+    expected_stdout: "invalid\n"

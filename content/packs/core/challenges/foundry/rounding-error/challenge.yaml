@@ -1,0 +1,29 @@
+id: foundry.py.change-counter
+title: The Rounding Error
+version: 1
+realm: foundry
+kind: code
+concepts: [py.basics.values]
+tags: [values, numeric-precision, float]
+difficulty: 2
+tier: 0
+languages: [python, javascript]
+estimated_minutes: 5
+enemy: { template: type-mimic, hp_override: null }
+constraints:
+  max_lines: 20
+  banned_tokens: []
+targets:
+  time_ms: 200
+retreatable: true
+scoring: { crit: true, efficiency: false, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "The till counts change in cents, and the Type Mimic hiding inside it swears that 0.29 is exactly what it looks like."
+  defeat: "The till balances to the cent, and the Mimic's disguise slips."
+author: core
+generated: null
