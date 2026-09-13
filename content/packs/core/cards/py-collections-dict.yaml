@@ -1,0 +1,8 @@
+node: py.collections.dict
+cards:
+  - { id: dict-get-default,  q: "What does `d.get(k, 0)` return when `k` is missing?",                          a: "0 (the default), without raising KeyError." }
+  - { id: dict-order,        q: "In Python 3.7+, what order does `for k in d` iterate in?",                     a: "Insertion order." }
+  - { id: dict-hashable,     q: "Why can a list not be a dict key, while a tuple can?",                         a: "Keys must be hashable (immutable); lists are mutable, tuples of hashables are not." }
+  - { id: dict-counter,      q: "Which stdlib class counts hashable items and offers `.most_common(n)`?",       a: "collections.Counter" }
+  - { id: dict-setdefault,   q: "Rewrite `if k not in d: d[k] = []` then `d[k].append(x)` in one call.",       a: "d.setdefault(k, []).append(x)" }
+  - { id: dict-mutate-iter,  q: "What happens if you add keys to a dict while iterating over it?",             a: "RuntimeError: dictionary changed size during iteration. Iterate over a copy or collect changes first." }

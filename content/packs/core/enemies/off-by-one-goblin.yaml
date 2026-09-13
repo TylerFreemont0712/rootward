@@ -1,0 +1,14 @@
+id: off-by-one-goblin
+name: Off-By-One Goblin
+tier: 1
+realm_affinity: [foundry, grove]
+base_atk: 6
+hp_display_offset: 1
+moves:
+  - { move: strike, weight: 3 }
+  - { move: edge-case, weight: 2, params: { category: boundary } }
+loot_table: tier1-common
+flavor:
+  intro: "It counts on its fingers and always ends one short. Or one over."
+  taunt: ["Are you sure that's the last one?", "Index... what index?", "Did you count the letters too?"]
+  defeat: "It finally counts to ten. Exactly ten."

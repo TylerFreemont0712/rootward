@@ -1,0 +1,9 @@
+id: core
+name: Rootward Core
+version: 0.1.0
+engine_range: ">=0.0.0"
+dependencies: []
+description: >
+  Seed content that ships with the game. These files demonstrate the content format described in PROMPT.md
+  section 13. The zod schemas written in packages/content-schema are the source of truth; if a schema decision
+  changes a field, update these files to match rather than the other way round.

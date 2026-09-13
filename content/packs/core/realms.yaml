@@ -1,0 +1,12 @@
+realms:
+  - { id: foundry,     name: The Foundry,           tier_range: [0, 1], flavor: "Warm halls of molten glyphs where values are cast into variables. Sounds of hammering." }
+  - { id: grove,       name: Grove of Structures,   tier_range: [1, 3], flavor: "A forest where trees are literal trees, roots are linked lists, and the canopy is a heap." }
+  - { id: kernel,      name: Kernel Halls,          tier_range: [0, 2], flavor: "Cold stone corridors under the Foundry; every door is a permission, every torch a process." }
+  - { id: archives,    name: The Archives,          tier_range: [1, 3], flavor: "An endless library whose librarians answer only well-formed queries." }
+  - { id: spire,       name: Spire of Applications, tier_range: [1, 3], flavor: "A tower of workshops, one layer of an application per floor; the higher, the more wind." }
+  - { id: citadel,     name: Cloud Citadel,         tier_range: [2, 4], flavor: "A fortress in the sky assembled from identical bricks; the drawbridge is a load balancer." }
+  - { id: bazaar,      name: Shadow Bazaar,         tier_range: [2, 4], flavor: "A market at dusk where everything is a trick and merchants sell inputs you did not ask for." }
+  - { id: ruins,       name: Ruins of Legacy,       tier_range: [1, 3], flavor: "Overgrown cities of old code; ghosts of previous Maintainers left comments on the walls." }
+  - { id: observatory, name: The Observatory,       tier_range: [2, 4], flavor: "A lens on the sky where Oracles speak in probabilities; the floor is a vector field." }
+  - { id: depths,      name: Silicon Depths,        tier_range: [3, 4], flavor: "Crystalline bedrock where bits glitter and every step is measured in cycles." }
+  - { id: assembly,    name: The Assembly,          tier_range: [4, 4], flavor: "The great hall where all realms meet. The throne of Root is beyond it." }

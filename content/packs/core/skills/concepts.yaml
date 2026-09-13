@@ -1,0 +1,15 @@
+# Shared, language-agnostic concept nodes. Language nodes point up to these with `transfers_to`; mastery of a
+# shared node is the max over its language nodes, so switching languages does not restart the curriculum.
+nodes:
+  - { id: concept.values,          name: Values and types,        realm: foundry, tier: 0, prerequisites: [], summary: "Numbers, text, booleans, nothing; what a type is and why it matters.", evidence_tags: [values, types] }
+  - { id: concept.variables,       name: Variables and binding,   realm: foundry, tier: 0, prerequisites: [concept.values], summary: "Names bound to values; assignment vs equality; rebinding vs mutation.", evidence_tags: [variables] }
+  - { id: concept.conditionals,    name: Conditionals,            realm: foundry, tier: 0, prerequisites: [concept.variables], summary: "Branching on boolean conditions; guard clauses.", evidence_tags: [conditionals, branching] }
+  - { id: concept.iteration,       name: Iteration,               realm: foundry, tier: 0, prerequisites: [concept.conditionals], summary: "Loops over ranges and collections; exclusive upper bounds; off-by-one.", evidence_tags: [loops, iteration] }
+  - { id: concept.functions,       name: Functions,               realm: foundry, tier: 0, prerequisites: [concept.variables], summary: "Parameters, return values, purity, scope.", evidence_tags: [functions] }
+  - { id: concept.sequences,       name: Sequences,               realm: foundry, tier: 0, prerequisites: [concept.iteration], summary: "Ordered collections: indexing, slicing, mutation, aliasing.", evidence_tags: [list, array, slicing] }
+  - { id: concept.mappings,        name: Mappings,                realm: foundry, tier: 1, prerequisites: [concept.sequences], summary: "Key/value lookup; counting; grouping; why keys must be hashable.", evidence_tags: [dict, hashmap, mapping] }
+  - { id: concept.strings,         name: Strings,                 realm: foundry, tier: 0, prerequisites: [concept.sequences], summary: "Text as a sequence; immutability; splitting, joining, formatting; Unicode basics.", evidence_tags: [strings] }
+  - { id: concept.errors,          name: Errors and exceptions,   realm: foundry, tier: 1, prerequisites: [concept.functions], summary: "Expected failures vs bugs; raising, catching narrowly, cleanup.", evidence_tags: [errors, exceptions] }
+  - { id: concept.recursion,       name: Recursion,               realm: grove,   tier: 1, prerequisites: [concept.functions, concept.iteration], summary: "Base cases, recursive cases, the call stack, converting to iteration.", evidence_tags: [recursion] }
+  - { id: concept.complexity,      name: Complexity,              realm: grove,   tier: 1, prerequisites: [concept.iteration, concept.mappings], summary: "Big-O intuition; hidden linear work; choosing structures by operations.", evidence_tags: [complexity, bigo] }
+  - { id: concept.edge-cases,      name: Edge cases,              realm: foundry, tier: 0, prerequisites: [concept.conditionals], summary: "Empty, single, boundary, duplicates, huge, malformed.", evidence_tags: [edge-cases, empty-input, boundary] }

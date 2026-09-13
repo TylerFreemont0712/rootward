@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rootward</title>
+<!--
+  ROOTWARD UI MOCKUP (static, single file). A starting point for the real client, not a spec.
+  Screens: Bastion (hub) / Expedition Map / Encounter (playable mock) / Terminal Room / Debrief / Settings.
+  Layout: three panes as in PROMPT.md 14.5 -> left = map + HUD + enemy card, center = task/editor/terminal, right = Lint + tests.
+  Tokens: see :root. Single-theme by design (amber phosphor CRT). Fonts: VT323 (narrative/titles), IBM Plex Mono (UI).
+  Everything here is fake data. The encounter has a tiny fake evaluator: it only checks whether "len(items) - 1" is still in the code.
+  Keyboard: Ctrl+Enter Cast, Ctrl+Shift+Enter Probe, Ctrl+K command palette, Esc close.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#120e0a; --panel:#1a1410; --panel-2:#211a13; --panel-3:#2a2119;
+  --line:#3c2f21; --line-soft:#2b2219;
+  --amber:#f2a541; --amber-dim:#a8712a; --amber-glow:rgba(242,165,65,.30);
+  --text:#e9dcc0; --muted:#a58f6e; --faint:#6f5e46;
+  --teal:#5cc8b8; --teal-dim:#2f6f66; --teal-glow:rgba(92,200,184,.25);
+  --pass:#8bc96a; --fail:#e2584f; --warn:#e9c46a;
+  --integrity:#d9534f; --focus:#5cc8b8; --cycles:#f2a541;
+  --font-ui:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --font-crt:"VT323","IBM Plex Mono",ui-monospace,monospace;
+  --radius:3px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--text)}
+body{font-family:var(--font-ui);font-size:13px;line-height:1.45;min-height:100vh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
+a{color:var(--amber)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+::selection{background:var(--amber-dim);color:#000}
+
+/* CRT overlay */
+.crt{position:fixed;inset:0;pointer-events:none;z-index:50;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 1px,transparent 1px 3px);
+  mix-blend-mode:multiply}
+.crt::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.45) 100%)}
+
+/* Top bar */
+.topbar{display:flex;align-items:center;gap:18px;padding:8px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+.brand{font-family:var(--font-crt);font-size:28px;letter-spacing:2px;color:var(--amber);text-shadow:0 0 8px var(--amber-glow);line-height:1}
+.brand small{font-family:var(--font-ui);font-size:11px;color:var(--faint);letter-spacing:0;margin-left:8px;vertical-align:middle}
+.screens{display:flex;gap:2px;flex-wrap:wrap}
+.screens button{padding:6px 10px;border:1px solid transparent;border-radius:var(--radius);color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:11px}
+.screens button[aria-selected="true"]{color:var(--amber);border-color:var(--line);background:var(--panel-2)}
+.screens button:hover{color:var(--text)}
+.hud-mini{margin-left:auto;display:flex;gap:14px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.hud-mini b{color:var(--text);font-weight:500}
+
+/* Screens */
+main{flex:1;display:flex;flex-direction:column}
+.screen{display:none;flex:1;min-height:0}
+.screen.active{display:flex;flex-direction:column}
+.panes{display:grid;grid-template-columns:270px minmax(0,1fr) 330px;gap:1px;background:var(--line-soft);flex:1;min-height:0}
+.pane{background:var(--ground);padding:12px;overflow:auto;display:flex;flex-direction:column;gap:12px}
+@media (max-width:1000px){.panes{grid-template-columns:1fr}.pane{overflow:visible}}
+
+/* Blocks */
+.block{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);padding:10px}
+.block h3{margin:0 0 8px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);font-weight:500}
+.crt-title{font-family:var(--font-crt);font-size:24px;line-height:1;color:var(--amber);text-shadow:0 0 6px var(--amber-glow);margin:0}
+.narr{font-family:var(--font-crt);font-size:19px;line-height:1.15;color:var(--muted)}
+.narr em{color:var(--text);font-style:normal}
+
+/* HUD */
+.stat{display:grid;grid-template-columns:78px 1fr 44px;align-items:center;gap:8px;font-size:11px;margin:4px 0}
+.stat .lbl{color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.stat .val{text-align:right;font-variant-numeric:tabular-nums;color:var(--text)}
+.bar{height:8px;background:var(--panel-3);border:1px solid var(--line);border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;transition:width .5s ease}
+.bar.integrity i{background:var(--integrity)}
+.bar.hp i{background:var(--fail)}
+.bar.mastery i{background:var(--amber)}
+.pips{display:flex;gap:4px}
+.pips span{width:14px;height:10px;border:1px solid var(--teal-dim);border-radius:2px;background:transparent}
+.pips span.on{background:var(--focus);box-shadow:0 0 6px var(--teal-glow)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:12px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;color:var(--text)}
+
+/* Enemy card */
+.enemy{border-color:var(--amber-dim)}
+.enemy pre{margin:0 0 6px;font-family:var(--font-crt);font-size:15px;line-height:1;color:var(--amber);text-shadow:0 0 6px var(--amber-glow);white-space:pre}
+.enemy .name{font-family:var(--font-crt);font-size:22px;color:var(--text);margin:0}
+.enemy .tier{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.1em}
+.taunt{font-family:var(--font-crt);font-size:17px;color:var(--muted);margin:6px 0 0;min-height:20px}
+.taunt::before{content:"\201C"}.taunt::after{content:"\201D"}
+.move{font-size:11px;color:var(--warn);margin-top:6px}
+.enemy.dead{border-color:var(--line);opacity:.65}
+.enemy.dead pre{color:var(--faint);text-shadow:none}
+.shake{animation:shake .35s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* Floor list */
+.floors{list-style:none;margin:0;padding:0;font-size:12px}
+.floors li{display:flex;gap:8px;align-items:center;padding:3px 0;color:var(--faint)}
+.floors li .g{width:18px;text-align:center;color:var(--muted)}
+.floors li.done{color:var(--muted)}.floors li.done .g{color:var(--pass)}
+.floors li.here{color:var(--amber)}.floors li.here .g{color:var(--amber)}
+
+/* Center: tabs, task, editor */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line)}
+.tabs button{padding:6px 12px;color:var(--muted);border:1px solid transparent;border-bottom:0;border-radius:var(--radius) var(--radius) 0 0;font-size:12px}
+.tabs button[aria-selected="true"]{color:var(--text);background:var(--panel);border-color:var(--line)}
+.tabpanel{display:none}.tabpanel.active{display:block}
+.task h2{font-family:var(--font-crt);font-size:30px;margin:0 0 2px;color:var(--amber);text-shadow:0 0 8px var(--amber-glow);line-height:1}
+.task .meta{font-size:11px;color:var(--faint);margin-bottom:10px}
+.task .meta span{margin-right:12px}
+.task p{max-width:68ch;margin:0 0 10px}
+.task code,.hint code,.chat code{background:var(--panel-3);padding:0 4px;border-radius:2px;color:var(--warn)}
+.task pre{background:var(--panel-2);border:1px solid var(--line);padding:8px 10px;border-radius:var(--radius);overflow-x:auto;margin:0 0 10px;font-size:12px}
+.tag{display:inline-block;font-size:10px;padding:1px 6px;border:1px solid var(--line);border-radius:10px;color:var(--muted);margin-right:4px}
+.editor-wrap{display:grid;grid-template-columns:36px 1fr;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel-2);min-height:280px}
+.gutter{padding:10px 0;text-align:right;color:var(--faint);font-size:12px;line-height:1.5;user-select:none;border-right:1px solid var(--line-soft);padding-right:6px;white-space:pre}
+textarea.code{font:12px/1.5 var(--font-ui);background:transparent;color:var(--text);border:0;resize:vertical;padding:10px;width:100%;min-height:280px;white-space:pre;tab-size:4;caret-color:var(--amber)}
+.editor-status{display:flex;gap:16px;font-size:11px;color:var(--faint);padding:6px 2px;flex-wrap:wrap}
+.editor-status .ok{color:var(--pass)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{padding:7px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel-2);color:var(--text);font-size:12px;letter-spacing:.04em;display:inline-flex;gap:8px;align-items:center}
+.btn:hover{border-color:var(--amber-dim);color:var(--amber)}
+.btn.primary{border-color:var(--amber);color:var(--amber);box-shadow:0 0 10px var(--amber-glow)}
+.btn.danger:hover{border-color:var(--fail);color:var(--fail)}
+.btn small{color:var(--faint);font-size:10px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.abilities{display:flex;gap:6px;flex-wrap:wrap}
+.abilities .btn{font-size:11px;padding:5px 9px}
+.hint{border-left:2px solid var(--amber-dim);padding:6px 10px;margin:6px 0;background:var(--panel);font-size:12px}
+.hint .lvl{color:var(--faint);font-size:10px;text-transform:uppercase;letter-spacing:.1em}
+
+/* Right pane: chat, tests, console */
+.chat{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow:auto}
+.msg{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:start}
+.msg .who{font-family:var(--font-crt);font-size:18px;color:var(--teal);line-height:1.1;text-shadow:0 0 6px var(--teal-glow)}
+.msg .txt{font-size:12px;border-left:2px solid var(--teal-dim);padding-left:8px;color:var(--text)}
+.msg.you .who{color:var(--amber);text-shadow:none}.msg.you .txt{border-color:var(--amber-dim);color:var(--muted)}
+.chat-input{display:flex;gap:6px;margin-top:8px}
+.chat-input input{flex:1;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);color:var(--text);padding:6px 8px;font:inherit}
+.tests{list-style:none;margin:0;padding:0;font-size:12px}
+.tests li{display:grid;grid-template-columns:16px 1fr auto;gap:8px;padding:4px 0;border-bottom:1px dashed var(--line-soft);align-items:baseline}
+.tests li:last-child{border-bottom:0}
+.tests .s{font-weight:600}
+.tests .pass .s{color:var(--pass)}.tests .fail .s{color:var(--fail)}.tests .idle .s{color:var(--faint)}
+.tests .ms{color:var(--faint);font-size:10px;font-variant-numeric:tabular-nums}
+.tests .hidden .n{color:var(--muted);font-style:italic}
+.tests .detail{grid-column:1/-1;background:var(--panel-2);border:1px solid var(--line);padding:6px 8px;border-radius:var(--radius);font-size:11px;white-space:pre-wrap;color:var(--muted)}
+.tests .detail b{color:var(--text);font-weight:500}
+.console{font-size:11px;background:#0d0a07;border:1px solid var(--line);padding:8px;border-radius:var(--radius);color:var(--muted);white-space:pre-wrap;max-height:140px;overflow:auto;min-height:48px}
+.console .err{color:var(--fail)}
+
+/* Bastion */
+.bastion{padding:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;align-content:start}
+.bastion .hero{grid-column:1/-1;display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:12px}
+.bastion .hero h1{font-family:var(--font-crt);font-size:52px;line-height:.9;margin:0;color:var(--amber);text-shadow:0 0 14px var(--amber-glow);letter-spacing:2px}
+.bastion .hero .sub{color:var(--muted);max-width:60ch}
+.building{display:flex;flex-direction:column;gap:6px}
+.building h3{font-family:var(--font-crt);font-size:22px;color:var(--text);text-transform:none;letter-spacing:0;margin:0}
+.building .role{font-size:10px;color:var(--faint);letter-spacing:.12em;text-transform:uppercase}
+.building .line{font-family:var(--font-crt);font-size:17px;color:var(--muted)}
+.building ul{margin:0;padding-left:16px;font-size:12px;color:var(--text)}
+.building .foot{margin-top:auto;display:flex;gap:6px;flex-wrap:wrap}
+.heat{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:11px;align-items:center}
+.heat .bar{width:100%}
+.rot{color:var(--fail)}
+
+/* Map */
+.mapwrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:1px;background:var(--line-soft);flex:1;min-height:0}
+@media (max-width:1000px){.mapwrap{grid-template-columns:1fr}}
+.mapsvg{width:100%;max-width:820px;height:auto;display:block;margin:0 auto}
+.mapsvg .edge{stroke:var(--line);stroke-width:2;fill:none}
+.mapsvg .edge.path{stroke:var(--amber-dim)}
+.mapsvg .node{cursor:pointer}
+.mapsvg .node circle{fill:var(--panel-2);stroke:var(--line);stroke-width:1.5}
+.mapsvg .node text{fill:var(--muted);font-family:var(--font-crt);font-size:20px;text-anchor:middle;dominant-baseline:central}
+.mapsvg .node.here circle{stroke:var(--amber);fill:#2b1f0f;filter:drop-shadow(0 0 6px var(--amber-glow))}
+.mapsvg .node.here text{fill:var(--amber)}
+.mapsvg .node.done circle{stroke:var(--pass)}.mapsvg .node.done text{fill:var(--pass)}
+.mapsvg .node.boss circle{stroke:var(--fail);r:22}
+.mapsvg .node:hover circle{stroke:var(--text)}
+.mapsvg .floorlbl{fill:var(--faint);font-size:10px;letter-spacing:.1em;text-anchor:end;font-family:var(--font-ui)}
+.legend{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:11px;color:var(--muted)}
+.legend b{font-family:var(--font-crt);font-size:18px;color:var(--text);font-weight:normal;text-align:center}
+.rationale li{margin-bottom:4px}
+
+/* Terminal */
+.term{background:#0b0805;border:1px solid var(--line);border-radius:var(--radius);padding:10px;font-family:var(--font-crt);font-size:19px;line-height:1.15;color:var(--amber);text-shadow:0 0 5px var(--amber-glow);min-height:320px;white-space:pre-wrap;overflow:auto}
+.term .dim{color:var(--amber-dim);text-shadow:none}
+.term .err{color:var(--fail);text-shadow:none}
+.cursor{display:inline-block;width:.6em;height:1em;background:var(--amber);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.checks li .n{color:var(--text)}
+
+/* Debrief */
+.debrief{padding:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;align-content:start}
+.debrief .wide{grid-column:1/-1}
+.bigstat{display:flex;gap:24px;flex-wrap:wrap}
+.bigstat div{display:flex;flex-direction:column}
+.bigstat b{font-family:var(--font-crt);font-size:40px;line-height:1;color:var(--amber);font-weight:normal;text-shadow:0 0 8px var(--amber-glow);font-variant-numeric:tabular-nums}
+.bigstat span{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.1em}
+.commits{display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;font-size:12px;align-items:center}
+.commits .bar{width:100%}
+.rubric{display:grid;grid-template-columns:1fr auto;gap:3px 10px;font-size:12px}
+.rubric .sc{font-variant-numeric:tabular-nums;color:var(--amber)}
+.loot li{margin-bottom:4px}
+.loot .rare{color:var(--teal)}
+
+/* Settings */
+.settings{padding:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-content:start}
+table{border-collapse:collapse;width:100%;font-size:12px}
+th,td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+th{color:var(--faint);font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:.1em}
+.pill{display:inline-block;font-size:10px;padding:1px 7px;border-radius:10px;border:1px solid var(--line)}
+.pill.ok{color:var(--pass);border-color:var(--pass)}.pill.no{color:var(--faint)}.pill.warn{color:var(--warn);border-color:var(--warn)}
+select,input[type="checkbox"]{font:inherit;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:var(--radius);padding:3px 6px}
+.toggle{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line-soft);font-size:12px}
+
+/* Overlays */
+.overlay{position:fixed;inset:0;background:rgba(10,7,4,.85);display:flex;align-items:center;justify-content:center;z-index:60;padding:16px}
+.overlay[hidden]{display:none}
+.panic{max-width:640px;width:100%;border:1px solid var(--fail);background:#160a08;padding:22px;font-family:var(--font-crt);font-size:20px;color:var(--text);line-height:1.2}
+.panic h2{margin:0 0 10px;font-size:44px;color:var(--fail);letter-spacing:3px;text-shadow:0 0 10px rgba(226,88,79,.5);font-weight:normal}
+.panic .dim{color:var(--muted)}
+.palette{max-width:520px;width:100%;border:1px solid var(--line);background:var(--panel);border-radius:var(--radius);padding:10px;align-self:flex-start;margin-top:12vh}
+.palette input{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:8px 10px;font:inherit;border-radius:var(--radius)}
+.palette ul{list-style:none;margin:8px 0 0;padding:0;max-height:300px;overflow:auto}
+.palette li{display:flex;justify-content:space-between;padding:6px 8px;border-radius:var(--radius);cursor:pointer;font-size:12px}
+.palette li:hover,.palette li.sel{background:var(--panel-3);color:var(--amber)}
+.palette li kbd{color:var(--faint);font-family:inherit;font-size:11px}
+.victory{border:1px solid var(--pass);background:#0f160c;padding:12px;border-radius:var(--radius)}
+.victory h3{color:var(--pass);font-family:var(--font-crt);font-size:24px;letter-spacing:0;text-transform:none;margin:0 0 6px}
+.victory ul{margin:0 0 8px;padding-left:18px;font-size:12px}
+
+/* Status bar */
+.statusbar{display:flex;gap:18px;padding:5px 16px;border-top:1px solid var(--line);background:var(--panel);font-size:11px;color:var(--faint);flex-wrap:wrap}
+.statusbar kbd{color:var(--muted);font-family:inherit;border:1px solid var(--line);border-radius:2px;padding:0 4px;font-size:10px}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.cursor{animation:none}}
+</style>
+</head>
+<body>
+<div class="crt" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">ROOTWARD<small>v0.0.1 · UI mockup · nothing here is real</small></div>
+  <nav class="screens" role="tablist" aria-label="Screens">
+    <button role="tab" data-screen="bastion" aria-selected="false">1 Bastion</button>
+    <button role="tab" data-screen="map" aria-selected="false">2 Expedition</button>
+    <button role="tab" data-screen="encounter" aria-selected="true">3 Encounter</button>
+    <button role="tab" data-screen="terminal" aria-selected="false">4 Terminal</button>
+    <button role="tab" data-screen="debrief" aria-selected="false">5 Debrief</button>
+    <button role="tab" data-screen="settings" aria-selected="false">6 Settings</button>
+  </nav>
+  <div class="hud-mini" aria-live="polite">
+    <span>Integrity <b id="mini-int">74</b></span>
+    <span>Focus <b id="mini-focus">3</b>/5</span>
+    <span>Cycles <b id="mini-cyc">140</b></span>
+    <span>Artificer <b>v1.4.2</b></span>
+  </div>
+</header>
+
+<main>
+
+<!-- ============================== BASTION ============================== -->
+<section class="screen" id="screen-bastion" role="tabpanel">
+  <div class="bastion">
+    <div class="hero">
+      <h1>THE BASTION</h1>
+      <div class="sub narr">The town at the top of the Machine. Everything below it is rotting slowly. <em>You are a Maintainer.</em> The Guild has given you a daemon named Lint and a very long to-do list.</div>
+      <button class="btn primary" data-goto="map">Begin expedition →</button>
+    </div>
+
+    <div class="block building">
+      <div class="role">Guild Hall</div><h3>Your character</h3>
+      <dl class="kv"><dt>Name</dt><dd>joe.maintainer</dd><dt>Class</dt><dd>Artificer (software engineer)</dd><dt>Version</dt><dd>v1.4.2 <span class="tag">patch = fight</span><span class="tag">minor = dungeon</span></dd><dt>Oath</dt><dd>Oath of the Web</dd><dt>Streak</dt><dd>6 days</dd></dl>
+      <div class="line">"Multiclass unlocks at v3.0.0. Bring tests."</div>
+      <div class="foot"><button class="btn">Change oath</button><button class="btn">Daily Issue <small>1 challenge</small></button></div>
+    </div>
+
+    <div class="block building">
+      <div class="role">Familiar · AI Tutor</div><h3>Lint</h3>
+      <div class="line">"You retreated from the Goblin twice this week. Retreat is not defeat. It is a checkpoint. But three times is a pattern."</div>
+      <ul><li>Model: <code>ollama / qwen2.5-coder:7b</code></li><li>Hint budget today: 3 used</li></ul>
+      <div class="foot"><button class="btn" data-goto="settings">Switch model</button></div>
+    </div>
+
+    <div class="block building">
+      <div class="role">Loremaster · Journal</div><h3>The Changelog</h3>
+      <div class="line">"The Maintainer entered the Recursive Catacombs. The Catacombs took note. Four rooms fell. The fifth remembered the Maintainer's name and waited."</div>
+      <ul><li>Last run: 4/7 rooms, Kernel Panic at floor 5</li><li>Cause of death: Infinite Loop Hydra (Timeout Breath)</li></ul>
+      <div class="foot"><button class="btn" data-goto="debrief">Read last debrief</button></div>
+    </div>
+
+    <div class="block building">
+      <div class="role">Progress</div><h3>The Chronicle</h3>
+      <div class="heat">
+        <span>The Foundry</span><span class="bar mastery"><i style="width:78%"></i></span>
+        <span>Grove of Structures</span><span class="bar mastery"><i style="width:41%"></i></span>
+        <span>Kernel Halls</span><span class="bar mastery"><i style="width:35%"></i></span>
+        <span>The Archives</span><span class="bar mastery"><i style="width:12%"></i></span>
+        <span>Spire of Applications</span><span class="bar mastery"><i style="width:22%"></i></span>
+        <span>Cloud Citadel</span><span class="bar mastery"><i style="width:4%"></i></span>
+      </div>
+      <ul><li class="rot">Bit Rot: <code>sh.permissions</code>, <code>py.iterators.generators</code> (2 nodes rotting)</li><li>Due for review: 9 cards</li></ul>
+      <div class="foot"><button class="btn">Open skill map</button></div>
+    </div>
+
+    <div class="block building">
+      <div class="role">Forge</div><h3>The Compiler</h3>
+      <div class="line">"Bring me the function. And its tests. No tests, no spell."</div>
+      <ul><li>Spellbook: <code>chunk()</code>, <code>retry()</code>, <code>group_by()</code>, <code>parse_kv()</code></li><li>1 Spell Fragment waiting to be forged</li></ul>
+      <div class="foot"><button class="btn">Forge a spell</button></div>
+    </div>
+
+    <div class="block building">
+      <div class="role">Quartermaster</div><h3>The Package Manager</h3>
+      <div class="line">"Only three transitive dependencies! A bargain!"</div>
+      <ul><li>Coffee — 30 Cycles (restore 25 Integrity)</li><li>Debugger's Compass — 90 Cycles</li><li>Duct Tape — 120 Cycles (accept one failing hidden test, once)</li></ul>
+      <div class="foot"><button class="btn">Browse</button></div>
+    </div>
+
+    <div class="block building">
+      <div class="role">Reference</div><h3>The Library</h3>
+      <ul><li>Tome of Big-O <span class="tag">unlocked</span></li><li>Regex Rosetta <span class="tag">unlocked</span></li><li>Scroll of Docs: Python <span class="tag">unlocked</span></li><li>Tome of Joins <span class="tag">locked</span></li></ul>
+      <div class="foot"><button class="btn">Read</button></div>
+    </div>
+
+    <div class="block building">
+      <div class="role">Practice</div><h3>The Testing Grounds</h3>
+      <div class="line">"No loot. No narrative. Just reps."</div>
+      <ul><li>Drill a node: pick concept, difficulty, language</li><li>Suggested: <code>py.collections.dict</code> at difficulty 4</li></ul>
+      <div class="foot"><button class="btn">Drill</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== MAP ============================== -->
+<section class="screen" id="screen-map" role="tabpanel">
+  <div class="mapwrap">
+    <div class="pane">
+      <div>
+        <h2 class="crt-title">The Recursive Catacombs</h2>
+        <div class="narr">Foundry · Grove crossover · seed <em>0x5EED</em> · 7 floors · standard length</div>
+      </div>
+      <svg class="mapsvg" viewBox="0 0 820 520" role="img" aria-label="Branching expedition map with 7 floors">
+        <g id="map-edges"></g>
+        <g id="map-nodes"></g>
+      </svg>
+      <div class="narr">Pick the next room. Every path teaches the same nodes; the Elite path pays better and hurts more.</div>
+    </div>
+    <div class="pane">
+      <div class="block">
+        <h3>Legend</h3>
+        <div class="legend"><b>✦</b><span>Shrine: micro-lesson, always before a new concept</span><b>⚔</b><span>Encounter: code fight</span><b>☠</b><span>Elite: counterattacks and constraint curses</span><b>?</b><span>Puzzle: predict, spot-the-bug, Parsons</span><b>☕</b><span>Rest: review cards, restores Integrity</span><b>$</b><span>Merchant</span><b>▣</b><span>Legacy System (boss)</span></div>
+      </div>
+      <div class="block">
+        <h3>Why this dungeon</h3>
+        <ul class="rationale" style="margin:0;padding-left:16px;font-size:12px">
+          <li><b>Due review:</b> <code>py.collections.list</code> (retrievability 0.64) → floor 1 Rest + floor 3 Encounter</li>
+          <li><b>Frontier:</b> <code>py.control.comprehensions</code> (mastery 0) → Shrine on floor 2, Encounter on floor 3</li>
+          <li><b>Frontier:</b> <code>algo.recursion</code> (mastery 1, rating 940) → target 74% success → difficulty 3</li>
+          <li><b>Stretch:</b> Elite <code>ds.stack</code> on floor 5, optional</li>
+          <li><b>Boss:</b> "Nested Sum Necropolis" combines recursion + lists</li>
+        </ul>
+      </div>
+      <div class="block">
+        <h3>Selected room</h3>
+        <div id="map-detail" class="narr">Floor 3 · <em>Encounter</em> · Off-By-One Goblin · <code>py.collections.list</code> · difficulty 3</div>
+        <div class="actions" style="margin-top:8px"><button class="btn primary" data-goto="encounter">Enter room →</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== ENCOUNTER ============================== -->
+<section class="screen active" id="screen-encounter" role="tabpanel">
+  <div class="panes">
+    <!-- LEFT -->
+    <aside class="pane">
+      <div class="block">
+        <h3>Expedition · floor 3 of 7</h3>
+        <ul class="floors">
+          <li class="done"><span class="g">✔</span>Rest · The Quiet Buffer</li>
+          <li class="done"><span class="g">✔</span>Shrine · Comprehensions</li>
+          <li class="here"><span class="g">⚔</span>Encounter · Off-By-One Goblin</li>
+          <li><span class="g">?</span>Puzzle · predict the output</li>
+          <li><span class="g">☠</span>Elite · Stack Sentinel (optional)</li>
+          <li><span class="g">$</span>Merchant</li>
+          <li><span class="g">▣</span>Boss · Nested Sum Necropolis</li>
+        </ul>
+      </div>
+      <div class="block">
+        <h3>Maintainer</h3>
+        <div class="stat"><span class="lbl">Integrity</span><span class="bar integrity"><i id="int-bar" style="width:74%"></i></span><span class="val" id="int-val">74</span></div>
+        <div class="stat"><span class="lbl">Focus</span><span class="pips" id="focus-pips"><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span></span><span class="val" id="focus-val">3/5</span></div>
+        <div class="stat"><span class="lbl">Cycles</span><span></span><span class="val" id="cyc-val">140</span></div>
+        <dl class="kv" style="margin-top:6px"><dt>Artifacts</dt><dd>Rubber Duck · Stack Trace Lens · Coffee ×1</dd><dt>Spells</dt><dd>4 in Spellbook</dd></dl>
+      </div>
+      <div class="block enemy" id="enemy-card">
+        <pre aria-hidden="true">   .-"""-.
+  / -   - \
+ |  o   o  |
+  \  .-.  /
+   '-----'
+  1 2 3 .. 5?</pre>
+        <p class="name">Off-By-One Goblin</p>
+        <div class="tier">Tier 1 · Foundry · displays HP one off, always</div>
+        <div class="stat" style="margin-top:6px"><span class="lbl">HP</span><span class="bar hp"><i id="hp-bar" style="width:100%"></i></span><span class="val" id="hp-val">14/13</span></div>
+        <div class="move" id="enemy-move">Next move: Edge Case</div>
+        <p class="taunt" id="taunt">Are you sure that's the last one?</p>
+      </div>
+    </aside>
+
+    <!-- CENTER -->
+    <div class="pane">
+      <div class="tabs" role="tablist" aria-label="Center panels">
+        <button role="tab" data-tab="task" aria-selected="true">Task</button>
+        <button role="tab" data-tab="editor" aria-selected="false">Editor · main.py</button>
+        <button role="tab" data-tab="lesson" aria-selected="false">Lesson</button>
+      </div>
+      <div class="tabpanel active task" id="tab-task">
+        <h2>Chunk the Ledger</h2>
+        <div class="meta"><span>foundry.py.chunk-list</span><span>difficulty 3</span><span>~6 min</span><span>python · javascript</span></div>
+        <div style="margin-bottom:8px"><span class="tag">py.collections.list</span><span class="tag">py.control.loops</span><span class="tag">slicing</span></div>
+        <p class="narr">The Goblin has torn the Guild's ledger into strips and insists there is nothing missing. <em>Count again.</em></p>
+        <p>Write <code>chunk(items, size)</code> that splits a list into consecutive chunks of <code>size</code>. The last chunk may be shorter. Raise <code>ValueError</code> when <code>size</code> is not positive.</p>
+        <pre>chunk([1, 2, 3, 4, 5], 2)  →  [[1, 2], [3, 4], [5]]
+chunk([], 3)               →  []
+chunk([1, 2], 5)           →  [[1, 2]]</pre>
+        <p><b>Tests:</b> 3 visible, 5 hidden. Hidden tests count double. <b>Efficiency band:</b> 10,000 items under 5 ms.</p>
+        <div class="actions"><button class="btn" data-tab-go="editor">Open the editor →</button></div>
+      </div>
+      <div class="tabpanel" id="tab-editor">
+        <div class="editor-wrap">
+          <div class="gutter" id="gutter"></div>
+          <textarea class="code" id="editor" spellcheck="false" aria-label="Code editor">def chunk(items, size):
+    """Split items into consecutive chunks of `size`.
+
+    The last chunk may be shorter than `size`.
+    """
+    if size <= 0:
+        raise ValueError("size must be positive")
+    out = []
+    for i in range(0, len(items) - 1, size):
+        out.append(items[i:i + size])
+    return out
+</textarea>
+        </div>
+        <div class="editor-status"><span>python 3.12 · wasm-python</span><span id="lines">11 lines</span><span>max 25</span><span class="ok">no banned tokens</span><span>vim: off</span></div>
+        <div class="actions">
+          <button class="btn" id="btn-probe" title="Ctrl+Shift+Enter">▷ Probe <small>free · visible tests</small></button>
+          <button class="btn primary" id="btn-cast" title="Ctrl+Enter">✦ Cast <small>1 Focus · all tests</small></button>
+          <button class="btn" id="btn-hint">? Hint <small id="hint-cost">20 Cycles</small></button>
+          <button class="btn danger" id="btn-retreat">↩ Retreat</button>
+        </div>
+        <div class="abilities">
+          <button class="btn" id="ab-inspect">Inspect <small>reveal 1 hidden test · 20¢</small></button>
+          <button class="btn" id="ab-refactor">Refactor <small>reset starter · free</small></button>
+          <button class="btn" disabled>Memoize <small>v1.2 locked</small></button>
+          <button class="btn" disabled>Big-O Insight <small>v2.0 locked</small></button>
+        </div>
+        <div id="hints"></div>
+        <div id="victory" hidden></div>
+      </div>
+      <div class="tabpanel" id="tab-lesson">
+        <h2 class="crt-title" style="font-size:26px">Shrine of Slices</h2>
+        <p style="max-width:68ch"><code>range(start, stop, step)</code> produces <code>start, start+step, …</code> and stops <em>before</em> <code>stop</code>. So <code>range(0, 5, 2)</code> is <code>0, 2, 4</code>. Slicing is forgiving: <code>items[4:6]</code> on a five-item list returns <code>[items[4]]</code>, never an error.</p>
+        <p style="max-width:68ch"><b>Worked example.</b> To visit every start index of a chunk you want <code>0, size, 2·size, …</code> up to and including the last index that exists. Ask: what is the smallest <code>stop</code> that still includes index <code>len(items) - 1</code>?</p>
+        <p style="max-width:68ch"><b>Faded example.</b> <code>for i in range(0, ____, size):</code></p>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <aside class="pane">
+      <div class="block">
+        <h3>Lint</h3>
+        <div class="chat" id="chat">
+          <div class="msg"><span class="who">Lint</span><span class="txt">Goblin. Tier one. It counts on its fingers. Read the task, then Probe before you Cast. Probing is free; Casting costs Focus, and you have three.</span></div>
+        </div>
+        <div class="chat-input"><input id="chat-in" placeholder="Ask Lint something (mock: it answers with a question)" aria-label="Ask Lint"><button class="btn" id="chat-send">Ask</button></div>
+      </div>
+      <div class="block">
+        <h3>Tests · <span id="test-summary">not run</span></h3>
+        <ul class="tests" id="tests"></ul>
+      </div>
+      <div class="block">
+        <h3>Console</h3>
+        <div class="console" id="console">$ (idle) — Probe or Cast to run.</div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============================== TERMINAL ============================== -->
+<section class="screen" id="screen-terminal" role="tabpanel">
+  <div class="panes">
+    <aside class="pane">
+      <div class="block">
+        <h3>Expedition · Kernel Halls · floor 2 of 5</h3>
+        <ul class="floors">
+          <li class="done"><span class="g">✔</span>Shrine · Modes and owners</li>
+          <li class="here"><span class="g">⚔</span>Encounter · Permission Denied Golem</li>
+          <li><span class="g">?</span>Puzzle · what does this command do</li>
+          <li><span class="g">☕</span>Rest</li>
+          <li><span class="g">▣</span>Boss · Zombie Process</li>
+        </ul>
+      </div>
+      <div class="block">
+        <h3>Maintainer · Warden</h3>
+        <div class="stat"><span class="lbl">Integrity</span><span class="bar integrity"><i style="width:92%"></i></span><span class="val">92</span></div>
+        <div class="stat"><span class="lbl">Focus</span><span class="pips"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span></span><span class="val">4/5</span></div>
+        <dl class="kv" style="margin-top:6px"><dt>Snapshots</dt><dd>1 of 2 used</dd><dt>Container</dt><dd><code>rootward/warden</code> · no network · 256 MB</dd></dl>
+      </div>
+      <div class="block enemy">
+        <pre aria-hidden="true"> [########]
+ [# -rw- #]
+ [#  ()  #]
+ [########]
+  root:root</pre>
+        <p class="name">Permission Denied Golem</p>
+        <div class="tier">Tier 1 · Kernel Halls · made of wrong modes</div>
+        <div class="stat" style="margin-top:6px"><span class="lbl">Checks</span><span class="bar hp"><i style="width:60%"></i></span><span class="val">3/5</span></div>
+        <div class="move">Next move: Strike (each failing check × 4)</div>
+        <p class="taunt">You may look. You may not touch.</p>
+      </div>
+    </aside>
+    <div class="pane">
+      <div class="task">
+        <h2>Let the Deploy Run</h2>
+        <div class="meta"><span>kernel.sh.permissions-deploy</span><span>difficulty 2</span><span>terminal</span></div>
+        <p style="max-width:68ch"><code>/srv/app/deploy.sh</code> must run as <code>maintainer</code>, be executable only by its owner, never be world-writable, and write its log to <code>/var/log/app.log</code>. Do not use <code>chmod 777</code>. The Golem will know.</p>
+      </div>
+      <div class="term" id="term" aria-live="polite"></div>
+      <div class="actions" style="margin-top:8px">
+        <button class="btn" id="term-replay">Replay session</button>
+        <button class="btn primary">✦ Cast <small>run check.sh · 1 Focus</small></button>
+        <button class="btn">Snapshot <small>1 left</small></button>
+        <button class="btn">Runbook <small>steps, no commands · 30¢</small></button>
+        <button class="btn danger">↩ Retreat</button>
+      </div>
+    </div>
+    <aside class="pane">
+      <div class="block">
+        <h3>Lint</h3>
+        <div class="chat">
+          <div class="msg"><span class="who">Lint</span><span class="txt">Who owns the file? Who are you? Those are two different questions and the Golem is built on the gap between them.</span></div>
+        </div>
+      </div>
+      <div class="block">
+        <h3>Checks · 2 of 5</h3>
+        <ul class="tests checks">
+          <li class="pass"><span class="s">✔</span><span class="n">deploy.sh owned by maintainer:maintainer</span><span class="ms">12 ms</span></li>
+          <li class="fail"><span class="s">✘</span><span class="n">deploy.sh executable by owner</span><span class="ms">9 ms</span></li>
+          <li class="pass"><span class="s">✔</span><span class="n">deploy.sh not world-writable</span><span class="ms">8 ms</span></li>
+          <li class="fail"><span class="s">✘</span><span class="n">./deploy.sh exits 0 as maintainer</span><span class="ms">31 ms</span></li>
+          <li class="fail"><span class="s">✘</span><span class="n">/var/log/app.log written and readable by maintainer</span><span class="ms">7 ms</span></li>
+        </ul>
+      </div>
+      <div class="block">
+        <h3>Transcript tags</h3>
+        <div style="font-size:12px"><span class="tag">root-everything?</span><span class="tag">unchecked-exit-code</span></div>
+        <p style="font-size:11px;color:var(--faint);margin:6px 0 0">Derived from the pty transcript after the fight; feeds the Chronicle.</p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============================== DEBRIEF ============================== -->
+<section class="screen" id="screen-debrief" role="tabpanel">
+  <div class="debrief">
+    <div class="wide">
+      <h2 class="crt-title" style="font-size:40px">Debrief · The Recursive Catacombs</h2>
+      <div class="narr">The Changelog: <em>"Seven rooms. Six fell. The seventh was already fixed by the time the Maintainer arrived, which is the best kind of fight."</em></div>
+    </div>
+    <div class="block wide"><div class="bigstat"><div><b>7/7</b><span>rooms cleared</span></div><div><b>v1.5.0</b><span>version (minor bump)</span></div><div><b>+38</b><span>commits</span></div><div><b>2</b><span>crits</span></div><div><b>1</b><span>retreat</span></div><div><b>31m</b><span>elapsed</span></div></div></div>
+    <div class="block">
+      <h3>Commits by concept</h3>
+      <div class="commits">
+        <span><code>py.collections.list</code></span><span class="bar mastery"><i style="width:82%"></i></span><span>+12 · mastery 3 → 4</span>
+        <span><code>py.control.comprehensions</code></span><span class="bar mastery"><i style="width:45%"></i></span><span>+10 · mastery 0 → 2</span>
+        <span><code>algo.recursion</code></span><span class="bar mastery"><i style="width:58%"></i></span><span>+9 · mastery 1 → 2</span>
+        <span><code>ds.stack</code></span><span class="bar mastery"><i style="width:30%"></i></span><span>+7 · Elite, mastery 1 → 1</span>
+      </div>
+    </div>
+    <div class="block">
+      <h3>Reviewer · elegance 7.3 / 10</h3>
+      <div class="rubric"><span>Readability</span><span class="sc">8</span><span>Idiomatic Python</span><span class="sc">7</span><span>Simplicity</span><span class="sc">8</span><span>Edge-case awareness</span><span class="sc">6</span><span>Complexity awareness</span><span class="sc">8</span></div>
+      <p style="font-size:12px;color:var(--muted);margin:8px 0 0">"<code>chunk</code> reads well. Line 9: the slice already tolerates overrun, so the guard on line 6 is the only branch you need. Consider a comprehension: one line, same meaning."</p>
+    </div>
+    <div class="block">
+      <h3>Loot</h3>
+      <ul class="loot" style="margin:0;padding-left:16px;font-size:12px">
+        <li class="rare">Spell Fragment: <code>chunk()</code> → forge it at the Compiler</li>
+        <li>Tome of Slices (Library)</li>
+        <li>Coffee ×1</li>
+        <li>+96 Cycles</li>
+      </ul>
+    </div>
+    <div class="block">
+      <h3>Scheduled reviews</h3>
+      <ul style="margin:0;padding-left:16px;font-size:12px"><li><code>py.collections.list</code> · next review in 9 days (Good)</li><li><code>algo.recursion</code> · in 2 days (Hard: retreated once)</li><li><code>py.control.comprehensions</code> · tomorrow (new)</li></ul>
+    </div>
+    <div class="block wide">
+      <h3>What to study next</h3>
+      <p style="max-width:70ch;margin:0;font-size:12px">You handle lists well but reach for index loops when a comprehension or <code>zip</code> would do. The next expedition will pair <code>py.control.comprehensions</code> with <code>py.iterators.generators</code>, which is rotting. The recursion Retreat was a good call: the Shrine on the way in was too thin, and it has been flagged.</p>
+      <div class="actions" style="margin-top:10px"><button class="btn primary" data-goto="bastion">Return to the Bastion →</button><button class="btn">Export run (JSON)</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SETTINGS ============================== -->
+<section class="screen" id="screen-settings" role="tabpanel">
+  <div class="settings">
+    <div class="block" style="grid-column:1/-1"><h2 class="crt-title" style="font-size:32px">Settings · AI</h2><p class="narr" style="margin:4px 0 0">Every role can use a different model. Switch any of them mid-fight. The game runs with none of this configured.</p></div>
+    <div class="block">
+      <h3>Providers</h3>
+      <table><thead><tr><th>Provider</th><th>Status</th><th>Models</th><th></th></tr></thead><tbody>
+        <tr><td>ollama <span style="color:var(--faint)">localhost:11434</span></td><td><span class="pill ok">connected · 41 ms</span></td><td>qwen2.5-coder:7b, llama3.1:8b, deepseek-coder-v2</td><td><button class="btn" style="padding:3px 8px">Test</button></td></tr>
+        <tr><td>anthropic</td><td><span class="pill ok">key found</span></td><td>claude-opus-5, claude-sonnet-5, claude-haiku-4-5</td><td><button class="btn" style="padding:3px 8px">Test</button></td></tr>
+        <tr><td>openrouter</td><td><span class="pill warn">no key · OPENROUTER_API_KEY</span></td><td>—</td><td><button class="btn" style="padding:3px 8px">Test</button></td></tr>
+        <tr><td>lmstudio <span style="color:var(--faint)">localhost:1234</span></td><td><span class="pill no">unreachable</span></td><td>—</td><td><button class="btn" style="padding:3px 8px">Test</button></td></tr>
+      </tbody></table>
+    </div>
+    <div class="block">
+      <h3>Roles</h3>
+      <table><thead><tr><th>Role</th><th>Model</th><th>Fallback</th></tr></thead><tbody>
+        <tr><td>Tutor (Lint)</td><td><select id="sel-tutor"><option>ollama / qwen2.5-coder:7b</option><option>anthropic / claude-sonnet-5</option><option>off</option></select></td><td>anthropic / claude-sonnet-5</td></tr>
+        <tr><td>Loremaster</td><td><select id="sel-lore"><option>ollama / llama3.1:8b</option><option>anthropic / claude-haiku-4-5</option><option>off (static lore)</option></select></td><td>static lore</td></tr>
+        <tr><td>Forge</td><td><select id="sel-forge"><option>anthropic / claude-opus-5</option><option>ollama / deepseek-coder-v2</option><option>off</option></select></td><td>—</td></tr>
+        <tr><td>Reviewer</td><td><select id="sel-rev"><option>anthropic / claude-sonnet-5</option><option>ollama / qwen2.5-coder:7b</option><option>off (linter score)</option></select></td><td>linter score</td></tr>
+        <tr><td>Adversary</td><td><select id="sel-adv"><option>anthropic / claude-opus-5</option><option>off</option></select></td><td>—</td></tr>
+        <tr><td>Examiner</td><td><select id="sel-exam"><option>anthropic / claude-sonnet-5</option><option>off</option></select></td><td>—</td></tr>
+      </tbody></table>
+    </div>
+    <div class="block">
+      <h3>Privacy and limits</h3>
+      <div class="toggle"><span>Send my code to hosted providers</span><input type="checkbox" id="tg-code"></div>
+      <div class="toggle"><span>Keep AI transcripts in the Chronicle</span><input type="checkbox" id="tg-transcripts" checked></div>
+      <div class="toggle"><span>Daily cost cap</span><span>$5.00</span></div>
+      <div class="toggle"><span>Allow unsandboxed process runner</span><span class="pill no">off (recommended)</span></div>
+      <div class="toggle"><span>Sound</span><input type="checkbox" id="tg-sound"></div>
+      <div class="toggle"><span>Renderer</span><select id="sel-render"><option>ascii</option><option>tiles (1-bit pack)</option></select></div>
+    </div>
+    <div class="block">
+      <h3>Usage today</h3>
+      <div class="bigstat"><div><b>12</b><span>calls</span></div><div><b>18.4k</b><span>tokens</span></div><div><b>$0.04</b><span>est. cost</span></div><div><b>2</b><span>fallbacks</span></div></div>
+      <p style="font-size:11px;color:var(--faint);margin:8px 0 0">Command palette: <code>/model tutor ollama qwen2.5-coder:7b</code> · <code>/ai off</code></p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="statusbar">
+  <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> Cast</span><span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> Probe</span><span><kbd>Ctrl</kbd>+<kbd>K</kbd> Commands</span><span><kbd>1</kbd>–<kbd>6</kbd> Screens</span><span style="margin-left:auto">wasm-python ready · docker: not detected · ollama: connected</span>
+</footer>
+
+<!-- Overlays -->
+<div class="overlay" id="panic" hidden role="alertdialog" aria-labelledby="panic-title">
+  <div class="panic">
+    <h2 id="panic-title">KERNEL PANIC</h2>
+    <div>Kernel panic - not syncing: Maintainer out of Focus.</div>
+    <div class="dim">[ 31.337 ] Off-By-One Goblin is still standing (it says 8/13; it means 7).</div>
+    <div class="dim">[ 31.338 ] Commits earned this run: kept. Loot: dropped. Coffee: also dropped, tragically.</div>
+    <div class="dim">[ 31.339 ] Concept py.collections.list scheduled for review in 1 day.</div>
+    <div style="margin-top:14px" class="actions"><button class="btn primary" id="panic-back">Return to the Bastion</button><button class="btn" id="panic-retry">Restart this mock encounter</button></div>
+  </div>
+</div>
+<div class="overlay" id="palette" hidden role="dialog" aria-label="Command palette">
+  <div class="palette">
+    <input id="palette-in" placeholder="Type a command…  (try: cast, probe, model, retreat)" aria-label="Command">
+    <ul id="palette-list"></ul>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = (s, r=document) => r.querySelector(s);
+  const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- screens ----------
+  function showScreen(id){
+    $$('.screen').forEach(s => s.classList.toggle('active', s.id === 'screen-'+id));
+    $$('.screens [role=tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.screen === id)));
+    if (id === 'terminal') typeTerminal();
+    if (id === 'map') drawMap();
+  }
+  $$('.screens [role=tab]').forEach(b => b.addEventListener('click', () => showScreen(b.dataset.screen)));
+  $$('[data-goto]').forEach(b => b.addEventListener('click', () => showScreen(b.dataset.goto)));
+
+  // ---------- center tabs ----------
+  function showTab(id){
+    $$('#screen-encounter .tabs [role=tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === id)));
+    $$('#screen-encounter .tabpanel').forEach(p => p.classList.toggle('active', p.id === 'tab-'+id));
+    if (id === 'editor') $('#editor').focus();
+  }
+  $$('#screen-encounter .tabs [role=tab]').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  $$('[data-tab-go]').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tabGo)));
+
+  // ---------- editor gutter ----------
+  const editor = $('#editor'), gutter = $('#gutter');
+  const STARTER = editor.value;
+  function updateGutter(){
+    const n = editor.value.split('\n').length;
+    gutter.textContent = Array.from({length:n}, (_,i)=>i+1).join('\n');
+    $('#lines').textContent = n + ' lines';
+  }
+  editor.addEventListener('input', updateGutter); updateGutter();
+
+  // ---------- fake fight state ----------
+  const S = { integrity:74, focus:3, cycles:140, hpMax:13, hp:13, casts:0, hints:0, alive:true, revealed:false };
+  const TESTS = [
+    {id:'v1', name:'splits an even list', hidden:false, w:1, buggyPass:true,  detail:'chunk([1, 2, 3, 4], 2)\nexpected [[1, 2], [3, 4]]'},
+    {id:'v2', name:'last chunk is shorter', hidden:false, w:1, buggyPass:false, detail:'chunk([1, 2, 3, 4, 5], 2)\nexpected [[1, 2], [3, 4], [5]]\nactual   [[1, 2], [3, 4]]'},
+    {id:'v3', name:'size larger than the list', hidden:false, w:1, buggyPass:true, detail:'chunk([1, 2], 5)\nexpected [[1, 2]]'},
+    {id:'h1', name:'boundary #1', hidden:true, w:2, buggyPass:true},
+    {id:'h2', name:'boundary #2', hidden:true, w:2, buggyPass:false},
+    {id:'h3', name:'size #1', hidden:true, w:2, buggyPass:false},
+    {id:'h4', name:'error handling #1', hidden:true, w:2, buggyPass:true},
+    {id:'h5', name:'large input (band: 5 ms)', hidden:true, w:2, buggyPass:false},
+  ];
+  const HINTS = [
+    'The failing tests share a property. Count the items in each of them. Odd or even?',
+    '<code>range(start, stop, step)</code> stops <em>before</em> <code>stop</code>. What is the last index in a five-item list, and does your <code>stop</code> still include it? [py.control.loops]',
+    'Plan: for <code>i</code> from 0 up to <code>len(items)</code> in steps of <code>size</code>, append <code>items[i:i + size]</code>. Slicing past the end is safe.',
+    'Change <code>len(items) - 1</code> to <code>len(items)</code>. That is the whole bug. The Goblin knew.',
+  ];
+  const LINT = {
+    probeFail: 'That loop. What is the last index it visits when <code>items</code> has five things? Walk it by hand: 0, 2, … and then?',
+    probePass: 'Visible tests green. Hidden tests are where goblins live. Cast when you are ready; Focus is not free.',
+    castBuggy: ['Five tests failing, and every one of them has an odd number of items. Coincidence is not a data structure.', 'Same failures. Same shape. Stop editing at random and read the failing test names.', 'You have one Focus left. Retreat is not defeat. It is a checkpoint.'],
+    castWin: 'All green. I have nothing to say, which is high praise.',
+    edge: 'The Goblin added a test. Strings this time. Same bug, different clothes. Your fix, when you find it, will cover both.',
+    retreat: 'Good call. Read the reference slowly, then explain line 9 back to me before we move on.',
+    ask: ['What did you expect, and what did you get? Where is the first place they could diverge?', 'Which test fails? Read its name aloud. Names are hints the author already paid for.', 'I could tell you. Then you would know it for an hour. Try Probe first.'],
+    duck: 'Rubber Duck: you explained it to the duck. The duck says: "so <code>stop</code> is exclusive, and you subtract one from it anyway?"'
+  };
+
+  function codeIsFixed(){
+    const c = editor.value;
+    const hasRange = /range\(\s*0\s*,\s*len\(items\)\s*,\s*size\s*\)/.test(c) || /range\(\s*0\s*,\s*len\(items\)\s*,\s*size\s*\)/.test(c.replace(/\s+/g,' '));
+    const stillBuggy = /len\(items\)\s*-\s*1/.test(c);
+    return hasRange && !stillBuggy;
+  }
+  function codeParses(){ return /def chunk\(/.test(editor.value) && /return/.test(editor.value); }
+
+  function renderTests(results){ // results: map id -> {status:'pass'|'fail'|'idle', ms}
+    const ul = $('#tests'); ul.innerHTML = '';
+    let pass=0, run=0;
+    TESTS.forEach(t => {
+      if (t.hidden && !S.revealed && t.id === 'h6') return;
+      const r = (results && results[t.id]) || {status:'idle'};
+      if (r.status !== 'idle') { run++; if (r.status==='pass') pass++; }
+      const li = document.createElement('li');
+      li.className = r.status + (t.hidden ? ' hidden' : '');
+      const glyph = r.status==='pass' ? '✔' : r.status==='fail' ? '✘' : '·';
+      li.innerHTML = `<span class="s">${glyph}</span><span class="n">${t.hidden ? 'hidden · ' : ''}${t.name}</span><span class="ms">${r.ms ? r.ms+' ms' : ''}</span>`;
+      if (!t.hidden && r.status==='fail' && t.detail) {
+        const d = document.createElement('div'); d.className='detail';
+        d.innerHTML = t.detail.replace(/^(expected|actual)/gm, '<b>$1</b>');
+        li.appendChild(d);
+      }
+      ul.appendChild(li);
+    });
+    $('#test-summary').textContent = run ? `${pass} / ${run} passing` : 'not run';
+  }
+  renderTests();
+
+  function say(html, who='Lint'){
+    const chat = $('#chat');
+    const m = document.createElement('div'); m.className = 'msg' + (who==='You' ? ' you' : '');
+    m.innerHTML = `<span class="who">${who}</span><span class="txt">${html}</span>`;
+    chat.appendChild(m); chat.scrollTop = chat.scrollHeight;
+  }
+  function log(text, err){ const c = $('#console'); c.innerHTML += (err?`<span class="err">${text}</span>`:text) + '\n'; c.scrollTop = c.scrollHeight; }
+  function setHud(){
+    $('#int-val').textContent = S.integrity; $('#int-bar').style.width = S.integrity + '%'; $('#mini-int').textContent = S.integrity;
+    $('#focus-val').textContent = S.focus + '/5'; $('#mini-focus').textContent = S.focus;
+    $$('#focus-pips span').forEach((p,i) => p.classList.toggle('on', i < S.focus));
+    $('#cyc-val').textContent = S.cycles; $('#mini-cyc').textContent = S.cycles;
+    const shown = S.alive ? S.hp + 1 : 0; // the Goblin displays HP one off, always
+    $('#hp-val').textContent = `${shown}/${S.hpMax}`; $('#hp-bar').style.width = (S.hp / S.hpMax * 100) + '%';
+  }
+  function taunt(t){ $('#taunt').textContent = t; }
+  function shake(){ const e = $('#enemy-card'); e.classList.remove('shake'); void e.offsetWidth; e.classList.add('shake'); }
+
+  function run(all){
+    const fixed = codeIsFixed();
+    if (!codeParses()) { log('SyntaxError: the Machine cannot parse this. (Mock evaluator: it only knows whether "len(items) - 1" is still there.)', true); return null; }
+    const results = {};
+    TESTS.forEach(t => { if (t.hidden && !all) return; results[t.id] = { status: (fixed || t.buggyPass) ? 'pass' : 'fail', ms: (Math.random()*3+0.4).toFixed(1) }; });
+    renderTests(results);
+    return { results, fixed };
+  }
+
+  $('#btn-probe').addEventListener('click', () => {
+    log('$ probe main.py  (visible tests only)');
+    const r = run(false); if (!r) return;
+    const failed = Object.values(r.results).filter(x=>x.status==='fail').length;
+    log(failed ? `${3-failed} passed, ${failed} failed in 4.1 ms` : '3 passed in 3.8 ms');
+    say(failed ? LINT.probeFail : LINT.probePass);
+  });
+
+  $('#btn-cast').addEventListener('click', () => {
+    if (!S.alive) return;
+    if (S.focus <= 0) { panic(); return; }
+    S.focus -= 1; S.casts += 1;
+    log('$ cast main.py  (all tests, 1 Focus)');
+    const r = run(true); if (!r) { setHud(); return; }
+    const passedW = TESTS.filter(t => r.results[t.id] && r.results[t.id].status==='pass').reduce((a,t)=>a+t.w,0);
+    const newHp = S.hpMax - passedW;
+    const dmg = S.hp - newHp;
+    S.hp = Math.max(0, newHp);
+    if (dmg > 0) { shake(); log(`→ ${dmg} damage (${passedW} test-weight passing)`); }
+    if (S.hp === 0) { win(); return; }
+    // enemy turn
+    if (S.casts === 1 && !S.revealed) {
+      S.revealed = true; S.hpMax += 2; S.hp += 2;
+      TESTS.push({id:'h6', name:'strings, odd length (revealed by Edge Case)', hidden:true, w:2, buggyPass:false});
+      renderTests(r.results); $('#enemy-move').textContent = 'Next move: Strike';
+      taunt('Did you count the letters too?'); log('Goblin uses Edge Case: a new hidden test appears (+2 HP).', true);
+      say(LINT.edge);
+    } else if (S.casts === 2) {
+      S.integrity = Math.max(0, S.integrity - 9); $('#enemy-move').textContent = 'Next move: Drain';
+      taunt('One short. Or one over. I forget which.'); log('Goblin uses Strike: −9 Integrity.', true); say(LINT.castBuggy[1]);
+    } else {
+      $('#enemy-move').textContent = 'Next move: Strike'; taunt('Still here. Off by one, as always.'); log('Goblin uses Drain: the next Cast costs the same, but it feels heavier.', true); say(LINT.castBuggy[2]);
+    }
+    if (S.casts === 1) say(LINT.castBuggy[0]);
+    setHud();
+    if (S.focus === 0) setTimeout(panic, 900);
+  });
+
+  function win(){
+    S.alive = false; setHud();
+    const card = $('#enemy-card'); card.classList.add('dead');
+    $('#enemy-move').textContent = 'Defeated'; taunt('...ten. Exactly ten.');
+    log('All 9 tests passed in 6.2 ms. Efficiency band: met.');
+    say(LINT.castWin);
+    const bonuses = [];
+    if (S.casts === 1) bonuses.push('<b>Crit</b>: all tests on the first Cast');
+    if (S.hints === 0) bonuses.push('<b>Unaided</b>: no hints');
+    bonuses.push('<b>True Sight</b>: hidden tests without Inspect');
+    bonuses.push('<b>Efficiency</b>: 10,000 items in 1.9 ms');
+    const v = $('#victory'); v.hidden = false; v.className = 'victory';
+    v.innerHTML = `<h3>Off-By-One Goblin defeated</h3><ul>${bonuses.map(b=>'<li>'+b+'</li>').join('')}<li>+12 Commits → <code>py.collections.list</code>, +4 → <code>py.control.loops</code></li><li>Loot: Spell Fragment <code>chunk()</code>, +36 Cycles</li></ul><div class="actions"><button class="btn primary" data-goto="map">Continue to the next room →</button><button class="btn" data-goto="debrief">Skip to debrief</button></div>`;
+    $$('[data-goto]', v).forEach(b => b.addEventListener('click', () => showScreen(b.dataset.goto)));
+    S.cycles += 36; setHud();
+  }
+
+  $('#btn-hint').addEventListener('click', () => {
+    if (S.hints >= HINTS.length) return;
+    const cost = 20 * (S.hints + 1);
+    if (S.cycles < cost) { say('Not enough Cycles. The Package Manager would like a word.'); return; }
+    S.cycles -= cost; const lvl = S.hints + 1; S.hints++;
+    const h = document.createElement('div'); h.className = 'hint';
+    h.innerHTML = `<div class="lvl">Hint ${lvl} of 4 · ${['nudge','concept','plan','partial'][lvl-1]} · −${cost} Cycles</div>${HINTS[lvl-1]}`;
+    $('#hints').appendChild(h);
+    $('#hint-cost').textContent = S.hints < HINTS.length ? (20*(S.hints+1)) + ' Cycles' : 'ladder spent';
+    setHud();
+  });
+
+  $('#btn-retreat').addEventListener('click', () => {
+    if (!S.alive) return;
+    S.alive = false; $('#enemy-card').classList.add('dead'); $('#enemy-move').textContent = 'You retreated'; taunt('Come back when you can count.');
+    editor.value = `def chunk(items, size):\n    """Split items into consecutive chunks of \`size\`."""\n    if size <= 0:\n        raise ValueError("size must be positive")\n    # range stops BEFORE stop, so stop must be len(items), not len(items) - 1.\n    # Slicing past the end is safe: items[4:6] on 5 items is [items[4]].\n    return [items[i:i + size] for i in range(0, len(items), size)]\n`;
+    updateGutter();
+    const v = $('#victory'); v.hidden = false; v.className = 'hint';
+    v.innerHTML = `<div class="lvl">Retreat · reference solution shown · no loot · <code>py.collections.list</code> scheduled for review tomorrow</div>
+      <b>What it required:</b> visit every chunk start index, including the last one.<br>
+      <b>Why yours failed:</b> <code>range(0, len(items) - 1, size)</code> stops before <code>len(items) - 1</code>, so any list whose last chunk starts at the final index loses it. Odd lengths, size 1, single items: all the same bug.<br>
+      <b>Pattern to remember:</b> exclusive upper bounds. When you subtract one from a <code>stop</code>, ask why.<br>
+      <b>Try later:</b> <code>chunk</code> as a generator that never builds the whole list.
+      <div class="actions" style="margin-top:8px"><button class="btn primary" data-goto="map">Continue →</button></div>`;
+    $$('[data-goto]', v).forEach(b => b.addEventListener('click', () => showScreen(b.dataset.goto)));
+    say(LINT.retreat); setHud();
+  });
+
+  $('#ab-inspect').addEventListener('click', () => {
+    if (S.cycles < 20) return; S.cycles -= 20; setHud();
+    const t = TESTS.find(x => x.id==='h2'); t.name = 'single item: chunk([7], 1) → [[7]]'; t.detail = 'chunk([7], 1)\nexpected [[7]]';
+    renderTests(); log('Inspect: hidden test boundary #2 revealed.'); say('There. One item, size one. Your loop visits <code>range(0, 0, 1)</code>. How many times is that?');
+  });
+  $('#ab-refactor').addEventListener('click', () => { editor.value = STARTER; updateGutter(); log('Refactor: starter code restored (free).'); });
+
+  function ask(){
+    const inp = $('#chat-in'); const q = inp.value.trim(); if (!q) return;
+    say(q, 'You'); inp.value = '';
+    setTimeout(() => say(/duck/i.test(q) ? LINT.duck : LINT.ask[Math.floor(Math.random()*LINT.ask.length)]), 400);
+  }
+  $('#chat-send').addEventListener('click', ask);
+  $('#chat-in').addEventListener('keydown', e => { if (e.key==='Enter') ask(); });
+
+  function panic(){ if (S.alive) $('#panic').hidden = false; }
+  $('#panic-back').addEventListener('click', () => { $('#panic').hidden = true; showScreen('bastion'); });
+  $('#panic-retry').addEventListener('click', () => location.reload());
+
+  // ---------- command palette ----------
+  const COMMANDS = [
+    {t:'Cast (run all tests)', k:'Ctrl+Enter', f:()=>{showScreen('encounter');showTab('editor');$('#btn-cast').click();}},
+    {t:'Probe (visible tests)', k:'Ctrl+Shift+Enter', f:()=>{showScreen('encounter');showTab('editor');$('#btn-probe').click();}},
+    {t:'Hint (next level)', k:'', f:()=>{showScreen('encounter');showTab('editor');$('#btn-hint').click();}},
+    {t:'Retreat', k:'', f:()=>{showScreen('encounter');$('#btn-retreat').click();}},
+    {t:'/model tutor ollama qwen2.5-coder:7b', k:'', f:()=>{showScreen('settings');$('#sel-tutor').selectedIndex=0;}},
+    {t:'/model tutor anthropic claude-sonnet-5', k:'', f:()=>{showScreen('settings');$('#sel-tutor').selectedIndex=1;}},
+    {t:'/ai off', k:'', f:()=>{showScreen('settings');$$('#screen-settings select').forEach(s=>{const o=Array.from(s.options).find(o=>/off/.test(o.text)); if(o) s.value=o.text;});}},
+    {t:'Go to Bastion', k:'1', f:()=>showScreen('bastion')},
+    {t:'Go to Expedition map', k:'2', f:()=>showScreen('map')},
+    {t:'Go to Encounter', k:'3', f:()=>showScreen('encounter')},
+    {t:'Go to Terminal room', k:'4', f:()=>showScreen('terminal')},
+    {t:'Go to Debrief', k:'5', f:()=>showScreen('debrief')},
+    {t:'Go to Settings', k:'6', f:()=>showScreen('settings')},
+    {t:'Toggle vim keybindings', k:'', f:()=>{const s=$('.editor-status span:last-child'); s.textContent = s.textContent==='vim: off'?'vim: on':'vim: off';}},
+  ];
+  let sel = 0;
+  function renderPalette(){
+    const q = $('#palette-in').value.toLowerCase();
+    const list = COMMANDS.filter(c => c.t.toLowerCase().includes(q));
+    sel = Math.min(sel, Math.max(0, list.length-1));
+    $('#palette-list').innerHTML = list.map((c,i)=>`<li class="${i===sel?'sel':''}" data-i="${COMMANDS.indexOf(c)}"><span>${c.t}</span><kbd>${c.k}</kbd></li>`).join('') || '<li><span style="color:var(--faint)">No command. Lint suggests reading the task.</span></li>';
+    $$('#palette-list li[data-i]').forEach(li => li.addEventListener('click', () => { closePalette(); COMMANDS[+li.dataset.i].f(); }));
+  }
+  function openPalette(){ $('#palette').hidden = false; $('#palette-in').value=''; sel=0; renderPalette(); $('#palette-in').focus(); }
+  function closePalette(){ $('#palette').hidden = true; }
+  $('#palette-in').addEventListener('input', renderPalette);
+  $('#palette-in').addEventListener('keydown', e => {
+    const items = $$('#palette-list li[data-i]');
+    if (e.key==='ArrowDown'){ sel=Math.min(sel+1, items.length-1); renderPalette(); e.preventDefault(); }
+    if (e.key==='ArrowUp'){ sel=Math.max(sel-1,0); renderPalette(); e.preventDefault(); }
+    if (e.key==='Enter'){ const li = items[sel]; if (li){ closePalette(); COMMANDS[+li.dataset.i].f(); } }
+    if (e.key==='Escape') closePalette();
+  });
+  $('#palette').addEventListener('click', e => { if (e.target === $('#palette')) closePalette(); });
+
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); openPalette(); return; }
+    if (e.key==='Escape'){ closePalette(); return; }
+    const inField = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+    if ((e.ctrlKey||e.metaKey) && e.key==='Enter'){ e.preventDefault(); showScreen('encounter'); showTab('editor'); (e.shiftKey ? $('#btn-probe') : $('#btn-cast')).click(); return; }
+    if (!inField && /^[1-6]$/.test(e.key)) showScreen(['bastion','map','encounter','terminal','debrief','settings'][+e.key-1]);
+  });
+
+  // ---------- map ----------
+  const FLOORS = [
+    [{g:'☕',t:'Rest',s:'done'},{g:'?',t:'Puzzle',s:'done'}],
+    [{g:'✦',t:'Shrine · Comprehensions',s:'done'},{g:'⚔',t:'Encounter · Null Wraith',s:''}],
+    [{g:'⚔',t:'Encounter · Off-By-One Goblin',s:'here'},{g:'⚔',t:'Encounter · Comprehension Imp',s:''},{g:'?',t:'Puzzle · Parsons',s:''}],
+    [{g:'?',t:'Puzzle · predict the output',s:''},{g:'☕',t:'Rest',s:''}],
+    [{g:'☠',t:'Elite · Stack Sentinel',s:''},{g:'⚔',t:'Encounter · Recursion Imp',s:''}],
+    [{g:'$',t:'Merchant',s:''},{g:'✦',t:'Shrine · Base cases',s:''}],
+    [{g:'▣',t:'Boss · Nested Sum Necropolis',s:'boss'}],
+  ];
+  const EDGES = [[0,0,1,0],[0,0,1,1],[0,1,1,1],[1,0,2,0],[1,0,2,1],[1,1,2,1],[1,1,2,2],[2,0,3,0],[2,1,3,0],[2,1,3,1],[2,2,3,1],[3,0,4,0],[3,0,4,1],[3,1,4,1],[4,0,5,0],[4,1,5,0],[4,1,5,1],[5,0,6,0],[5,1,6,0]];
+  const PATH = new Set(['0,0','1,0','2,0']);
+  let mapDrawn = false;
+  function pos(f,i){ const n = FLOORS[f].length; const x = 120 + (i + 0.5) * (660 / n); const y = 480 - f * 72; return {x,y}; }
+  function drawMap(){
+    if (mapDrawn) return; mapDrawn = true;
+    const ge = $('#map-edges'), gn = $('#map-nodes');
+    EDGES.forEach(([f1,i1,f2,i2]) => { const a=pos(f1,i1), b=pos(f2,i2); const p=document.createElementNS('http://www.w3.org/2000/svg','path'); const on = PATH.has(f1+','+i1) && PATH.has(f2+','+i2); p.setAttribute('class','edge'+(on?' path':'')); p.setAttribute('d',`M${a.x},${a.y} C${a.x},${(a.y+b.y)/2} ${b.x},${(a.y+b.y)/2} ${b.x},${b.y}`); ge.appendChild(p); });
+    FLOORS.forEach((fl,f) => {
+      const lbl = document.createElementNS('http://www.w3.org/2000/svg','text'); const y = pos(f,0).y; lbl.setAttribute('x',92); lbl.setAttribute('y',y+4); lbl.setAttribute('class','floorlbl'); lbl.textContent = 'FLOOR '+(f+1); gn.appendChild(lbl);
+      fl.forEach((n,i) => { const {x,y} = pos(f,i); const g = document.createElementNS('http://www.w3.org/2000/svg','g'); g.setAttribute('class','node '+n.s); g.setAttribute('tabindex','0'); g.setAttribute('role','button'); g.setAttribute('aria-label',n.t);
+        g.innerHTML = `<circle cx="${x}" cy="${y}" r="${n.s==='boss'?22:17}"></circle><text x="${x}" y="${y+1}">${n.g}</text>`;
+        const pick = () => { $('#map-detail').innerHTML = `Floor ${f+1} · <em>${n.t}</em>${n.s==='here'?' · you are here':''}`; };
+        g.addEventListener('click', pick); g.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') pick(); });
+        gn.appendChild(g); });
+    });
+  }
+
+  // ---------- terminal ----------
+  const SESSION = [
+    ['dim','rootward/warden · Debian · no network · you are maintainer (uid 1000)'],
+    ['', 'maintainer@kernel-halls:~$ ls -l /srv/app'],
+    ['', 'total 4'],
+    ['', '-rw------- 1 root root 812 Sep 13 18:20 deploy.sh'],
+    ['', 'maintainer@kernel-halls:~$ /srv/app/deploy.sh'],
+    ['err','bash: /srv/app/deploy.sh: Permission denied'],
+    ['', 'maintainer@kernel-halls:~$ sudo chown maintainer:maintainer /srv/app/deploy.sh'],
+    ['', 'maintainer@kernel-halls:~$ ls -l /srv/app/deploy.sh'],
+    ['', '-rw------- 1 maintainer maintainer 812 Sep 13 18:20 deploy.sh'],
+    ['dim','# check 1 passes. Lint: "Owned. Not runnable. The Golem is still standing on two of those three letters."'],
+    ['', 'maintainer@kernel-halls:~$ '],
+  ];
+  let termTyped = false;
+  function typeTerminal(force){
+    if (termTyped && !force) return; termTyped = true;
+    const el = $('#term'); el.innerHTML = '';
+    if (reduced) { el.innerHTML = SESSION.map(([c,t]) => c ? `<span class="${c}">${t}</span>` : t).join('\n') + '<span class="cursor"></span>'; return; }
+    let li = 0, ci = 0; const cur = document.createElement('span'); cur.className='cursor';
+    function step(){
+      if (li >= SESSION.length) { el.appendChild(cur); return; }
+      const [cls, text] = SESSION[li];
+      if (ci === 0) { const span = document.createElement('span'); if (cls) span.className = cls; span.dataset.line = li; el.appendChild(span); }
+      const span = el.querySelector(`[data-line="${li}"]`);
+      span.textContent = text.slice(0, ++ci);
+      if (ci >= text.length) { li++; ci = 0; if (li < SESSION.length) el.appendChild(document.createTextNode('\n')); setTimeout(step, cls ? 60 : 220); }
+      else setTimeout(step, cls==='dim' ? 4 : 14);
+      el.scrollTop = el.scrollHeight;
+    }
+    step();
+  }
+  $('#term-replay').addEventListener('click', () => typeTerminal(true));
+
+  setHud();
+})();
+</script>
+</body>
+</html>

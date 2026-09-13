@@ -1,0 +1,30 @@
+id: foundry.py.dict-word-count
+title: The Tally Wisp
+version: 1
+realm: foundry
+kind: code
+concepts: [py.collections.dict, py.strings.split]
+tags: [dict, counting, strings, empty-input]
+difficulty: 3
+tier: 1
+languages: [python, javascript]
+estimated_minutes: 6
+enemy: { template: tally-wisp, hp_override: null }
+constraints:
+  max_lines: 25
+  banned_tokens: []
+targets:
+  time_ms: 200
+  complexity: "O(n)"
+retreatable: true
+scoring: { crit: true, efficiency: true, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "A wisp of tallies flickers over the ledger..."
+  defeat: "The tallies settle into neat columns."
+author: core
+generated: null

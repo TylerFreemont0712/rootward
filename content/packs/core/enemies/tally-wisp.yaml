@@ -1,0 +1,13 @@
+id: tally-wisp
+name: Tally Wisp
+tier: 1
+realm_affinity: [foundry]
+base_atk: 4
+moves:
+  - { move: strike, weight: 4 }
+  - { move: edge-case, weight: 1, params: { category: empty-input } }
+loot_table: tier1-common
+flavor:
+  intro: "A wisp of tallies flickers over the ledger, counting the same word twice and the last word never."
+  taunt: ["Was that 'the' or 'The'?", "Punctuation counts. Doesn't it?"]
+  defeat: "The tallies settle into neat columns."
