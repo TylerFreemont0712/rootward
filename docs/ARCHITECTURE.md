@@ -27,7 +27,7 @@ persistence, ADR-0007 planner and map, ADR-0008 expedition run flow). The build 
 | `packages/content-schema` | zod schemas for every content and config file; the schema output *is* the file shape | zod | touch the filesystem |
 | `packages/content-tools` | load packs with file:line diagnostics, validate, build runner jobs, `content:validate` CLI | content-schema, runners | know game rules |
 | `packages/runners` | `Runner` contract, registry, limiter, io comparator, sentinel protocol, `wasm-js` runner (QuickJS in a worker thread), `wasm-python` runner (Pyodide in a permission-restricted child process), static code scanner | zod, QuickJS, Pyodide | import game code; `./static` must stay browser-safe |
-| `packages/core` | pure engine: seeded RNG, run events, `decide`/`evolve` for fights and rooms, moves, rewards, planner, map layout and pathfinding (`./map` is browser-safe) | content-schema (types), zod | do I/O, read clocks, or call `Math.random` |
+| `packages/core` | pure engine: seeded RNG, run events, `decide`/`evolve` for fights and rooms, moves, rewards, planner, learner model, map layout and pathfinding (`./map` is browser-safe) | content-schema (types), zod | do I/O, read clocks, or call `Math.random` |
 | `packages/shared` | HTTP contract as zod schemas | zod | import Node modules (the browser loads it) |
 | `apps/server` | Fastify host: content at startup, planner catalog, run service, sandbox, views | everything above | send hidden test data, the run seed, or keys to the client |
 | `apps/client` | React UI: Guild Board, walkable expedition map, three-pane encounter | shared, runners/static, core/map | run game rules (it renders server views; walking and fog of war are presentation) |
@@ -81,6 +81,22 @@ builds the client; Vitest compiles tests.
 - Tests use `InMemoryEventStore` / `InMemoryAttemptStore` or a temporary database; `apps/server/test/resume.test.ts`
   restarts a server on the same file.
 
+## The learner model
+
+The learner model is a projection of run events, rebuilt whenever it is needed (ADR-0009):
+
+1. `evidenceFromRun` (`packages/core/src/learner/evidence.ts`) walks one run's events and emits a record whenever a
+   fight ends (won, retreated, out of Focus, or a Kernel Panic) and when an expedition ends. A fight's concept tags
+   come from its `EncounterStarted` event.
+2. `buildLearnerModel` (`packages/core/src/learner/model.ts`) folds all evidence, oldest first, through
+   `applyEvidence`: mastery levels by the evidence rules, Elo ratings, Commits, weak spots, and the semver Version.
+   `creditedNodes` routes a fight played in another language to that language's node or to the shared concept.
+3. `LearnerService` (`apps/server/src/learner.ts`) reads every run through `EventStore.loadAll` (events with append
+   times) and serves the planner's snapshot, hint prices, `GET /api/learner` (the Chronicle), and
+   `GET /api/runs/:runId/debrief` (the model before and after one run).
+
+Mastery is never stored, so changing a rule and refolding rebuilds the whole history under the new rule.
+
 ## Content
 
 `loadContent` reads `content/packs/*` and returns a `ContentIndex` (maps of realms, skills, oaths, classes, enemies,
@@ -99,6 +115,7 @@ reference solution. See `docs/CONTENT_AUTHORING.md`.
 | Deterministic, seeded rules | `packages/core` (`randomFor`, decider) | `packages/core/test/encounter.test.ts` |
 | Rooms are entered only along the plan's edges | `packages/core/src/run/decide.ts` (`enterRoom`) | `packages/core/test/expedition.test.ts`, `apps/server/test/expedition.test.ts` |
 | The run seed (which predicts enemy moves) stays on the server | `apps/server/src/runs/views.ts` | `apps/server/test/expedition.test.ts` |
+| Mastery changes only through evidence | `packages/core/src/learner/model.ts` (`applyEvidence`) | `packages/core/test/learner.test.ts`, `apps/server/test/learner.test.ts` |
 | The reference solution satisfies its own constraints and passes its tests | `packages/content-tools/src/validate/` | `pnpm content:validate` |
 | The server is not reachable from the network | `ROOTWARD_HOST` defaults to `127.0.0.1` | manual |
 

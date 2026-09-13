@@ -261,6 +261,85 @@ export const RunResponse = z.strictObject({
 });
 export type RunResponse = z.infer<typeof RunResponse>;
 
+// ---- The learner model (ADR-0009) ----
+
+/** 0 Unseen, 1 Seen, 2 Assisted, 3 Unaided, 4 Retained, 5 Mastered. */
+export const MasteryLevel = z.int().min(0).max(5);
+
+export const WeakSpot = z.strictObject({ category: z.string(), count: z.int() });
+export type WeakSpot = z.infer<typeof WeakSpot>;
+
+export const LearnerNodeView = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+  realm: z.string(),
+  tier: z.int(),
+  mastery: MasteryLevel,
+  rating: z.number(),
+  commits: z.number(),
+  attempts: z.int(),
+  wins: z.int(),
+  lastSeen: z.string().optional(),
+});
+export type LearnerNodeView = z.infer<typeof LearnerNodeView>;
+
+export const LearnerView = z.strictObject({
+  /** The Maintainer's level as semver. */
+  version: z.string(),
+  fights: z.int(),
+  dungeonsCleared: z.int(),
+  /** Every skill node, with progress where there is any. */
+  nodes: z.array(LearnerNodeView),
+  weakSpots: z.array(WeakSpot),
+});
+export type LearnerView = z.infer<typeof LearnerView>;
+
+export const LearnerResponse = z.strictObject({ learner: LearnerView });
+export type LearnerResponse = z.infer<typeof LearnerResponse>;
+
+export const DebriefView = z.strictObject({
+  runId: z.string(),
+  status: z.enum(["active", "ended"]),
+  endReason: z.enum(["kernel-panic", "completed", "retreated", "abandoned"]).optional(),
+  language: z.string(),
+  roomsCleared: z.int(),
+  floors: z.int(),
+  versionBefore: z.string(),
+  versionAfter: z.string(),
+  /** Commits earned by the fights won in this run. */
+  commits: z.number(),
+  crits: z.int(),
+  retreats: z.int(),
+  fights: z.array(
+    z.strictObject({
+      roomId: z.string(),
+      title: z.string(),
+      outcome: z.enum(["won", "retreated", "exhausted", "kernel-panic"]),
+      bonuses: z.array(z.string()),
+      commits: z.number(),
+    }),
+  ),
+  /** Each concept this run was evidence for, before and after. */
+  concepts: z.array(
+    z.strictObject({
+      id: z.string(),
+      name: z.string(),
+      commits: z.number(),
+      masteryBefore: MasteryLevel,
+      masteryAfter: MasteryLevel,
+      ratingBefore: z.number(),
+      ratingAfter: z.number(),
+    }),
+  ),
+  weakSpots: z.array(WeakSpot),
+  /** Concepts the next expedition would introduce, from a planner preview. */
+  nextUp: z.array(z.strictObject({ id: z.string(), name: z.string() })),
+});
+export type DebriefView = z.infer<typeof DebriefView>;
+
+export const DebriefResponse = z.strictObject({ debrief: DebriefView });
+export type DebriefResponse = z.infer<typeof DebriefResponse>;
+
 export const ErrorResponse = z.strictObject({ error: ApiError });
 export type ErrorResponse = z.infer<typeof ErrorResponse>;
 

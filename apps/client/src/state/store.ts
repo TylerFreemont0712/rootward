@@ -1,4 +1,12 @@
-import type { ActionRequest, ChallengeSummary, FileMap, RunView, SessionLength } from "@rootward/shared";
+import type {
+  ActionRequest,
+  ChallengeSummary,
+  DebriefView,
+  FileMap,
+  LearnerView,
+  RunView,
+  SessionLength,
+} from "@rootward/shared";
 import { create } from "zustand";
 import { api, ApiError } from "../api/client.ts";
 
@@ -8,14 +16,16 @@ import { api, ApiError } from "../api/client.ts";
 const RUN_KEY = "rootward:run";
 const draftKey = (runId: string, roomId: string) => `rootward:draft:${runId}:${roomId}`;
 
-export type Busy = "loading" | "start" | "enter" | "probe" | "cast" | "hint" | "retreat" | "abandon";
+export type Busy = "loading" | "start" | "enter" | "probe" | "cast" | "hint" | "retreat" | "abandon" | "debrief";
 export type CenterTab = "task" | "editor";
-/** The Guild Board (no run), the expedition map, or a fight. */
-export type Screen = "board" | "map" | "encounter";
+/** The Guild Board (no run), the expedition map, a fight, or a finished run's debrief. */
+export type Screen = "board" | "map" | "encounter" | "debrief";
 
 export interface GameStore {
   challenges: ChallengeSummary[];
+  learner: LearnerView | undefined;
   run: RunView | undefined;
+  debrief: DebriefView | undefined;
   screen: Screen;
   files: FileMap;
   busy: Busy | undefined;
@@ -23,12 +33,15 @@ export interface GameStore {
   error: string | undefined;
   notice: string | undefined;
   loadChallenges: () => Promise<void>;
+  loadLearner: () => Promise<void>;
   resumeSavedRun: () => Promise<void>;
   startPractice: (challengeId: string, language: string) => Promise<void>;
   startExpedition: (language: string, length: SessionLength) => Promise<void>;
   enterRoom: (roomId: string) => Promise<void>;
   /** Leave a finished fight for the map. */
   showMap: () => void;
+  /** Open the debrief of the current run. */
+  showDebrief: () => Promise<void>;
   /** Back to the Guild Board. */
   leave: () => void;
   abandon: () => Promise<void>;
@@ -69,7 +82,7 @@ export const useGame = create<GameStore>()((set, get) => {
     }
   };
 
-  const act = (busy: Exclude<Busy, "loading" | "start" | "enter">, action: ActionRequest) =>
+  const act = (busy: "probe" | "cast" | "hint" | "retreat" | "abandon", action: ActionRequest) =>
     request(busy, async () => {
       const { run } = get();
       if (!run) return;
@@ -79,7 +92,9 @@ export const useGame = create<GameStore>()((set, get) => {
 
   return {
     challenges: [],
+    learner: undefined,
     run: undefined,
+    debrief: undefined,
     screen: "board",
     files: {},
     busy: undefined,
@@ -95,6 +110,14 @@ export const useGame = create<GameStore>()((set, get) => {
         set({ error: describe(error) });
       } finally {
         set({ busy: undefined });
+      }
+    },
+
+    loadLearner: async () => {
+      try {
+        set({ learner: (await api.learner()).learner });
+      } catch (error) {
+        set({ error: describe(error) });
       }
     },
 
@@ -141,10 +164,19 @@ export const useGame = create<GameStore>()((set, get) => {
       set({ screen: "map", notice: undefined });
     },
 
+    showDebrief: () =>
+      request("debrief", async () => {
+        const { run } = get();
+        if (!run) return;
+        const { debrief } = await api.debrief(run.runId);
+        set({ debrief, screen: "debrief" });
+      }),
+
     leave: () => {
       removeStorage(RUN_KEY);
-      set({ run: undefined, screen: "board", files: {}, notice: undefined, error: undefined });
+      set({ run: undefined, debrief: undefined, screen: "board", files: {}, notice: undefined, error: undefined });
       void get().loadChallenges();
+      void get().loadLearner();
     },
 
     abandon: async () => {

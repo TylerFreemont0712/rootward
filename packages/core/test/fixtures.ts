@@ -98,6 +98,8 @@ export interface EncounterOptions {
   mastery?: number;
   retreatable?: boolean;
   reserve?: ReserveTest[];
+  concepts?: string[];
+  language?: string;
 }
 
 export function startEncounter(options: EncounterOptions = {}): Scenario {
@@ -108,7 +110,8 @@ export function startEncounter(options: EncounterOptions = {}): Scenario {
       roomId: "room-1",
       challenge: {
         id: "foundry.py.dict-word-count",
-        language: "javascript",
+        concepts: options.concepts ?? ["py.collections.dict", "py.strings.split"],
+        language: options.language ?? "javascript",
         difficulty: 3,
         retreatable: options.retreatable ?? true,
         scoring: { crit: true, efficiency: true, elegance: true },

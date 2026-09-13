@@ -89,9 +89,12 @@ Task breakdown:
       restart (`apps/server/test/resume.test.ts`)
 - [ ] `db:export` / `db:import` JSON backups of the database
 - [ ] JavaScript unit-form harness (sentinel protocol inside QuickJS), moved from M0
-- [ ] Concepts per language: decide how a JavaScript play of a multi-language challenge credits `js.*` nodes (ADR)
+- [x] Concepts per language (ADR-0009): a fight credits the play language's counterpart node when one exists, otherwise
+      the shared concept node
 - [ ] Artificer Inspect and Refactor abilities (effect primitives `revealHiddenTest`, `resetStarter`)
-- [ ] Learner model: mastery 0-5 evidence rules, Elo update, error tags, FSRS glue, Commits, Version
+- [x] Learner model v1 (ADR-0009): evidence folded from run events; mastery levels 1-4 by the evidence rules, Elo
+      ratings, Commits per concept, weak spots, semver Version; feeds the planner snapshot and hint prices
+- [ ] FSRS glue (ts-fsrs): review cards, due reviews, Bit Rot flags, and mastery 5 with Teach-back (the last needs AI)
 - [x] Planner v1 in `packages/core` (ADR-0007, `docs/PLANNER.md`): language tracks, Elo selection, spine with safe
       branches, rationale, unit tests and a 1,000-seed property test
 - [x] Planner fixes found by previewing real content for a fresh learner (ADR-0007 amendment): a thin frontier grows
@@ -108,8 +111,9 @@ Task breakdown:
 - [ ] Learner simulation script (planner converges to target success on synthetic learners)
 - [ ] Rooms: Shrine, Puzzle (predict-output, spot-the-bug, Parsons), Rest, and multi-phase Boss (boss rooms already play
       as a boss-tier fight); enable lessons, puzzles, and due cards in `apps/server/src/planning.ts` as each lands
-- [ ] Screens: Bastion (character creation, Artificer, Oath of the Foundry), Debrief, Chronicle (the Guild Board stands
-      in for the Bastion; the Expedition map is done)
+- [x] Screens: Debrief (rooms, Version, Commits, mastery and rating before and after, weak spots, what comes next) and
+      Chronicle basics on the Guild Board
+- [ ] Screens: Bastion (character creation, Artificer, Oath of the Foundry) and a fuller Chronicle (skill map)
 - [ ] Content: `content:new`, `content:stats`, seed content per section 13.4 (Foundry Python + JS, Grove, puzzles,
       cards, 15 enemies, 12 items, Warden class data). Progress: 9 Foundry challenges in Python and JavaScript
       (values, variables, strings, conditionals, dictionaries) and 4 enemies (Tally Wisp, Off-By-One Goblin, Null
@@ -144,13 +148,15 @@ State (2026-09-14): M0 is done. M1 has the Python runner, SQLite persistence wit
 playable end to end: Guild Board, walkable ASCII map with fog of war, fights room by room, and a boss that ends the run
 (ADR-0008). Nine Foundry challenges exist, so a brand-new Python player's long expedition has nine rooms across values,
 variables, strings, and conditionals (JavaScript: seven rooms, because the shared concept graph reaches strings later).
-Nothing is learned between runs yet: every expedition plans for a brand-new player. Suggested order for the rest of M1:
-1. Learner model (mastery rules, Elo, FSRS via ts-fsrs, Commits, Version) feeding the planner's learner snapshot, then
-   the Debrief and Bastion screens, so each expedition builds on the last.
-2. Content: loops, lists, and functions challenges (the next frontier after a first run), more alternatives per node
-   so floors branch, the JavaScript track nodes, and the concepts-per-language ADR.
-3. Shrine, Puzzle, and Rest rooms.
-4. `db:export` / `db:import`.
+The learner model is live (ADR-0009): mastery, ratings, Commits, weak spots, and Version are folded from run events,
+the planner plans from them, and the Debrief and the Chronicle on the Guild Board show them. After one good run the
+frontier moves to concepts that have no challenges yet, so the planner falls back to practice. Suggested order for the
+rest of M1:
+1. Content for the next frontier: loops, lists, and functions challenges, plus more alternatives per node so floors
+   branch.
+2. Rest rooms with FSRS review cards (ts-fsrs), which also bring Bit Rot; then Shrine and Puzzle rooms.
+3. The Bastion (character creation, class and Oath choice) and a fuller Chronicle.
+4. `db:export` / `db:import`, the learner simulation script, and the JavaScript track nodes.
 
 Housekeeping: the folder is still named `ProgramMe`. Rename it to `Rootward` between sessions, not during one (moving
 the working directory breaks a running session).

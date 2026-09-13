@@ -1,5 +1,5 @@
 import type { ContentIndex } from "@rootward/content-tools";
-import type { LearnerSnapshot, PlannerCatalog, PlannerChallenge } from "@rootward/core";
+import type { PlannerCatalog, PlannerChallenge } from "@rootward/core";
 
 /**
  * Reduce loaded content to what the planner needs (ADR-0007). Only challenges the run flow can play today are offered:
@@ -35,6 +35,3 @@ export function buildPlannerCatalog(index: ContentIndex): PlannerCatalog {
     lessons: new Set(),
   };
 }
-
-/** The learner as the planner sees them until the learner model exists: every node unseen, nothing due. */
-export const EMPTY_LEARNER: LearnerSnapshot = { nodes: new Map(), dueCards: [], recentChallenges: new Set() };

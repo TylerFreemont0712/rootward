@@ -147,9 +147,20 @@ async function main(): Promise<void> {
     }
 
     await page.getByRole("heading", { name: "Expedition complete" }).waitFor();
-    const screenshot = path.join(resultsDir, "expedition-complete.png");
-    await page.screenshot({ path: screenshot });
-    console.log(`E2E passed: an expedition of ${rooms} rooms was completed in the browser. Screenshots in ${path.relative(root, resultsDir)}`);
+    await page.screenshot({ path: path.join(resultsDir, "expedition-complete.png") });
+
+    // The debrief shows what the run changed, and the Chronicle on the Guild Board remembers it.
+    await page.getByRole("button", { name: /Read the debrief/ }).click();
+    await page.getByRole("heading", { name: "Debrief", exact: true }).waitFor();
+    const summary = await page.locator(".bigstat").innerText();
+    if (!summary.includes(`${rooms}/${rooms}`) || !summary.includes("v1.1.0")) {
+      throw new Error(`expected every room cleared and version 1.1.0 in the debrief, got:\n${summary}`);
+    }
+    await page.screenshot({ path: path.join(resultsDir, "debrief.png"), fullPage: true });
+    await page.getByRole("button", { name: /Back to the Guild Board/ }).click();
+    await page.getByText("Maintainer v1.1.0").waitFor();
+
+    console.log(`E2E passed: an expedition of ${rooms} rooms was completed and debriefed in the browser. Screenshots in ${path.relative(root, resultsDir)}`);
   } catch (error) {
     console.error(`--- server output ---\n${serverLog.join("")}`);
     throw error;

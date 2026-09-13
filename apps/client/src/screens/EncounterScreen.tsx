@@ -10,6 +10,7 @@ export function EncounterScreen({ view }: { view: EncounterView }) {
   const cast = useGame((s) => s.cast);
   const probe = useGame((s) => s.probe);
   const leave = useGame((s) => s.leave);
+  const showDebrief = useGame((s) => s.showDebrief);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -40,7 +41,10 @@ export function EncounterScreen({ view }: { view: EncounterView }) {
             <div className="dim">[ run ] {view.enemy.name} is still standing.</div>
             <div className="dim">[ run ] Commits and reviews earned so far: kept. Loot: dropped.</div>
             <div className="actions">
-              <button type="button" className="btn primary" autoFocus onClick={leave}>
+              <button type="button" className="btn primary" autoFocus onClick={() => void showDebrief()}>
+                Read the debrief
+              </button>
+              <button type="button" className="btn" onClick={leave}>
                 Return to the Guild Board
               </button>
             </div>

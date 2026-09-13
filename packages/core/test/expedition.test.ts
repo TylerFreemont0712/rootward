@@ -33,6 +33,7 @@ const plan: DungeonPlan = {
 const setup = (challengeId: string): EncounterSetup => ({
   challenge: {
     id: challengeId,
+    concepts: ["py.collections.dict"],
     language: "javascript",
     difficulty: 3,
     retreatable: true,

@@ -8,19 +8,25 @@ import {
   type EncounterState,
   evolve,
   foldRun,
+  type LearnerModel,
+  type LearnerSnapshot,
   type PlannerCatalog,
   planDungeon,
+  type PlanResult,
   type RunCommand,
   type RunEvent,
   type RunState,
+  type SessionLength,
   type TestOutcome,
 } from "@rootward/core";
 import type { RunResult } from "@rootward/runners";
 import type {
   ActionRequest,
   ChallengeSummary,
+  DebriefView,
   EncounterView,
   EnterRoomRequest,
+  LearnerView,
   RunResponse,
   RunView,
   StartEncounterRequest,
@@ -28,13 +34,14 @@ import type {
 } from "@rootward/shared";
 import type { GameContent } from "../content.ts";
 import { ServiceError } from "../errors.ts";
-import { buildPlannerCatalog, EMPTY_LEARNER } from "../planning.ts";
+import { LearnerService } from "../learner.ts";
+import { buildPlannerCatalog } from "../planning.ts";
 import { LARGE_INPUT_CATEGORY, type Sandbox } from "../sandbox.ts";
 import type { RunArtifacts } from "./artifacts.ts";
 import { applyAttempt, type Attempt, type AttemptStore, InMemoryAttemptStore } from "./attempts.ts";
 import { KeyedLock } from "./lock.ts";
 import type { EventStore } from "./store.ts";
-import { buildEncounterView, buildRunView, type RoomDetails } from "./views.ts";
+import { buildDebriefView, buildEncounterView, buildLearnerView, buildRunView, type RoomDetails } from "./views.ts";
 
 /** One playable class and one Oath until the Bastion (M1) makes them a choice. */
 const DEFAULT_CLASS_ID = "artificer";
@@ -50,6 +57,8 @@ export interface RunServiceDeps {
   store: EventStore;
   attempts?: AttemptStore;
   newId?: () => string;
+  /** The current time as an ISO string; the learner model uses it for recency. */
+  now?: () => string;
 }
 
 interface PreparedCommand {
@@ -60,14 +69,17 @@ interface PreparedCommand {
 
 /** Orchestrates a run: loads events, runs code in the sandbox, asks the core rules, appends, and returns a view. */
 export class RunService {
+  /** The learner model, rebuilt from the same event store (ADR-0009). */
+  readonly learner: LearnerService;
   private readonly content: GameContent;
   private readonly sandbox: Sandbox;
   private readonly store: EventStore;
   private readonly attempts: AttemptStore;
   private readonly newId: () => string;
+  private readonly now: () => string;
+  private readonly catalog: PlannerCatalog;
   private readonly artifactCache = new Map<string, RunArtifacts>();
   private readonly lock = new KeyedLock();
-  private catalog: PlannerCatalog | undefined;
 
   constructor(deps: RunServiceDeps) {
     this.content = deps.content;
@@ -75,6 +87,9 @@ export class RunService {
     this.store = deps.store;
     this.attempts = deps.attempts ?? new InMemoryAttemptStore();
     this.newId = deps.newId ?? randomUUID;
+    this.now = deps.now ?? (() => new Date().toISOString());
+    this.catalog = buildPlannerCatalog(deps.content.index);
+    this.learner = new LearnerService({ store: deps.store, balance: deps.content.balance, catalog: this.catalog, now: this.now });
   }
 
   async listChallenges(): Promise<ChallengeSummary[]> {
@@ -112,7 +127,7 @@ export class RunService {
     return { run: await this.runView(foldRun(events), events) };
   }
 
-  /** Plan a dungeon for the character and start an expedition through it (ADR-0007, ADR-0008). */
+  /** Plan a dungeon from what the player knows and start an expedition through it (ADR-0007, ADR-0008, ADR-0009). */
   async startExpedition(request: StartExpeditionRequest): Promise<RunResponse> {
     const parsed = Language.safeParse(request.language);
     if (!parsed.success) {
@@ -122,23 +137,13 @@ export class RunService {
     if (!(await this.sandbox.canRun(language))) {
       throw new ServiceError(409, "no-runner", `No sandbox can run ${language} on this machine yet.`);
     }
-    const { balance, index } = this.content;
-    const classDef = this.classDef(DEFAULT_CLASS_ID);
     const seed = request.seed ?? this.newId();
-    this.catalog ??= buildPlannerCatalog(index);
-    const planned = planDungeon({
-      seed,
-      length: request.length ?? balance.planner.default_session,
-      language,
-      catalog: this.catalog,
-      learner: EMPTY_LEARNER,
-      oathRealms: index.oaths.get(DEFAULT_OATH_ID)?.value.weights.realms ?? {},
-      classAffinity: classDef.affinity,
-      balance,
-    });
+    const length = request.length ?? this.content.balance.planner.default_session;
+    const planned = this.plan(seed, length, language, await this.learner.snapshot());
     if (!planned.ok) throw new ServiceError(409, planned.error.code, planned.error.message);
 
     const runId = this.newId();
+    const classDef = this.classDef(DEFAULT_CLASS_ID);
     const events = this.applyAll(undefined, [{ type: "StartRun", runId, seed, classDef, plan: planned.plan }]);
     await this.store.create(runId, events);
     return { run: await this.runView(foldRun(events), events) };
@@ -184,6 +189,26 @@ export class RunService {
     });
   }
 
+  /** The Chronicle's data: every skill node and the player's progress (ADR-0009). */
+  async learnerView(): Promise<LearnerView> {
+    return buildLearnerView(await this.learner.model(), this.content.index.skills, this.content.balance.rating.initial_player);
+  }
+
+  /** What a run changed for the player, and what the next expedition would introduce. */
+  async debrief(runId: string): Promise<DebriefView> {
+    const state = foldRun(await this.loadEvents(runId));
+    const learning = await this.learner.forRun(runId);
+    const language = state.plan?.language ?? state.encounter?.language;
+    return buildDebriefView({
+      state,
+      learning,
+      context: this.learner.context,
+      describeChallenge: (id) => this.describeChallenge(id),
+      nodeName: (id) => this.content.index.skills.get(id)?.value.name ?? id,
+      nextUp: language === undefined ? [] : this.nextUp(language, learning.after),
+    });
+  }
+
   /** Append an accepted decision (and the attempt behind it), or report a refusal, and answer with the run view. */
   private async commit(
     runId: string,
@@ -202,6 +227,29 @@ export class RunService {
     }
     const all = [...events, ...decision.events];
     return { run: await this.runView(foldRun(all), all) };
+  }
+
+  private plan(seed: string, length: SessionLength, language: string, learner: LearnerSnapshot): PlanResult {
+    const { balance, index } = this.content;
+    return planDungeon({
+      seed,
+      length,
+      language,
+      catalog: this.catalog,
+      learner,
+      oathRealms: index.oaths.get(DEFAULT_OATH_ID)?.value.weights.realms ?? {},
+      classAffinity: this.classDef(DEFAULT_CLASS_ID).affinity,
+      balance,
+    });
+  }
+
+  /** The concepts a fresh plan would introduce next, as a preview for the debrief. */
+  private nextUp(language: string, model: LearnerModel): string[] {
+    const length = this.content.balance.planner.default_session;
+    const planned = this.plan("debrief-preview", length, language, this.learner.snapshotOf(model));
+    if (!planned.ok) return [];
+    const introduced = planned.plan.rooms.flatMap((room) => (room.purpose === "frontier" && room.nodeId !== undefined ? [room.nodeId] : []));
+    return [...new Set(introduced)];
   }
 
   private async prepare(state: RunState, action: ActionRequest): Promise<PreparedCommand> {
@@ -243,9 +291,11 @@ export class RunService {
     const { manifest } = challenge;
     const visible = challenge.visibleTests?.cases ?? [];
     const hidden = challenge.hiddenTests?.cases ?? [];
+    const primaryConcept = manifest.concepts[0];
     return {
       challenge: {
         id: manifest.id,
+        concepts: manifest.concepts,
         language,
         difficulty: manifest.difficulty,
         retreatable: manifest.retreatable,
@@ -266,8 +316,8 @@ export class RunService {
       reserve: hidden.flatMap((c) =>
         c.reserve && c.category !== undefined ? [{ id: c.id, name: c.name, category: c.category }] : [],
       ),
-      // The learner model (M1) will price hints by real mastery; until then every concept counts as new.
-      mastery: 0,
+      // Hints cost more on concepts the player has already shown they know (balance.yaml).
+      mastery: primaryConcept === undefined ? 0 : await this.learner.mastery(primaryConcept, language),
     };
   }
 

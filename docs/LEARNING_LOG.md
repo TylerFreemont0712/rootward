@@ -136,3 +136,15 @@ language feature took more than a minute to understand.
   event>` (`apps/server/src/runs/service.ts`), so entering a new room can never show the previous room's editor.
 - **Checking rules before expensive work, again.** `RunService.enterRoom` asks `decide` without a fight setup first;
   only a reachable fight room is worth loading a challenge and checking for a sandbox.
+
+## Learner model
+
+- **A projection instead of a table.** `buildLearnerModel` in `packages/core/src/learner/model.ts` folds evidence read
+  from run events. No mastery is stored anywhere, so a changed rule followed by a refold rebuilds all history (ADR-0009).
+- **Defaults keep old events readable.** `concepts: z.array(z.string()).default([])` on `EncounterState`
+  (`packages/core/src/run/types.ts`) lets events stored before the field existed still parse. The core test
+  "reads fights stored before concepts were recorded" proves it.
+- **Dates without clocks.** Core never calls `Date.now()`. Timestamps arrive with the evidence (the event store's append
+  time), and `learnerSnapshot` receives `now` as an argument, so tests use fixed dates.
+- **Before and after from one fold.** `LearnerService.forRun` (`apps/server/src/learner.ts`) builds the model from the
+  evidence before a run and again with the run's evidence added; the Debrief is the difference.

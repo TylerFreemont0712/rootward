@@ -1,12 +1,17 @@
 import { type Balance, type ClassDef, type Enemy, HINT_LEVEL_NAMES, Language, resolveStdin } from "@rootward/content-schema";
-import type { LoadedChallenge } from "@rootward/content-tools";
+import type { ContentIndex, LoadedChallenge } from "@rootward/content-tools";
 import {
+  creditedNodes,
   displayedEnemyHp,
   type DungeonPlan,
   type EncounterState,
   type EnemyAction,
   enemyHp,
   enemyHpMax,
+  type FightEvidence,
+  formatVersion,
+  type LearnerContext,
+  type LearnerModel,
   layoutDungeon,
   reachableRoomIds,
   retreatSuggested,
@@ -14,7 +19,8 @@ import {
   type RunState,
 } from "@rootward/core";
 import type { TestResult } from "@rootward/runners";
-import { EncounterView, type LogEntry, RunView, type TestView } from "@rootward/shared";
+import { DebriefView, EncounterView, LearnerView, type LogEntry, RunView, type TestView, type WeakSpot } from "@rootward/shared";
+import type { RunLearning } from "../learner.ts";
 import type { RunArtifacts } from "./artifacts.ts";
 
 // The only place where server state becomes client data. Fairness rule (PROMPT.md section 7.6): hidden tests leave
@@ -195,6 +201,98 @@ function expeditionView(state: RunState, plan: DungeonPlan, describeChallenge: R
     lastClearedRoomId: state.clearedRooms.at(-1)?.roomId,
     rationale: plan.rationale.map(({ kind, text }) => ({ kind, text })),
   };
+}
+
+/** The Chronicle's data: every skill node with the player's progress on it (ADR-0009). No test data is involved. */
+export function buildLearnerView(model: LearnerModel, skills: ContentIndex["skills"], initialRating: number): LearnerView {
+  const nodes = [...skills.values()]
+    .map(({ value }) => {
+      const progress = model.nodes.get(value.id);
+      return {
+        id: value.id,
+        name: value.name,
+        realm: value.realm,
+        tier: value.tier,
+        mastery: progress?.mastery ?? 0,
+        rating: Math.round(progress?.rating ?? initialRating),
+        commits: progress?.commits ?? 0,
+        attempts: progress?.attempts ?? 0,
+        wins: progress?.wins ?? 0,
+        lastSeen: progress?.lastSeen,
+      };
+    })
+    .sort((a, b) => a.realm.localeCompare(b.realm) || a.tier - b.tier || a.id.localeCompare(b.id));
+  return LearnerView.parse({
+    version: formatVersion(model.version),
+    fights: model.fights,
+    dungeonsCleared: model.dungeonsCleared,
+    nodes,
+    weakSpots: weakSpotViews(model.weakSpots),
+  });
+}
+
+export interface DebriefInput {
+  state: RunState;
+  learning: RunLearning;
+  context: LearnerContext;
+  describeChallenge: (challengeId: string) => RoomDetails | undefined;
+  nodeName: (nodeId: string) => string;
+  /** Concepts the next expedition would introduce. */
+  nextUp: readonly string[];
+}
+
+/** What a run changed: rooms, Version, Commits, and mastery and rating before and after for each concept. */
+export function buildDebriefView({ state, learning, context, describeChallenge, nodeName, nextUp }: DebriefInput): DebriefView {
+  const fights = learning.evidence.filter((item): item is FightEvidence => item.kind === "fight");
+  const concepts = [...new Set(fights.flatMap((fight) => creditedNodes(fight.concepts, fight.language, context.nodes)))];
+  const initialRating = context.balance.rating.initial_player;
+  const weakSpots = new Map<string, number>();
+  for (const fight of fights) {
+    for (const category of fight.failingCategories) weakSpots.set(category, (weakSpots.get(category) ?? 0) + 1);
+  }
+  const earned = (fight: FightEvidence) => (fight.outcome === "won" ? fight.commits : 0);
+
+  return DebriefView.parse({
+    runId: state.runId,
+    status: state.status,
+    endReason: state.endReason,
+    language: state.plan?.language ?? state.encounter?.language ?? "",
+    roomsCleared: state.plan ? state.clearedRooms.length : fights.filter((fight) => fight.outcome === "won").length,
+    floors: state.plan?.floors.length ?? 1,
+    versionBefore: formatVersion(learning.before.version),
+    versionAfter: formatVersion(learning.after.version),
+    commits: fights.reduce((sum, fight) => sum + earned(fight), 0),
+    crits: fights.filter((fight) => fight.bonuses.includes("crit")).length,
+    retreats: fights.filter((fight) => fight.outcome === "retreated" || fight.outcome === "exhausted").length,
+    fights: fights.map((fight) => ({
+      roomId: fight.roomId,
+      title: describeChallenge(fight.challengeId)?.title ?? fight.challengeId,
+      outcome: fight.outcome,
+      bonuses: [...fight.bonuses],
+      commits: earned(fight),
+    })),
+    concepts: concepts.map((id) => {
+      const before = learning.before.nodes.get(id);
+      const after = learning.after.nodes.get(id);
+      return {
+        id,
+        name: nodeName(id),
+        commits: (after?.commits ?? 0) - (before?.commits ?? 0),
+        masteryBefore: before?.mastery ?? 0,
+        masteryAfter: after?.mastery ?? 0,
+        ratingBefore: Math.round(before?.rating ?? initialRating),
+        ratingAfter: Math.round(after?.rating ?? initialRating),
+      };
+    }),
+    weakSpots: weakSpotViews(weakSpots),
+    nextUp: nextUp.map((id) => ({ id, name: nodeName(id) })),
+  });
+}
+
+function weakSpotViews(counts: ReadonlyMap<string, number>): WeakSpot[] {
+  return [...counts]
+    .map(([category, count]) => ({ category, count }))
+    .sort((a, b) => b.count - a.count || a.category.localeCompare(b.category));
 }
 
 function testViews(encounter: EncounterState, challenge: LoadedChallenge, artifacts: RunArtifacts): TestView[] {

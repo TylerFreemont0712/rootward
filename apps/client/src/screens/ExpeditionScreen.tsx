@@ -290,6 +290,8 @@ const END_TEXT: Readonly<Record<NonNullable<RunView["endReason"]>, string>> = {
 };
 
 function EndBanner({ run, expedition }: { run: RunView; expedition: ExpeditionView }) {
+  const showDebrief = useGame((s) => s.showDebrief);
+  const busy = useGame((s) => s.busy);
   const cleared = expedition.rooms.filter((room) => room.state === "cleared").length;
   const completed = run.endReason === "completed";
   return (
@@ -297,8 +299,13 @@ function EndBanner({ run, expedition }: { run: RunView; expedition: ExpeditionVi
       <h3>{completed ? "Expedition complete" : "Expedition over"}</h3>
       <p className="narr">{run.endReason ? END_TEXT[run.endReason] : ""}</p>
       <p>
-        {cleared} of {expedition.floorCount} floors cleared. The Debrief arrives with the learner model.
+        {cleared} of {expedition.floorCount} floors cleared.
       </p>
+      <div className="actions">
+        <button type="button" className="btn primary" disabled={busy !== undefined} onClick={() => void showDebrief()}>
+          Read the debrief →
+        </button>
+      </div>
     </section>
   );
 }

@@ -1,14 +1,15 @@
 import type { DatabaseSync } from "node:sqlite";
-import { RunEvent } from "@rootward/core";
+import { RunEvent, type TimedEvent } from "@rootward/core";
 import { z } from "zod";
 import { transaction } from "../db/database.ts";
 import { settle } from "../db/promise.ts";
-import type { EventStore } from "./store.ts";
+import type { EventStore, StoredRun } from "./store.ts";
 
-/** Written with every event. Bump it, and add an upcaster in `load`, when an event's stored shape changes. */
+/** Written with every event. Bump it, and add an upcaster in `parseEvent`, when an event's stored shape changes. */
 export const EVENT_PAYLOAD_VERSION = 1;
 
 const EventRow = z.object({ seq: z.number(), version: z.number(), payload: z.string() });
+const TimedEventRow = EventRow.extend({ runId: z.string(), at: z.string() });
 const CountRow = z.object({ count: z.number() });
 
 /** The run event log in SQLite (ADR-0006). */
@@ -62,15 +63,29 @@ export class SqliteEventStore implements EventStore {
       return rows.map((raw, index) => {
         const row = EventRow.parse(raw);
         if (row.seq !== index) throw new Error(`run ${runId} is missing event ${index}`);
-        if (row.version !== EVENT_PAYLOAD_VERSION) {
-          throw new Error(`run ${runId} event ${index} has payload version ${row.version}, and no upcaster exists`);
-        }
-        const parsed = RunEvent.safeParse(JSON.parse(row.payload));
-        if (!parsed.success) {
-          throw new Error(`run ${runId} event ${index} is not a valid event:\n${z.prettifyError(parsed.error)}`);
-        }
-        return parsed.data;
+        return parseEvent(runId, row);
       });
+    });
+  }
+
+  loadAll(): Promise<StoredRun[]> {
+    return settle(() => {
+      const rows = this.db
+        .prepare(
+          `SELECT e.run_id AS runId, e.seq, e.version, e.payload, e.created_at AS at
+             FROM run_events e JOIN runs r ON r.id = e.run_id
+            ORDER BY r.created_at, e.run_id, e.seq`,
+        )
+        .all();
+      const runs = new Map<string, TimedEvent[]>();
+      for (const raw of rows) {
+        const row = TimedEventRow.parse(raw);
+        const events = runs.get(row.runId) ?? [];
+        if (row.seq !== events.length) throw new Error(`run ${row.runId} is missing event ${events.length}`);
+        events.push({ event: parseEvent(row.runId, row), at: row.at });
+        runs.set(row.runId, events);
+      }
+      return [...runs].map(([runId, events]) => ({ runId, events }));
     });
   }
 
@@ -82,4 +97,16 @@ export class SqliteEventStore implements EventStore {
       statement.run(runId, firstSeq + offset, event.type, EVENT_PAYLOAD_VERSION, JSON.stringify(event), at);
     });
   }
+}
+
+/** Validate one stored event. Old payload versions would be upcast here. */
+function parseEvent(runId: string, row: z.infer<typeof EventRow>): RunEvent {
+  if (row.version !== EVENT_PAYLOAD_VERSION) {
+    throw new Error(`run ${runId} event ${row.seq} has payload version ${row.version}, and no upcaster exists`);
+  }
+  const parsed = RunEvent.safeParse(JSON.parse(row.payload));
+  if (!parsed.success) {
+    throw new Error(`run ${runId} event ${row.seq} is not a valid event:\n${z.prettifyError(parsed.error)}`);
+  }
+  return parsed.data;
 }

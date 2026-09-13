@@ -87,6 +87,9 @@ export type Scoring = z.infer<typeof Scoring>;
 export const EncounterState = z.strictObject({
   roomId: z.string(),
   challengeId: z.string(),
+  /** The challenge's concept tags when the fight started: what the fight is evidence for (ADR-0009). Events stored
+   * before this field existed read as no concepts. */
+  concepts: z.array(z.string()).default([]),
   language: z.string(),
   difficulty: z.number(),
   retreatable: z.boolean(),
@@ -187,6 +190,8 @@ export type RunEvent = z.infer<typeof RunEvent>;
 
 export interface EncounterChallenge {
   id: string;
+  /** Skill node ids the challenge is tagged with. */
+  concepts: readonly string[];
   language: string;
   difficulty: number;
   retreatable: boolean;

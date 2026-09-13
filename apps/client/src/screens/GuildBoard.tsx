@@ -1,14 +1,16 @@
-import type { SessionLength } from "@rootward/shared";
+import type { LearnerView, SessionLength } from "@rootward/shared";
 import { useState } from "react";
+import { masteryName, masteryWidth } from "../learner/mastery.ts";
 import { useGame } from "../state/store.ts";
 
 const LENGTHS: readonly SessionLength[] = ["short", "standard", "long"];
 /** Kickoff decision 6 (docs/ROADMAP.md): long expeditions unless the player picks otherwise. */
 const DEFAULT_LENGTH: SessionLength = "long";
 
-/** M1's stand-in for the Bastion: descend on an expedition, or practice a single fight. */
+/** M1's stand-in for the Bastion: descend on an expedition, read the Chronicle, or practice a single fight. */
 export function GuildBoard() {
   const challenges = useGame((s) => s.challenges);
+  const learner = useGame((s) => s.learner);
   const startPractice = useGame((s) => s.startPractice);
   const startExpedition = useGame((s) => s.startExpedition);
   const busy = useGame((s) => s.busy);
@@ -61,6 +63,8 @@ export function GuildBoard() {
         </div>
       </section>
 
+      {learner && <Chronicle learner={learner} />}
+
       <h2 className="board-heading">Practice a single fight</h2>
       {busy === "loading" && <p>Reading the board…</p>}
       {challenges.map((challenge) => (
@@ -91,5 +95,40 @@ export function GuildBoard() {
         </section>
       ))}
     </div>
+  );
+}
+
+/** Chronicle basics (PROMPT.md section 3): the Maintainer's version and every concept with evidence so far. */
+function Chronicle({ learner }: { learner: LearnerView }) {
+  const practiced = learner.nodes.filter((node) => node.attempts > 0);
+  return (
+    <section className="block card wide" aria-labelledby="chronicle-title">
+      <h2 id="chronicle-title">Chronicle</h2>
+      <div className="meta">
+        Maintainer v{learner.version} · {learner.fights} fights finished · {learner.dungeonsCleared} expeditions completed
+      </div>
+      {practiced.length === 0 ? (
+        <p className="narr">Nothing recorded yet. Every fight you finish becomes evidence here.</p>
+      ) : (
+        <ul className="progress-list columns">
+          {practiced.map((node) => (
+            <li key={node.id}>
+              <span title={node.id}>{node.name}</span>
+              <span className="bar mastery" aria-hidden="true">
+                <i style={{ width: masteryWidth(node.mastery) }} />
+              </span>
+              <span>
+                {masteryName(node.mastery)} · {node.wins} of {node.attempts} won · {node.commits} commits
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {learner.weakSpots.length > 0 && (
+        <p className="meta">
+          Weak spots: {learner.weakSpots.map((spot) => `${spot.category} (${spot.count})`).join(", ")}
+        </p>
+      )}
+    </section>
   );
 }

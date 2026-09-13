@@ -144,6 +144,7 @@ function startEncounter(
   const encounter: EncounterState = {
     roomId,
     challengeId: challenge.id,
+    concepts: [...challenge.concepts],
     language: challenge.language,
     difficulty: challenge.difficulty,
     retreatable: challenge.retreatable,

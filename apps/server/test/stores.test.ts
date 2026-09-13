@@ -8,6 +8,7 @@ import { MEMORY, openDatabase } from "../src/db/database.ts";
 import type { RunArtifacts } from "../src/runs/artifacts.ts";
 import { applyAttempt, type Attempt, SqliteAttemptStore } from "../src/runs/attempts.ts";
 import { SqliteEventStore } from "../src/runs/sqlite-event-store.ts";
+import { InMemoryEventStore } from "../src/runs/store.ts";
 
 const rootDir = path.resolve(fileURLToPath(import.meta.url), "../../../..");
 const NOW = () => "2026-09-14T00:00:00.000Z";
@@ -30,7 +31,14 @@ function playTallyWisp(): RunEvent[] {
     {
       type: "StartEncounter",
       roomId: "room-1",
-      challenge: { id: challenge.manifest.id, language: "javascript", difficulty: 3, retreatable: true, scoring: challenge.manifest.scoring },
+      challenge: {
+        id: challenge.manifest.id,
+        concepts: challenge.manifest.concepts,
+        language: "javascript",
+        difficulty: 3,
+        retreatable: true,
+        scoring: challenge.manifest.scoring,
+      },
       enemy,
       tests: [
         ...visible.map((c) => ({ id: c.id, name: c.name, visibility: "visible" as const })),
@@ -82,6 +90,25 @@ describe("SqliteEventStore", () => {
   it("returns undefined for a run that does not exist", async () => {
     const store = new SqliteEventStore(openDatabase(MEMORY), NOW);
     expect(await store.load("no-such-run")).toBeUndefined();
+  });
+
+  it("lists every run with append times, oldest run first", async () => {
+    let tick = 0;
+    const clock = () => new Date(Date.UTC(2026, 8, 14) + tick++ * 1000).toISOString();
+    for (const store of [new SqliteEventStore(openDatabase(MEMORY), clock), new InMemoryEventStore(clock)]) {
+      tick = 0;
+      await store.create("run-b", events.slice(0, 2));
+      await store.create("run-a", events.slice(0, 2));
+      await store.append("run-b", 2, events.slice(2));
+      const all = await store.loadAll();
+      expect(all.map((run) => run.runId)).toEqual(["run-b", "run-a"]);
+      expect(all[0]?.events.map((timed) => timed.event)).toEqual(events);
+      expect(all[0]?.events.map((timed) => timed.at)).toEqual([
+        "2026-09-14T00:00:00.000Z",
+        "2026-09-14T00:00:00.000Z",
+        ...events.slice(2).map(() => "2026-09-14T00:00:02.000Z"),
+      ]);
+    }
   });
 
   it("fails loudly when a stored event is corrupted", async () => {

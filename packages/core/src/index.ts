@@ -21,6 +21,20 @@ export { planDungeon, type PlanResult } from "./planner/plan.ts";
 export { isLanguageNode, LANGUAGE_TRACKS, trackOf, type TrackView, viewForLanguage } from "./planner/tracks.ts";
 export * from "./planner/types.ts";
 
+// The learner model (ADR-0009)
+export { creditedNodes } from "./learner/credit.ts";
+export { evidenceFromRun } from "./learner/evidence.ts";
+export {
+  applyEvidence,
+  buildLearnerModel,
+  emptyLearnerModel,
+  formatVersion,
+  type LearnerContext,
+  learnerSnapshot,
+  MASTERY,
+} from "./learner/model.ts";
+export type * from "./learner/types.ts";
+
 // The walkable map laid over a plan
 export { layoutDungeon } from "./map/layout.ts";
 export { findPath, isWalkable, tileAt } from "./map/path.ts";

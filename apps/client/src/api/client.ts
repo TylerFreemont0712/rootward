@@ -1,8 +1,10 @@
 import {
   type ActionRequest,
   ChallengeListResponse,
+  DebriefResponse,
   type EnterRoomRequest,
   ErrorResponse,
+  LearnerResponse,
   RunResponse,
   type StartEncounterRequest,
   type StartExpeditionRequest,
@@ -70,4 +72,6 @@ export const api = {
   getRun: (runId: string) => request("GET", runUrl(runId), RunResponse),
   enterRoom: (runId: string, body: EnterRoomRequest) => request("POST", runUrl(runId, "/rooms"), RunResponse, body),
   act: (runId: string, action: ActionRequest) => request("POST", runUrl(runId, "/actions"), RunResponse, action),
+  debrief: (runId: string) => request("GET", runUrl(runId, "/debrief"), DebriefResponse),
+  learner: () => request("GET", "/api/learner", LearnerResponse),
 };

@@ -5,9 +5,11 @@ import { ENGINE_VERSION } from "@rootward/content-schema";
 import {
   ActionRequest,
   ChallengeListResponse,
+  DebriefResponse,
   EnterRoomRequest,
   ErrorResponse,
   HealthResponse,
+  LearnerResponse,
   RunResponse,
   StartEncounterRequest,
   StartExpeditionRequest,
@@ -78,6 +80,12 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.post<{ Params: { runId: string } }>("/api/runs/:runId/actions", async (request) =>
     RunResponse.parse(await deps.service.act(request.params.runId, parseBody(ActionRequest, request.body))),
   );
+
+  app.get<{ Params: { runId: string } }>("/api/runs/:runId/debrief", async (request) =>
+    DebriefResponse.parse({ debrief: await deps.service.debrief(request.params.runId) }),
+  );
+
+  app.get("/api/learner", async () => LearnerResponse.parse({ learner: await deps.service.learnerView() }));
 
   if (deps.clientDir !== undefined && existsSync(path.join(deps.clientDir, "index.html"))) {
     await app.register(fastifyStatic, { root: deps.clientDir });

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { DebriefScreen } from "../screens/DebriefScreen.tsx";
 import { EncounterScreen } from "../screens/EncounterScreen.tsx";
 import { ExpeditionScreen } from "../screens/ExpeditionScreen.tsx";
 import { GuildBoard } from "../screens/GuildBoard.tsx";
@@ -6,23 +7,27 @@ import { useGame } from "../state/store.ts";
 
 export function App() {
   const run = useGame((s) => s.run);
+  const debrief = useGame((s) => s.debrief);
   const screen = useGame((s) => s.screen);
   const error = useGame((s) => s.error);
   const notice = useGame((s) => s.notice);
   const dismiss = useGame((s) => s.dismiss);
   const loadChallenges = useGame((s) => s.loadChallenges);
+  const loadLearner = useGame((s) => s.loadLearner);
   const resumeSavedRun = useGame((s) => s.resumeSavedRun);
 
   useEffect(() => {
     void resumeSavedRun();
     void loadChallenges();
-  }, [loadChallenges, resumeSavedRun]);
+    void loadLearner();
+  }, [loadChallenges, loadLearner, resumeSavedRun]);
 
   const encounter = screen === "encounter" ? run?.encounter : undefined;
   const expedition = screen === "map" ? run?.expedition : undefined;
 
   let body = <GuildBoard />;
-  if (run && encounter) body = <EncounterScreen view={encounter} />;
+  if (screen === "debrief" && debrief) body = <DebriefScreen debrief={debrief} />;
+  else if (run && encounter) body = <EncounterScreen view={encounter} />;
   else if (run && expedition) body = <ExpeditionScreen run={run} expedition={expedition} />;
 
   return (
@@ -32,7 +37,7 @@ export function App() {
         <div className="brand">
           ROOTWARD<small>M1 · expeditions</small>
         </div>
-        {run && (
+        {run && screen !== "debrief" && (
           <div className="hud-mini" aria-label="Status summary">
             <span>
               Integrity <b>{run.player.integrity}</b>

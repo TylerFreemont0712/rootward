@@ -74,8 +74,9 @@ rules. `findPath` (breadth-first search) finds walking routes.
 
 - The server builds the catalog from the content packs (`apps/server/src/planning.ts`): every skill node, and every
   io-tested code challenge that is not deprecated. A challenge guarded by a boss-tier enemy is a boss candidate.
-- Until the learner model lands, the learner snapshot is empty: every node is unseen and nothing is due. Until Shrine,
-  Puzzle, and Rest rooms are playable, the catalog lists no lessons or puzzles, so plans contain only fight rooms.
+- The learner snapshot comes from the learner model (ADR-0009): mastery and rating per node, and the challenges played
+  within `recency_exclusion_days`. Due cards and rotting flags arrive with FSRS. Until Shrine, Puzzle, and Rest rooms
+  are playable, the catalog lists no lessons or puzzles, so plans contain only fight rooms.
 - The plan is saved in the run's `RunStarted` event. The player may enter any first-floor room, then only rooms on an
   edge from the room they cleared last. The boss room ends the run.
 - The run view sends the laid-out map with a state per room; the client handles walking, fog of war, and locked doors.
@@ -90,5 +91,5 @@ rules. `findPath` (breadth-first search) finds walking routes.
 ## Not yet
 
 Elites from "frontier + 1" concepts, true multi-phase bosses, the streak valve (softening after two failures), Forge
-variants when the pool runs dry, a learner simulation script, and real learner snapshots (the server passes an empty
-one until the learner model exists).
+variants when the pool runs dry, a learner simulation script, and due cards and rotting flags in the learner snapshot
+(both need FSRS).
