@@ -7,3 +7,14 @@ export { type MoveDefinition, MOVES } from "./run/moves.ts";
 export { displayedEnemyHp, enemyHp, enemyHpMax, retreatSuggested } from "./run/queries.ts";
 export { computeRewards, type RewardInput } from "./run/rewards.ts";
 export * from "./run/types.ts";
+
+// Planner v1 (docs/PLANNER.md, ADR-0007)
+export { challengeRating, expectedSuccess, type RatingOutcome, updateRating } from "./planner/elo.ts";
+export { planDungeon, type PlanResult } from "./planner/plan.ts";
+export { isLanguageNode, LANGUAGE_TRACKS, trackOf, type TrackView, viewForLanguage } from "./planner/tracks.ts";
+export * from "./planner/types.ts";
+
+// The walkable map laid over a plan
+export { layoutDungeon } from "./map/layout.ts";
+export { findPath, isWalkable, tileAt } from "./map/path.ts";
+export * from "./map/types.ts";

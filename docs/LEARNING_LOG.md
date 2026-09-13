@@ -80,6 +80,22 @@ language feature took more than a minute to understand.
 - **Caches rebuilt from a log.** After a restart, `RunService` replays a run's stored attempts through `applyAttempt`
   to rebuild the editor contents and test results; the in-memory copy is only a cache.
 
+## Planner and map
+
+- **Correct by construction.** The planner builds one valid main line and only adds same-floor alternatives that
+  can substitute for it (`packages/core/src/planner/branches.ts`), so every path through the map obeys the teaching
+  order without checking each path.
+- **Property-based tests.** `packages/core/test/planner-properties.test.ts` plans 1,000 dungeons from random catalogs
+  and learners and checks rules that must always hold; a failure names the seed, so it can be replayed exactly.
+- **Elo for difficulty.** `packages/core/src/planner/elo.ts`: one number for the player per concept, one per
+  challenge, and the gap predicts the chance of success.
+- **Language tracks.** `packages/core/src/planner/tracks.ts` shows how `transfers_to` lets progress and challenges
+  cross between Python and JavaScript through shared concept nodes.
+- **Fisher-Yates shuffle.** `shuffled` in `packages/core/src/rng.ts` swaps each position with a random earlier one,
+  which gives every ordering the same chance.
+- **Breadth-first search.** `findPath` in `packages/core/src/map/path.ts` explores tiles in order of distance, so the
+  first route it finds is a shortest one.
+
 ## Server and client
 
 - **One redaction boundary.** `apps/server/src/runs/views.ts` is the only place state becomes client data. Hidden

@@ -5,6 +5,12 @@ import type { EnemyTier } from "@rootward/content-schema";
 
 const DIFFICULTY_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"] as const;
 const MASTERY_KEYS = ["0", "1", "2", "3", "4", "5"] as const;
+const CURRICULUM_TIER_KEYS = ["0", "1", "2", "3", "4"] as const;
+
+/** Key for a skill node's tier (0 apprentice .. 4 master), as used by `rating.k_by_tier`. */
+export function curriculumTierKey(tier: number): (typeof CURRICULUM_TIER_KEYS)[number] {
+  return pick(CURRICULUM_TIER_KEYS, Math.round(tier), `tier ${tier}`);
+}
 
 export function difficultyKey(difficulty: number): (typeof DIFFICULTY_KEYS)[number] {
   return pick(DIFFICULTY_KEYS, Math.round(difficulty) - 1, `difficulty ${difficulty}`);

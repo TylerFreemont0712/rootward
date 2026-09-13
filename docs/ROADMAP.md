@@ -71,9 +71,10 @@ pure planner v1 in `packages/core` builds a seeded `DungeonPlan` from the learne
 Elo-targeted challenge choice, optional stretch, puzzle interleave, boss) with a rationale the player can read, and
 property tests over many seeds. Per the kickoff answer on maps, a deterministic **layout** step turns that plan into a
 walkable ASCII dungeon: chambers for rooms, corridors and doors for the branch choices, floors that descend toward
-Root, realm-themed props, fog of war, and Bit Rot tiles on rotting concepts. The Maintainer moves turn by turn with
-arrows, `hjkl`, or WASD (or click-to-travel), and each step is a `Move` event. Geometry is cosmetic and navigational
-only; the pedagogy lives in the plan, so planner tests never depend on tiles. Shrine, Puzzle, Rest (FSRS cards via
+Root, realm-themed props, fog of war, and Bit Rot tiles on rotting concepts. The Maintainer moves with arrows,
+`hjkl`, or WASD (or click-to-travel); steps stay on the client and entering a room is the event the server records
+(ADR-0007). Geometry is cosmetic and navigational only; the pedagogy lives in the plan, so planner tests never depend
+on tiles. Shrine, Puzzle, Rest (FSRS cards via
 ts-fsrs), and Boss rooms join Encounter. Mastery rules, Elo updates, Commits, and semver Version progression move the
 learner model only through evidence, and the Bastion, Debrief, and Chronicle screens close the loop. The default run
 length is long (9 rooms). Seed content grows toward PROMPT.md section 13.4. **DoD:** PROMPT.md section 15 (three full
@@ -91,9 +92,14 @@ Task breakdown:
 - [ ] Concepts per language: decide how a JavaScript play of a multi-language challenge credits `js.*` nodes (ADR)
 - [ ] Artificer Inspect and Refactor abilities (effect primitives `revealHiddenTest`, `resetStarter`)
 - [ ] Learner model: mastery 0-5 evidence rules, Elo update, error tags, FSRS glue, Commits, Version
-- [ ] Planner v1 + `docs/PLANNER.md` + property tests + learner simulation script
-- [ ] Map: layout generator, movement controller (`Move` events), `MapRenderer` interface with an ASCII
-      implementation, minimap in the encounter screen
+- [x] Planner v1 in `packages/core` (ADR-0007, `docs/PLANNER.md`): language tracks, Elo selection, spine with safe
+      branches, rationale, unit tests and a 1,000-seed property test
+- [x] Map layout and pathfinding in `packages/core`, property-tested for reachability and overlaps
+- [ ] Run flow over a plan: plan saved in `RunStarted`, `RoomEntered` validated against plan edges, room clearing,
+      boss ends the run; server builds the planner catalog and learner snapshot
+- [ ] Map screen: ASCII renderer behind a `MapRenderer` interface, client-side movement (arrows, hjkl, WASD,
+      click-to-travel), fog of war, locked doors, minimap in the encounter screen
+- [ ] Learner simulation script (planner converges to target success on synthetic learners)
 - [ ] Rooms: Shrine, Puzzle (predict-output, spot-the-bug, Parsons), Rest, Boss
 - [ ] Screens: Bastion (character creation, Artificer, Oath of the Foundry), Expedition map, Debrief, Chronicle
 - [ ] Content: `content:new`, `content:stats`, seed content per section 13.4 (Foundry Python + JS, Grove, puzzles,
@@ -124,9 +130,9 @@ Task breakdown:
 
 ## Next session: start here
 
-State (2026-09-14): M0 is done. M1 has the Python runner and SQLite persistence with resume. Suggested order for the
-rest of M1:
-1. Planner v1 in `packages/core` and the walkable map layout (kickoff answer 8), with property tests over many seeds.
+State (2026-09-14): M0 is done. M1 has the Python runner, SQLite persistence with resume, and the planner and map
+layout in core (not yet wired into play). Suggested order for the rest of M1:
+1. Run flow over a plan plus the map screen, so an expedition of several rooms is playable end to end.
 2. Learner model (mastery rules, Elo, FSRS via ts-fsrs, Commits, Version) and the Bastion and Debrief screens.
 3. Content: the JavaScript track nodes, the concepts-per-language ADR, and more Foundry challenges.
 4. `db:export` / `db:import`.
