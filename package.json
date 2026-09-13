@@ -14,7 +14,7 @@
     "start": "pnpm run build && pnpm --filter @rootward/server run start",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "pnpm --filter @rootward/e2e run test",
+    "test:e2e": "pnpm run build && pnpm --filter @rootward/e2e run test",
     "lint": "eslint .",
     "typecheck": "pnpm -r --parallel run typecheck",
     "format": "prettier --write .",

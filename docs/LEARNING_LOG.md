@@ -38,3 +38,34 @@ language feature took more than a minute to understand.
   native stack and killed the whole Node process before QuickJS's own stack limit fired. In a worker with a larger
   stack (`resourceLimits.stackSizeMb`), QuickJS reports a clean `InternalError: stack overflow`, and a worker that
   misbehaves can be terminated without touching the server.
+- **Grading outside the player's reach.** For io tests the worker compares output itself instead of running a test
+  harness inside the player's VM (`packages/runners/src/wasm-js/worker.ts`), so player code cannot fake results.
+- **Nonces against forged output.** `packages/runners/src/protocol/sentinel.ts`: harness lines carry a random
+  per-run prefix that player code never sees.
+
+## Engine
+
+- **The decider pattern.** `packages/core/src/run/decide.ts` turns a command into events (or a refusal) and
+  `evolve.ts` applies events. Rules and randomness live only in `decide`; replaying events never re-runs them.
+- **Events carry their results.** `CastResolved` stores the Focus left and `EnemyStruck` the Integrity left, so
+  tuning `balance.yaml` later cannot change how an old run replays.
+- **Counter-based randomness.** `randomFor(seed, stream, index)` in `packages/core/src/rng.ts` computes the n-th draw
+  directly, so there is no generator state to save, and named streams keep subsystems from disturbing each other.
+- **Refusals are values.** `Decision<T>` in `packages/core/src/result.ts` makes "no Focus left" ordinary flow and
+  keeps exceptions for bugs.
+
+## Server and client
+
+- **One redaction boundary.** `apps/server/src/runs/views.ts` is the only place state becomes client data. Hidden
+  tests become category labels with opaque ids, and parsing the view with the strict shared schema strips anything
+  unlisted. `apps/server/test/api.test.ts` proves an echo program cannot leak hidden input.
+- **Validate on both sides.** `packages/shared` is used by the server to build responses and by
+  `apps/client/src/api/client.ts` to check them, so contract drift fails loudly.
+- **A per-key lock from promises.** `apps/server/src/runs/lock.ts` serializes actions on one run with
+  `Promise.withResolvers`.
+- **Asking the rules before doing work.** `RunService.act` calls `decide` with empty results first, so a Cast with no
+  Focus is refused before any code runs.
+- **CodeMirror inside React.** `apps/client/src/editor/CodeEditor.tsx` creates the editor once and pushes prop
+  changes in as transactions; Compartments swap language and read-only mode without rebuilding.
+- **Locators must be unambiguous.** Playwright's strict mode failed the first e2e run because "Tally Wisp defeated"
+  appeared twice (outcome heading and combat log); `e2e/smoke.ts` now targets the heading by role.

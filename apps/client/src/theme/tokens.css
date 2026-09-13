@@ -1,0 +1,36 @@
+/*
+ * Design tokens for the amber phosphor CRT theme (mockups/README.md). Components use these variables, never raw
+ * colors, so a light or high-contrast theme is a second token set later (PROMPT.md section 14.5).
+ * Amber is for accents and large type; body copy uses --text so small text stays readable.
+ */
+:root {
+  --ground: #120e0a;
+  --panel: #1a1410;
+  --panel-2: #211a13;
+  --panel-3: #2a2119;
+  --line: #3c2f21;
+  --line-soft: #2b2219;
+
+  --amber: #f2a541;
+  --amber-dim: #a8712a;
+  --amber-glow: rgb(242 165 65 / 30%);
+  --text: #e9dcc0;
+  --muted: #a58f6e;
+  --faint: #6f5e46;
+
+  /* Teal is reserved for Lint and the Machine talking back (Focus uses it too). */
+  --teal: #5cc8b8;
+  --teal-dim: #2f6f66;
+  --teal-glow: rgb(92 200 184 / 25%);
+
+  --pass: #8bc96a;
+  --fail: #e2584f;
+  --warn: #e9c46a;
+  --integrity: #d9534f;
+  --focus: #5cc8b8;
+  --cycles: #f2a541;
+
+  --font-ui: "IBM Plex Mono", ui-monospace, sfmono-regular, menlo, consolas, monospace;
+  --font-crt: "VT323", "IBM Plex Mono", ui-monospace, monospace;
+  --radius: 3px;
+}

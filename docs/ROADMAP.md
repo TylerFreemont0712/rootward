@@ -4,7 +4,7 @@ Living plan. Milestone goals and definitions of done come from `PROMPT.md` secti
 task list, what is done, what is next, and decisions made in conversation. Update it at the end of every session
 (`AGENT.md` section 7).
 
-- **Current milestone:** M0 — Foundations
+- **Current milestone:** M1 — Vertical slice (starting). M0 is done.
 - **Last updated:** 2026-09-13
 
 ## Kickoff decisions (2026-09-13)
@@ -24,36 +24,44 @@ Environment at kickoff: Node 26.0.0 (runs `.ts` files natively, including worker
 29.8.0, Python 3.14, git 2.43. TypeScript is pinned to 6.0.3 because typescript-eslint 8.70 does not support TS 7
 yet (ADR-0001).
 
-## M0 — Foundations (in progress)
+## M0 — Foundations (done 2026-09-13)
 
-Goal and DoD: PROMPT.md section 15. **DoD:** a new user can clone, run `pnpm install && pnpm dev`, and beat one
-encounter in the browser; `pnpm test` is green; `pnpm lint` is clean; `pnpm content:validate` passes.
+**DoD met and verified:** `pnpm install && pnpm dev` serves the game at http://127.0.0.1:5173 with the API proxied;
+The Tally Wisp is beaten in JavaScript through the browser (`pnpm test:e2e`, headless Chromium, with a first-Cast
+crit); `pnpm test`, `pnpm lint`, and `pnpm typecheck` pass; `pnpm content:validate` passes with one expected warning
+(Python has no runner until M1).
 
-- [ ] Repo: `git init`, rename to Rootward, `.gitignore` (optional vendor assets ignored, fonts kept)
-- [ ] Monorepo scaffold: pnpm workspace, strict `tsconfig.base.json`, ESLint flat config (typescript-eslint,
-      type-aware), Prettier, vitest projects, root scripts (`dev`, `test`, `lint`, `typecheck`, `format`,
-      `content:validate`), `CLAUDE.md`
-- [ ] `packages/content-schema`: zod schemas for pack, realm, skill node, challenge (+ io test files, hint ladder),
-      enemy, item, class + abilities, oath, review card, balance config; seed files brought in line with the schemas
-- [ ] `packages/content-tools`: pack loader and content index; `content:validate` (schema, references, graph
-      acyclicity, test-count drift, hint ladder, static constraints, reference solutions executed on `wasm-js`;
-      languages without a runner are skipped with a visible warning)
-- [ ] `packages/runners`: `Runner` contract, registry, concurrency limit, output truncation, sentinel protocol with
-      per-run nonce, io comparator, `wasm-js` runner (QuickJS in a worker thread: memory limit, interrupt deadline,
-      hard wall-clock kill, `fs`/stdin shim), JS unit-test harness, malicious-code test suite
-- [ ] `packages/core`: seeded RNG, run event log and fold, `Encounter` controller (Probe, Cast, Hint, Retreat,
-      damage and regression heal, enemy moves `strike` and `edge-case`, bonuses, Kernel Panic), fairness-invariant
-      tests with fixed seeds
-- [ ] `packages/shared`: API DTOs as zod schemas (client and server both validate)
-- [ ] `apps/server`: Fastify host, content loaded at startup, in-memory run store behind an interface, routes to start
-      an encounter and act in it, hidden-test redaction (tested), serves the built client for `pnpm start`
-- [ ] `apps/client`: Vite + React + Zustand, amber CRT tokens from the mockup, three-pane shell, CodeMirror 6 editor,
-      Task panel, HUD and enemy card, test results and console, hint ladder, Retreat panel, win/lose states, keyboard
-      shortcuts (Ctrl+Enter Cast, Ctrl+Shift+Enter Probe)
-- [ ] End-to-end smoke check (`pnpm test:e2e`, Playwright with the locally cached Chromium): beat The Tally Wisp in
-      JavaScript through the real browser UI
-- [ ] Docs: `ARCHITECTURE.md`, `ADR-0001-stack.md`, `ADR-0002-content-format.md`, sandbox/runner ADR, encounter
-      rules ADR, `RUNNERS.md`, `CONTENT_AUTHORING.md` (first cut), `LEARNING_LOG.md`, `PLAYTEST_NOTES.md`, README
+- [x] Repo: `git init`, renamed to Rootward in docs and package scope, optional vendor assets ignored, fonts committed
+- [x] Monorepo scaffold: pnpm 12 workspace on Node 26 (TypeScript runs without a build step), strict TypeScript 6,
+      type-aware ESLint 10, Prettier, Vitest projects, root scripts, `CLAUDE.md` (ADR-0001)
+- [x] `packages/content-schema`: strict zod schemas for pack, realm, skill node, challenge, io tests, hint ladder,
+      enemy, item, class, abilities, oath, review card, and balance; seed files aligned (ADR-0002)
+- [x] `packages/content-tools`: loader with file:line diagnostics, pack dependency order, references, prerequisite
+      cycles, challenge rules, reference-solution execution, `pnpm content:validate`
+- [x] `packages/runners`: contract, registry, concurrency limiter, output cap, sentinel protocol with nonce, io
+      comparator, comment-aware code scanner, `wasm-js` runner (QuickJS in a worker per job), malicious-code suite
+      (ADR-0003)
+- [x] `packages/core`: seeded RNG, run events and fold, decider for Probe/Cast/Hint/Retreat with regression heal,
+      Strike, Edge Case, rewards, Kernel Panic, and out-of-Focus; fixed-seed tests on the real balance (ADR-0004)
+- [x] `packages/shared`: browser-safe API contract validated by both client and server
+- [x] `apps/server`: Fastify on 127.0.0.1, content at startup, in-memory event store behind an interface, per-run
+      lock, reference timing for efficiency, hidden-test redaction with an API test that tries to leak it, serves the
+      built client for `pnpm start`
+- [x] `apps/client`: Vite + React + Zustand, amber CRT tokens, challenge select, three-pane encounter with CodeMirror
+      6, HUD, enemy card with ASCII art, tests, console, combat log, deterministic Lint lines, hint ladder, Retreat
+      panel with explanation, win and Kernel Panic states, Ctrl+Enter / Ctrl+Shift+Enter
+- [x] `pnpm test:e2e`: builds, starts the real server, and beats The Tally Wisp in headless Chromium
+- [x] Docs: `ARCHITECTURE.md`, ADR-0001 to ADR-0004, `RUNNERS.md`, `CONTENT_AUTHORING.md`, `LEARNING_LOG.md`,
+      `PLAYTEST_NOTES.md`, README
+
+Deviations from the M0 plan, recorded so nothing is silent:
+- The JavaScript **unit-form** test harness (sentinel protocol inside QuickJS) moved to M1. M0 challenges use io
+  tests, graded outside the player's VM (ADR-0003); the sentinel parser itself is implemented and tested.
+- Runs are kept in memory, so a server restart forgets them (SQLite arrives in M1). Unsent editor drafts survive a
+  page reload through browser storage.
+- Artificer abilities are data only (`implemented: false`). The editor offers a free "Reset to starter" meanwhile.
+- The client bundle is about 1 MB (mostly CodeMirror and the markdown renderer); code-splitting can come with M1's
+  extra screens.
 
 ## M1 — Vertical slice: one complete run (next)
 
@@ -71,10 +79,15 @@ learner model only through evidence, and the Bastion, Debrief, and Chronicle scr
 length is long (9 rooms). Seed content grows toward PROMPT.md section 13.4. **DoD:** PROMPT.md section 15 (three full
 runs on different seeds, learner model changes verified by tests and the Chronicle, resume after restart, no AI).
 
-Task breakdown (refine when M0 closes):
+Task breakdown:
+- [ ] `wasm-python` runner (Pyodide in a worker thread, io tests graded outside the interpreter, same safety suite);
+      Tally Wisp Python variant validated and playable
 - [ ] Persistence ADR (`node:sqlite` built-in vs `better-sqlite3` + Drizzle; Drizzle 0.45 has no `node:sqlite`
-      driver), event store, snapshots, migrations, `db:export`/`db:import`
-- [ ] `wasm-python` runner (Pyodide in a worker thread) + Python harness; Tally Wisp Python variant validated
+      driver), SQLite event store behind `EventStore`, attempts table for artifacts, migrations, resume after restart,
+      `db:export`/`db:import`
+- [ ] JavaScript unit-form harness (sentinel protocol inside QuickJS), moved from M0
+- [ ] Concepts per language: decide how a JavaScript play of a multi-language challenge credits `js.*` nodes (ADR)
+- [ ] Artificer Inspect and Refactor abilities (effect primitives `revealHiddenTest`, `resetStarter`)
 - [ ] Learner model: mastery 0-5 evidence rules, Elo update, error tags, FSRS glue, Commits, Version
 - [ ] Planner v1 + `docs/PLANNER.md` + property tests + learner simulation script
 - [ ] Map: layout generator, movement controller (`Move` events), `MapRenderer` interface with an ASCII

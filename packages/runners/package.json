@@ -5,7 +5,8 @@
   "description": "Sandboxed code runners behind one Runner contract (wasm-js first).",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./static": "./src/static/scan.ts"
   },
   "scripts": {
     "test": "vitest run",
