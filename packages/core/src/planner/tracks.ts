@@ -36,10 +36,16 @@ export interface TrackView {
   node(nodeId: string): PlannerNode | undefined;
   /** Progress on a node. A shared node's mastery is the best of itself and every language node that transfers to it. */
   progress(nodeId: string): NodeProgress;
-  /** Node ids whose challenges count as practice for `nodeId`: itself, its shared concept, and that concept's other language nodes. */
+  /** Mastery as this language sees it: a node from another language's track counts through its shared concept. */
+  mastery(nodeId: string): number;
+  /**
+   * Node ids whose challenges count as practice for `nodeId`: itself, its shared concept, and other languages' nodes
+   * for that concept. Two nodes of the same track that share a concept (`py.strings.basics` and `py.strings.split`)
+   * are different lessons, so they never stand in for each other.
+   */
   equivalents(nodeId: string): ReadonlySet<string>;
-  /** True when every prerequisite has reached the given mastery. */
-  prerequisitesMet(nodeId: string, minMastery: number): boolean;
+  /** True when every prerequisite has reached the given mastery, or is in `assumed` (introduced earlier in the run). */
+  prerequisitesMet(nodeId: string, minMastery: number, assumed?: ReadonlySet<string>): boolean;
 }
 
 export function viewForLanguage(
@@ -80,16 +86,19 @@ export function viewForLanguage(
 
   const equivalents = (id: string): ReadonlySet<string> => {
     const result = new Set([id]);
-    const shared = isLanguageNode(id) ? byId.get(id)?.transfersTo : id;
+    const ownTrack = isLanguageNode(id) ? trackOf(id) : undefined;
+    const shared = ownTrack === undefined ? id : byId.get(id)?.transfersTo;
     if (shared !== undefined) {
       result.add(shared);
-      for (const child of transferredBy.get(shared) ?? []) result.add(child.id);
+      for (const child of transferredBy.get(shared) ?? []) {
+        if (trackOf(child.id) !== ownTrack) result.add(child.id);
+      }
     }
     return result;
   };
 
   const masteryOf = (id: string): number => {
-    // A prerequisite from another language's track counts through its shared concept.
+    // A node from another language's track counts through its shared concept.
     if (isLanguageNode(id) && trackOf(id) !== track) {
       const shared = byId.get(id)?.transfersTo;
       return Math.max(ownProgress(id).mastery, shared === undefined ? 0 : progress(shared).mastery);
@@ -101,7 +110,9 @@ export function viewForLanguage(
     applicable,
     node: (id) => byId.get(id),
     progress,
+    mastery: masteryOf,
     equivalents,
-    prerequisitesMet: (id, minMastery) => (byId.get(id)?.prerequisites ?? []).every((p) => masteryOf(p) >= minMastery),
+    prerequisitesMet: (id, minMastery, assumed) =>
+      (byId.get(id)?.prerequisites ?? []).every((p) => assumed?.has(p) === true || masteryOf(p) >= minMastery),
   };
 }

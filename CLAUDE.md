@@ -16,7 +16,8 @@
   allowed (no `enum`, `namespace`, or constructor parameter properties).
 - Content files are snake_case and the zod schema output is the file shape (ADR-0002); runtime types are camelCase.
 - Rules live in `packages/core` (`decide` returns events, `evolve` applies them); the server orchestrates and the
-  client only renders `EncounterView`s. Hidden-test data leaves the server only through `apps/server/src/runs/views.ts`.
+  client renders server `RunView`s (walking the map and fog of war are client-side presentation, ADR-0008). Hidden-test
+  data and the run seed leave the server only through `apps/server/src/runs/views.ts` (the seed never does).
 
 # Current state
 

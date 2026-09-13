@@ -41,6 +41,57 @@ describe("planDungeon", () => {
     expect(next.every((room) => room.nodeId === VALUES && (room.kind === "encounter" || room.kind === "elite"))).toBe(true);
   });
 
+  it("introduces the concepts that build on a thin frontier, each after its prerequisites", () => {
+    const VARIABLES = "py.basics.variables";
+    const CONDITIONALS = "py.control.conditionals";
+    const STRINGS = "py.strings.basics";
+    const catalog: PlannerCatalog = {
+      nodes: [
+        { id: VALUES, realm: "foundry", tier: 0, prerequisites: [] },
+        { id: VARIABLES, realm: "foundry", tier: 0, prerequisites: [VALUES] },
+        { id: CONDITIONALS, realm: "foundry", tier: 0, prerequisites: [VARIABLES] },
+        // Strings also need a concept that is neither mastered nor in this dungeon, so they wait for a later run.
+        { id: STRINGS, realm: "foundry", tier: 0, prerequisites: [VARIABLES, "py.basics.io"] },
+        { id: "py.basics.io", realm: "foundry", tier: 0, prerequisites: [] },
+      ],
+      challenges: [VALUES, VARIABLES, CONDITIONALS, STRINGS].flatMap((concept) => [
+        fight(`${concept}-a`, concept, 2),
+        fight(`${concept}-b`, concept, 3),
+      ]),
+      puzzles: [],
+      lessons: new Set(),
+    };
+    const plan = expectPlan(planDungeon(planRequest({ catalog })));
+    const introduced = (id: string) =>
+      Math.min(...plan.rooms.filter((room) => room.nodeId === id && room.purpose === "frontier").map((room) => room.floor));
+    expect(introduced(VALUES)).toBe(0);
+    expect(introduced(VARIABLES)).toBeGreaterThan(introduced(VALUES));
+    expect(introduced(CONDITIONALS)).toBeGreaterThan(introduced(VARIABLES));
+    expect(plan.rooms.some((room) => room.nodeId === STRINGS)).toBe(false);
+    const explained = plan.rationale.filter((entry) => entry.nodeId === VARIABLES).map((entry) => entry.text);
+    expect(explained).toContainEqual(expect.stringMatching(/^Next: py\.basics\.variables builds on py\.basics\.values/));
+  });
+
+  it("never picks a fight that also needs a concept the player has not met", () => {
+    const DICT = "py.collections.dict";
+    const catalog: PlannerCatalog = {
+      nodes: [
+        { id: VALUES, realm: "foundry", tier: 0, prerequisites: [] },
+        { id: DICT, realm: "foundry", tier: 1, prerequisites: ["py.collections.list"] },
+      ],
+      // The two-concept fight is the better match for the target success rate, but it also needs dictionaries.
+      challenges: [fight("values-easy", VALUES, 1), { ...fight("values-and-dict", VALUES, 3), concepts: [VALUES, DICT] }],
+      puzzles: [],
+      lessons: new Set(),
+    };
+    const fresh = expectPlan(planDungeon(planRequest({ catalog, length: "short" })));
+    expect(fresh.rooms.map((room) => room.challengeId)).not.toContain("values-and-dict");
+
+    const metDicts = { ...EMPTY_LEARNER, nodes: new Map([[DICT, { mastery: 1, rating: 1000, rotting: false }]]) };
+    const later = expectPlan(planDungeon(planRequest({ catalog, learner: metDicts, length: "short" })));
+    expect(later.rooms.find((room) => room.purpose === "frontier")?.challengeId).toBe("values-and-dict");
+  });
+
   it("chooses the fight whose expected success is closest to the frontier target", () => {
     // Rating 1000 vs difficulty 3 (rating 800) gives about 76% success, the closest to the 75% target.
     const plan = expectPlan(planDungeon(planRequest({ catalog: valuesCatalog(), learner: learnerAt(1), length: "short" })));

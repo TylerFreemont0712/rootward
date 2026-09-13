@@ -56,6 +56,29 @@ describe("language tracks", () => {
     expect(view.prerequisitesMet("concept.mappings", 3)).toBe(true);
   });
 
+  it("keeps two lessons of the same track apart, even when they share a concept", () => {
+    const strings: PlannerCatalog = {
+      ...catalog,
+      nodes: [
+        node("concept.strings"),
+        node("py.strings.basics", [], "concept.strings"),
+        node("py.strings.split", ["py.strings.basics"], "concept.strings"),
+        node("js.strings.basics", [], "concept.strings"),
+      ],
+    };
+    const python = viewForLanguage(strings, learner({}), "python", 1000);
+    expect([...python.equivalents("py.strings.split")].sort()).toEqual([
+      "concept.strings",
+      "js.strings.basics",
+      "py.strings.split",
+    ]);
+
+    // A JavaScript player who has met strings in Python has met them through the shared concept.
+    const javascript = viewForLanguage(strings, learner({ "py.strings.split": 2 }), "javascript", 1000);
+    expect(javascript.mastery("py.strings.basics")).toBe(2);
+    expect(javascript.mastery("js.strings.basics")).toBe(0);
+  });
+
   it("treats challenges for other languages' equivalent nodes as practice", () => {
     const view = viewForLanguage(catalog, learner({}), "javascript", 1000);
     expect([...view.equivalents("concept.mappings")].sort()).toEqual(["concept.mappings", "py.collections.dict"]);

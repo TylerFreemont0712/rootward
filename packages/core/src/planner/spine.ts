@@ -1,5 +1,14 @@
 import { shuffled } from "../rng.ts";
-import { type ChallengePick, rankChallenges, type RankedNode, rankFrontier, rankPractice } from "./select.ts";
+import {
+  type ChallengePick,
+  type ChallengeQuery,
+  familiarConcepts,
+  rankChallenges,
+  type RankedNode,
+  rankFrontier,
+  rankNext,
+  rankPractice,
+} from "./select.ts";
 import { isLanguageNode, type TrackView } from "./tracks.ts";
 import type { PlanRequest, RationaleEntry, RoomKind, RoomPurpose } from "./types.ts";
 
@@ -12,6 +21,8 @@ export interface Slot {
   nodeId?: string;
   pick?: ChallengePick;
   targetSuccess?: number;
+  /** For fights: the concepts introduced before this room, which alternatives on its floor may also use. */
+  familiar?: ReadonlySet<string>;
   cardIds?: string[];
   puzzleIds?: string[];
 }
@@ -24,6 +35,7 @@ export interface Spine {
 
 const REST_CARDS = 5;
 const PUZZLE_ITEMS = { min: 3, max: 5 };
+const NOTHING: ReadonlySet<string> = new Set();
 
 const percent = (p: number) => `${Math.round(p * 100)}%`;
 
@@ -37,14 +49,15 @@ export function buildSpine(
   const targets = planner.target_success;
   const capacity = planner.session_rooms[request.length] - 1;
   const used = new Set<string>();
-  const hasEncounter = (ranked: RankedNode) =>
-    rankChallenges(request, view, { nodeId: ranked.node.id, kind: "encounter", target: targets.frontier, exclude: used })
-      .length > 0;
+  const fightsFor = (nodeId: string, target: number, familiar: ReadonlySet<string>) =>
+    rankChallenges(request, view, { nodeId, kind: "encounter", target, exclude: used, familiar });
+  const hasEncounter = (ranked: RankedNode, familiar: ReadonlySet<string>) =>
+    fightsFor(ranked.node.id, targets.frontier, familiar).length > 0;
 
   // Frontier concepts that have something to fight. Fall back to any concept with content rather than an empty run.
-  let nodes = rankFrontier(request, view, rng).filter(hasEncounter);
+  let nodes = rankFrontier(request, view, rng).filter((ranked) => hasEncounter(ranked, NOTHING));
   if (nodes.length === 0) {
-    nodes = rankPractice(request, view, rng).filter(hasEncounter);
+    nodes = rankPractice(request, view, rng).filter((ranked) => hasEncounter(ranked, NOTHING));
     if (nodes.length > 0) {
       rationale.push({
         kind: "fallback",
@@ -52,33 +65,45 @@ export function buildSpine(
       });
     }
   }
-  nodes = nodes.slice(0, planner.frontier_nodes_per_run.max);
+  const grown = growFrontier(request, view, nodes.slice(0, planner.frontier_nodes_per_run.max), capacity, rng, hasEncounter);
+  nodes = prerequisitesFirst(grown.nodes);
 
   const blocks: Slot[][] = [];
-  const chosen: RankedNode[] = [];
+  let chosen: RankedNode[] = [];
+  const introduced = new Set<string>();
   for (const ranked of nodes) {
     const id = ranked.node.id;
-    const pick = rankChallenges(request, view, { nodeId: id, kind: "encounter", target: targets.frontier, exclude: used })[0];
+    const builtOn = grown.builtOn.get(id);
+    // A concept that builds on this dungeon's frontier waits until each of those prerequisites has been introduced.
+    if (builtOn?.some((prerequisite) => !introduced.has(prerequisite))) continue;
+    const familiar = familiarConcepts(view, introduced);
+    const pick = fightsFor(id, targets.frontier, familiar)[0];
     if (!pick) continue;
     used.add(pick.challenge.id);
     chosen.push(ranked);
+    introduced.add(id);
     const block: Slot[] = [];
     if (ranked.progress.mastery === 0) {
       // A Shrine always precedes the first Encounter of a brand-new concept (PROMPT.md section 8).
       if (request.catalog.lessons.has(id)) block.push({ kind: "shrine", purpose: "frontier", nodeId: id });
       else rationale.push({ kind: "fallback", nodeId: id, text: `${id} is new to you, but it has no Shrine lesson yet.` });
     }
-    block.push({ kind: "encounter", purpose: "frontier", nodeId: id, pick, targetSuccess: targets.frontier });
+    block.push({ kind: "encounter", purpose: "frontier", nodeId: id, pick, targetSuccess: targets.frontier, familiar });
     blocks.push(block);
+    const fightText = `"${pick.challenge.id}" at difficulty ${pick.challenge.difficulty}, about ${percent(pick.expected)} expected success`;
     rationale.push({
       kind: "frontier",
       nodeId: id,
-      text: `Frontier: ${id} (mastery ${ranked.progress.mastery}, rating ${Math.round(ranked.progress.rating)}) with "${pick.challenge.id}" at difficulty ${pick.challenge.difficulty}, about ${percent(pick.expected)} expected success.`,
+      text: builtOn
+        ? `Next: ${id} builds on ${builtOn.join(", ")} from earlier in this dungeon, with ${fightText}.`
+        : `Frontier: ${id} (mastery ${ranked.progress.mastery}, rating ${Math.round(ranked.progress.rating)}) with ${fightText}.`,
     });
   }
   if (blocks.length === 0) return undefined;
 
-  const reviews = reviewSlots(request, view, used, rationale);
+  // Reviews come after the second block, so their fights may also use the first two blocks' concepts.
+  const afterTwoBlocks = familiarConcepts(view, chosen.slice(0, 2).map((ranked) => ranked.node.id));
+  const reviews = reviewSlots(request, view, used, afterTwoBlocks, rationale);
   const puzzle = interleaveSlot(request, view, chosen, rng, rationale);
   const ordered: Slot[] = [
     ...(blocks[0] ?? []),
@@ -89,16 +114,24 @@ export function buildSpine(
   ];
 
   // Spaced practice fills the remaining floors: another, slightly harder fight for each concept in turn.
+  const runConcepts = familiarConcepts(view, introduced);
   let practiced = 0;
   for (let round = 1; ordered.length < capacity; round++) {
     let added = false;
     for (const ranked of chosen) {
       if (ordered.length >= capacity) break;
       const target = Math.max(0.05, targets.frontier - 0.1 * round);
-      const pick = rankChallenges(request, view, { nodeId: ranked.node.id, kind: "encounter", target, exclude: used })[0];
+      const pick = fightsFor(ranked.node.id, target, runConcepts)[0];
       if (!pick) continue;
       used.add(pick.challenge.id);
-      ordered.push({ kind: "encounter", purpose: "practice", nodeId: ranked.node.id, pick, targetSuccess: target });
+      ordered.push({
+        kind: "encounter",
+        purpose: "practice",
+        nodeId: ranked.node.id,
+        pick,
+        targetSuccess: target,
+        familiar: runConcepts,
+      });
       practiced += 1;
       added = true;
     }
@@ -113,6 +146,9 @@ export function buildSpine(
     ordered.pop();
     while (ordered.at(-1)?.kind === "shrine") ordered.pop();
   }
+  // A concept whose first fight was trimmed away is no longer part of this dungeon, so the boss must not rely on it.
+  const kept = new Set(ordered.flatMap((slot) => (slot.purpose === "frontier" && slot.nodeId !== undefined ? [slot.nodeId] : [])));
+  chosen = chosen.filter((ranked) => kept.has(ranked.node.id));
   // Never open with a Rest.
   if (ordered[0]?.kind === "rest" && ordered.length > 1) {
     const [first, second] = [ordered[0], ordered[1]];
@@ -129,8 +165,75 @@ export function buildSpine(
   return boss ? { slots: ordered, boss, nodes: chosen } : undefined;
 }
 
+/**
+ * A thin frontier grows by the concepts built directly on it (docs/PLANNER.md, step 2). A new player's whole frontier
+ * is one root concept; rather than a dungeon of only that concept, the run also introduces what comes right after it,
+ * until it has `frontier_nodes_per_run.min` concepts and enough fights to fill its floors. `builtOn` records, for each
+ * added concept, the prerequisites it takes from this run.
+ */
+function growFrontier(
+  request: PlanRequest,
+  view: TrackView,
+  frontier: readonly RankedNode[],
+  capacity: number,
+  rng: () => number,
+  hasEncounter: (ranked: RankedNode, familiar: ReadonlySet<string>) => boolean,
+): { nodes: RankedNode[]; builtOn: Map<string, string[]> } {
+  const { min, max } = request.balance.planner.frontier_nodes_per_run;
+  const nodes = [...frontier];
+  const builtOn = new Map<string, string[]>();
+  const fightCount = () => {
+    const familiar = familiarConcepts(
+      view,
+      nodes.map((ranked) => ranked.node.id),
+    );
+    const fights = new Set<string>();
+    for (const ranked of nodes) {
+      const query: ChallengeQuery = { nodeId: ranked.node.id, kind: "encounter", target: 0, exclude: NOTHING, familiar };
+      for (const pick of rankChallenges(request, view, query)) fights.add(pick.challenge.id);
+    }
+    return fights.size;
+  };
+
+  while (nodes.length > 0 && nodes.length < max && (nodes.length < min || fightCount() < capacity)) {
+    const inRun = new Set(nodes.map((ranked) => ranked.node.id));
+    const familiar = familiarConcepts(view, inRun);
+    const next = rankNext(request, view, inRun, rng).find((candidate) => hasEncounter(candidate, familiar));
+    if (!next) break;
+    nodes.push(next);
+    builtOn.set(
+      next.node.id,
+      next.node.prerequisites.filter((id) => inRun.has(id)),
+    );
+  }
+  return { nodes, builtOn };
+}
+
+/** Rank order, except that a node's prerequisites from the same list always come before it. */
+function prerequisitesFirst(nodes: readonly RankedNode[]): RankedNode[] {
+  const listed = new Set(nodes.map((ranked) => ranked.node.id));
+  const placed = new Set<string>();
+  const pending = [...nodes];
+  const ordered: RankedNode[] = [];
+  while (pending.length > 0) {
+    const ready = pending.findIndex((ranked) => ranked.node.prerequisites.every((id) => !listed.has(id) || placed.has(id)));
+    // The content validator rejects prerequisite cycles; taking the first node anyway keeps a bad graph from hanging.
+    const [next] = pending.splice(Math.max(ready, 0), 1);
+    if (!next) break;
+    ordered.push(next);
+    placed.add(next.node.id);
+  }
+  return ordered;
+}
+
 /** A Rest with due cards, plus an easy review fight for the most urgent concept (PROMPT.md section 10, step 1). */
-function reviewSlots(request: PlanRequest, view: TrackView, used: Set<string>, rationale: RationaleEntry[]): Slot[] {
+function reviewSlots(
+  request: PlanRequest,
+  view: TrackView,
+  used: Set<string>,
+  familiar: ReadonlySet<string>,
+  rationale: RationaleEntry[],
+): Slot[] {
   const applicable = new Set(view.applicable.map((node) => node.id));
   const reviewable = (id: string) => applicable.has(id) || !isLanguageNode(id);
   const cards = request.learner.dueCards.filter((card) => reviewable(card.nodeId)).slice(0, REST_CARDS);
@@ -145,10 +248,10 @@ function reviewSlots(request: PlanRequest, view: TrackView, used: Set<string>, r
   const urgent = rotting[0] ?? cards[0]?.nodeId;
   if (urgent !== undefined) {
     const target = request.balance.planner.target_success.review;
-    const pick = rankChallenges(request, view, { nodeId: urgent, kind: "encounter", target, exclude: used })[0];
+    const pick = rankChallenges(request, view, { nodeId: urgent, kind: "encounter", target, exclude: used, familiar })[0];
     if (pick) {
       used.add(pick.challenge.id);
-      slots.push({ kind: "encounter", purpose: "review", nodeId: urgent, pick, targetSuccess: target });
+      slots.push({ kind: "encounter", purpose: "review", nodeId: urgent, pick, targetSuccess: target, familiar });
       const why = rotting.includes(urgent) ? "is rotting" : "is due";
       rationale.push({ kind: "review", nodeId: urgent, text: `${urgent} ${why}, so an easier fight ("${pick.challenge.id}") keeps it fresh.` });
     }
@@ -202,7 +305,10 @@ function bossSlot(
   const primary = chosen[0];
   if (!primary) return undefined;
   const target = request.balance.planner.target_success.elite;
-  const runConcepts = new Set(chosen.flatMap((ranked) => [...view.equivalents(ranked.node.id)]));
+  const runConcepts = familiarConcepts(
+    view,
+    chosen.map((ranked) => ranked.node.id),
+  );
   const covered = new Set(runConcepts);
   for (const node of view.applicable) {
     if (view.progress(node.id).mastery >= 3) for (const id of view.equivalents(node.id)) covered.add(id);
@@ -216,15 +322,19 @@ function bossSlot(
     .sort((a, b) => b.overlap - a.overlap || a.challenge.id.localeCompare(b.challenge.id))[0];
   if (boss) {
     used.add(boss.challenge.id);
-    const pick = rankChallenges(request, view, { nodeId: primary.node.id, kind: "boss", target, exclude: new Set() }).find(
-      (candidate) => candidate.challenge.id === boss.challenge.id,
-    ) ?? { challenge: boss.challenge, expected: 0.5, fresh: true };
+    const query: ChallengeQuery = { nodeId: primary.node.id, kind: "boss", target, exclude: NOTHING, familiar: covered };
+    const pick = rankChallenges(request, view, query).find((candidate) => candidate.challenge.id === boss.challenge.id) ?? {
+      challenge: boss.challenge,
+      expected: 0.5,
+      fresh: true,
+    };
     rationale.push({ kind: "boss", text: `Boss: "${boss.challenge.id}" brings together ${boss.challenge.concepts.join(", ")}.` });
     return { kind: "boss", purpose: "boss", nodeId: primary.node.id, pick, targetSuccess: target };
   }
 
   for (const ranked of chosen) {
-    const pick = rankChallenges(request, view, { nodeId: ranked.node.id, kind: "encounter", target, exclude: used })[0];
+    const query: ChallengeQuery = { nodeId: ranked.node.id, kind: "encounter", target, exclude: used, familiar: runConcepts };
+    const pick = rankChallenges(request, view, query)[0];
     if (!pick) continue;
     used.add(pick.challenge.id);
     rationale.push({
@@ -234,7 +344,8 @@ function bossSlot(
     return { kind: "boss", purpose: "boss", nodeId: ranked.node.id, pick, targetSuccess: target };
   }
 
-  const repeat = rankChallenges(request, view, { nodeId: primary.node.id, kind: "encounter", target, exclude: new Set() })[0];
+  const query: ChallengeQuery = { nodeId: primary.node.id, kind: "encounter", target, exclude: NOTHING, familiar: runConcepts };
+  const repeat = rankChallenges(request, view, query)[0];
   if (!repeat) return undefined;
   rationale.push({
     kind: "fallback",

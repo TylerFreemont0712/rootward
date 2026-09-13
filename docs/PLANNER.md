@@ -25,13 +25,21 @@ written down in a rationale the game can show under "why this dungeon".
 
 1. **Language view** (`tracks.ts`). Keep the language's own track (`py.*` for Python) and shared nodes (`concept.*`,
    `ds.*`, ...) that the track has no node for. A shared node's mastery is the best mastery among the language nodes
-   that transfer to it. A challenge counts for a node if it is tagged with that node or any node sharing its concept.
+   that transfer to it. A challenge counts for a node if it is tagged with that node, its shared concept, or another
+   language's node for that concept. Two nodes of one track that share a concept (`py.strings.basics` and
+   `py.strings.split`) are different lessons and never stand in for each other.
 2. **Frontier** (`select.ts`). Nodes below mastery 3 whose prerequisites are all at mastery 3 or more, ranked by Oath
    weight, class affinity, progress, and a tiny seeded jitter. Only nodes with at least one playable challenge are
    used; if none have content, any node with content is used instead and the rationale says so. At most
-   `frontier_nodes_per_run.max` nodes.
+   `frontier_nodes_per_run.max` nodes. **A thin frontier grows** (`growFrontier` in `spine.ts`): while the run has
+   fewer than `frontier_nodes_per_run.min` concepts, or fewer distinct fights than floors, it adds a concept that
+   builds directly on one already in the run (every other prerequisite at mastery 3), lowest tier first. That concept
+   is introduced after its prerequisites, and only if they made it into the dungeon. A brand-new player, whose whole
+   frontier is one root concept, gets that concept and the ones that come right after it.
 3. **Blocks.** For each frontier node: a Shrine if the node is brand new and has a lesson, then an Encounter. The
-   challenge is the unseen one whose expected success (Elo, `elo.ts`) is closest to `target_success.frontier`.
+   challenge is the unseen one whose expected success (Elo, `elo.ts`) is closest to `target_success.frontier`. Every
+   other concept a challenge uses must be familiar: mastery 1 or more, or introduced earlier in this dungeon. A first
+   fight on strings never quietly needs dictionaries too.
 4. **Reviews.** Up to five due cards become a Rest room; the most urgent concept (rotting first, then due) gets an
    easier Encounter aimed at `target_success.review`.
 5. **Interleaving.** If at least three puzzles touch concepts at mastery 2-4 or this run's concepts, one Puzzle room.
@@ -49,6 +57,9 @@ written down in a rationale the game can show under "why this dungeon".
 - The boss is alone on the last floor, and there are never more floors than the session length.
 - Every floor has one to three rooms; every room can be reached and leads onward.
 - A Shrine's floor has no alternatives, so it cannot be skipped, and its concept is never fought before it.
+- A concept is never introduced before a prerequisite that the same dungeon introduces.
+- A fight never leans on a concept the player has not met: each concept of its challenge is the room's own concept,
+  one at mastery 1 or more, or one the dungeon introduced by that floor.
 - No Rest on the first floor. Challenges exist, support the language, and never repeat unless the rationale says content
   was too thin. At most one Elite, always beside a normal fight for the same concept.
 

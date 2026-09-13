@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { DungeonPlan, PlannerCatalog, SessionLength } from "../src/index.ts";
+import type { DungeonPlan, LearnerSnapshot, PlannerCatalog, SessionLength } from "../src/index.ts";
 import { planDungeon } from "../src/planner/plan.ts";
+import { viewForLanguage } from "../src/planner/tracks.ts";
 import { balance } from "./fixtures.ts";
 import { planRequest, syntheticCatalog, syntheticLearner } from "./planner-fixtures.ts";
 
@@ -9,7 +10,7 @@ import { planRequest, syntheticCatalog, syntheticLearner } from "./planner-fixtu
 const SEEDS = 1000;
 const LENGTHS: SessionLength[] = ["short", "standard", "long"];
 
-function violations(plan: DungeonPlan, catalog: PlannerCatalog): string[] {
+function violations(plan: DungeonPlan, catalog: PlannerCatalog, learner: LearnerSnapshot): string[] {
   const problems: string[] = [];
   const rooms = new Map(plan.rooms.map((room) => [room.id, room]));
   const challenges = new Map(catalog.challenges.map((challenge) => [challenge.id, challenge]));
@@ -45,6 +46,35 @@ function violations(plan: DungeonPlan, catalog: PlannerCatalog): string[] {
     }
   }
 
+  // A concept is never introduced before a prerequisite that the same dungeon introduces.
+  const nodes = new Map(catalog.nodes.map((node) => [node.id, node]));
+  const introduced = new Map<string, number>();
+  for (const room of plan.rooms) {
+    if (room.purpose !== "frontier" || room.nodeId === undefined) continue;
+    introduced.set(room.nodeId, Math.min(introduced.get(room.nodeId) ?? Number.POSITIVE_INFINITY, room.floor));
+  }
+  for (const [nodeId, floor] of introduced) {
+    for (const prerequisite of nodes.get(nodeId)?.prerequisites ?? []) {
+      const before = introduced.get(prerequisite);
+      if (before !== undefined && before >= floor) problems.push(`${nodeId} is introduced before its prerequisite ${prerequisite}`);
+    }
+  }
+
+  // Fights never lean on a concept the player has not met: every concept of a fight's challenge is the room's own
+  // concept, one at mastery 1 or more, or one this dungeon introduced by that floor.
+  const view = viewForLanguage(catalog, learner, plan.language, balance.rating.initial_player);
+  for (const room of plan.rooms) {
+    const challenge = room.challengeId === undefined ? undefined : challenges.get(room.challengeId);
+    if (!challenge || room.nodeId === undefined) continue;
+    const familiar = new Set(view.equivalents(room.nodeId));
+    for (const [nodeId, floor] of introduced) {
+      if (floor <= room.floor) for (const id of view.equivalents(nodeId)) familiar.add(id);
+    }
+    for (const concept of challenge.concepts) {
+      if (!familiar.has(concept) && view.mastery(concept) < 1) problems.push(`${room.id} needs ${concept}, which the player has not met`);
+    }
+  }
+
   const seen = new Set<string>();
   const repeatsAllowed = plan.rationale.some((entry) => entry.kind === "fallback" && entry.text.includes("repeats"));
   for (const room of plan.rooms) {
@@ -74,14 +104,13 @@ describe("planner properties", () => {
     for (let i = 0; i < SEEDS; i++) {
       const seed = `property-${i}`;
       const catalog = syntheticCatalog(seed);
-      const result = planDungeon(
-        planRequest({ seed, catalog, learner: syntheticLearner(seed, catalog), length: LENGTHS[i % LENGTHS.length] ?? "long" }),
-      );
+      const learner = syntheticLearner(seed, catalog);
+      const result = planDungeon(planRequest({ seed, catalog, learner, length: LENGTHS[i % LENGTHS.length] ?? "long" }));
       if (!result.ok) {
         failures.push(`${seed}: ${result.error.message}`);
         continue;
       }
-      for (const problem of violations(result.plan, catalog)) failures.push(`${seed}: ${problem}`);
+      for (const problem of violations(result.plan, catalog, learner)) failures.push(`${seed}: ${problem}`);
     }
     expect(failures.slice(0, 10)).toEqual([]);
   });

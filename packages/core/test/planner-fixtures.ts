@@ -28,11 +28,13 @@ export function syntheticCatalog(seed: string, nodeCount = 12): PlannerCatalog {
   for (const node of nodes) {
     const count = int(2, 5);
     for (let c = 0; c < count; c++) {
+      // Some fights lean on a second concept: usually a prerequisite, sometimes any node at all.
+      const second = next() < 0.35 ? (next() < 0.7 ? node.prerequisites[0] : nodes[int(0, nodes.length - 1)]?.id) : undefined;
       challenges.push({
         id: `${node.id}.fight${c}`,
         kind: "encounter",
         realm: node.realm,
-        concepts: [node.id],
+        concepts: second === undefined || second === node.id ? [node.id] : [node.id, second],
         difficulty: int(1, 9),
         languages: next() < 0.5 ? ["python"] : ["python", "javascript"],
       });

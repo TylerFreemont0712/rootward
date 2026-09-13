@@ -38,13 +38,15 @@ export function branchFloors(
     const nodeId = slot.nodeId;
     if (slot.kind !== "encounter" || nodeId === undefined || !slot.pick) return choices;
     if (slot.purpose !== "frontier" && slot.purpose !== "practice") return choices;
+    // Alternatives may use exactly the concepts the fight they replace could use.
+    const familiar = slot.familiar ?? new Set<string>();
 
     if (!stretchPlaced && rng() < request.balance.planner.stretch_probability) {
-      const elite = rankChallenges(request, view, { nodeId, kind: "encounter", target: targets.elite, exclude: used })[0];
+      const elite = rankChallenges(request, view, { nodeId, kind: "encounter", target: targets.elite, exclude: used, familiar })[0];
       // An Elite has to be a real step up from the fight it sits beside.
       if (elite && elite.expected < slot.pick.expected) {
         used.add(elite.challenge.id);
-        choices.push({ kind: "elite", purpose: "stretch", nodeId, pick: elite, targetSuccess: targets.elite });
+        choices.push({ kind: "elite", purpose: "stretch", nodeId, pick: elite, targetSuccess: targets.elite, familiar });
         stretchPlaced = true;
         rationale.push({
           kind: "stretch",
@@ -55,10 +57,10 @@ export function branchFloors(
     }
     if (choices.length < MAX_CHOICES) {
       const target = slot.targetSuccess ?? targets.frontier;
-      const other = rankChallenges(request, view, { nodeId, kind: "encounter", target, exclude: used })[0];
+      const other = rankChallenges(request, view, { nodeId, kind: "encounter", target, exclude: used, familiar })[0];
       if (other) {
         used.add(other.challenge.id);
-        choices.push({ kind: "encounter", purpose: slot.purpose, nodeId, pick: other, targetSuccess: target });
+        choices.push({ kind: "encounter", purpose: slot.purpose, nodeId, pick: other, targetSuccess: target, familiar });
       }
     }
     return shuffled(choices, rng);

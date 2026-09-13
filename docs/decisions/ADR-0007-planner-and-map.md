@@ -59,3 +59,17 @@ client-side; the gameplay event will be "entered room X".
 - `ROADMAP.md` earlier said each step would be a `Move` event. Steps stay on the client instead: hundreds of step
   events per run would add nothing the rules use, and movement should feel instant.
 - Generate-and-score can still be layered on later by building several spines with different seeds and scoring them.
+
+## Amendment (2026-09-14): thin frontiers grow
+The frontier rule (every prerequisite at mastery 3) leaves a brand-new player exactly one concept, so a long expedition
+would be nine rooms of `py.basics.values`. When a run has fewer than `frontier_nodes_per_run.min` concepts, or fewer
+distinct fights than floors, the planner now adds concepts that build directly on the run's own frontier, in
+prerequisite order (`rankNext` in `select.ts`, `growFrontier` in `spine.ts`). Mastery still decides what is new across
+runs; within one run, a concept may follow a prerequisite that the same run introduces. The property test checks that
+no concept is introduced before such a prerequisite.
+
+Playing the real content against a fresh learner showed two more gaps, fixed at the same time: a multi-concept challenge
+(the Tally Wisp counts words with a dictionary) could be chosen before the player had met its other concept, and two
+nodes of the same language track that share a concept stood in for each other. Challenges now qualify only when every
+other concept is familiar (mastery 1 or more, or introduced earlier in the dungeon), and equivalence across a shared
+concept applies between languages only. Both rules are part of the property test.
