@@ -12,3 +12,4 @@ export {
 export { RunnerRegistry } from "./registry.ts";
 export { countCodeLines, findBannedTokens, stripCommentsAndStrings } from "./static/scan.ts";
 export { WasmJsRunner } from "./wasm-js/runner.ts";
+export { WasmPythonRunner, type WasmPythonRunnerOptions } from "./wasm-python/runner.ts";

@@ -2,7 +2,7 @@
 // reference solutions in the sandbox, and exit non-zero on any error.
 import path from "node:path";
 import { parseArgs, styleText } from "node:util";
-import { RunnerRegistry, WasmJsRunner } from "@rootward/runners";
+import { RunnerRegistry, WasmJsRunner, WasmPythonRunner } from "@rootward/runners";
 import { loadBalance } from "../config.ts";
 import { type Diagnostic, formatDiagnostic } from "../diagnostics.ts";
 import { loadContent } from "../loader/load-content.ts";
@@ -28,6 +28,7 @@ if (packId !== undefined) options.packId = packId;
 if (!values["no-exec"] && balance) {
   const registry = new RunnerRegistry();
   registry.register(new WasmJsRunner());
+  registry.register(new WasmPythonRunner({ warm: false }));
   const sandbox = balance.sandbox_defaults;
   options.execution = {
     registry,
@@ -41,6 +42,8 @@ if (!values["no-exec"] && balance) {
   };
 }
 const report = await validateContent(index, diagnostics, options);
+const runners = options.execution?.registry.list() ?? [];
+await Promise.all(runners.flatMap((runner) => (runner.dispose ? [runner.dispose()] : [])));
 
 const paint = (d: Diagnostic) =>
   d.severity === "error" ? styleText("red", formatDiagnostic(d)) : styleText("yellow", formatDiagnostic(d));

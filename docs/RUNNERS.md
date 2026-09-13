@@ -33,7 +33,7 @@ they arrive.
 | Tier | Runner | Languages | Status |
 |---|---|---|---|
 | wasm | `wasm-js` (QuickJS in a worker thread) | JavaScript | M0, shipped |
-| wasm | `wasm-python` (Pyodide in a worker thread) | Python | M1 |
+| wasm | `wasm-python` (Pyodide in a permission-restricted child process) | Python | M1, shipped |
 | container | `docker` (hardened containers via dockerode; gVisor when installed) | Python, Node, Go, Rust, C, C++, SQL, shell | M3 |
 | process | `process` (unsandboxed, opt-in flag, warning badge) | whatever is installed | M3, never on by default |
 
@@ -58,6 +58,29 @@ syntax is not supported yet.
 io tests run outside the player's VM: the worker executes the entry once per case in a fresh runtime and compares
 normalized stdout itself (`src/io/compare.ts`). A syntax error is detected on the first case and reported for every
 case without re-running.
+
+## `wasm-python` in detail
+
+Pyodide running inside Node is **not** a sandbox on its own: `os.system` reaches a real shell and `run_js` reaches
+Node's globals. The walls come from the process around it (ADR-0005).
+
+| Layer | Limit | Where |
+|---|---|---|
+| Node permission model | reads only the Pyodide package and `src/wasm-python/`; no writes, network, child processes, workers, addons, WASI, or code from strings | `sandboxFlags` in `src/wasm-python/process.ts` |
+| Environment | empty, so server secrets never reach the sandbox | `process.ts` |
+| JavaScript bridge | `jsglobals: {}` (no host globals, no `run_js`), `process.kill` removed | `src/wasm-python/host.mts` |
+| CPU time per case | `limits.cpuMs` + 250 ms, then the process is killed and the remaining cases continue in a fresh one | `src/wasm-python/runner.ts` |
+| Memory | `limits.memMb` above the loaded baseline, polled from `/proc` every 100 ms (Linux) | `runner.ts` |
+| Output | `limits.outputKb` characters per stream, raised as an exception `except Exception` cannot catch | `src/wasm-python/harness.py` |
+| Wall clock for the job | `limits.wallMs` plus a start-up allowance for loading Pyodide | `runner.ts` |
+
+Between cases the harness resets stdin, stdout, stderr, globals, `sys.path`, imported modules, builtins, the recursion
+limit, the working directory, and the player's files in `/work`. Expected outputs never enter the sandbox; the parent
+compares. Loading Pyodide takes about 1.4 s, so the runner keeps one warm spare process (`prewarm()`), and callers
+should `dispose()` the runner on shutdown.
+
+What programs can use: the standard library, `input()` and `sys.stdin`, `print`, and importing their own modules.
+Not available: `subprocess` and `os.system` (blocked), sockets and HTTP, third-party packages.
 
 ## The sentinel protocol (`src/protocol/sentinel.ts`)
 

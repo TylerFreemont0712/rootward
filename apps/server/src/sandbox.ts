@@ -32,6 +32,11 @@ export class Sandbox {
     for (const runner of runners) this.registry.register(runner);
   }
 
+  /** Stop long-lived runner resources such as warm Python sandbox processes. */
+  async dispose(): Promise<void> {
+    await Promise.all(this.registry.list().flatMap((runner) => (runner.dispose ? [runner.dispose()] : [])));
+  }
+
   async canRun(language: string): Promise<boolean> {
     return (await this.registry.pick(language, "tests")) !== undefined;
   }

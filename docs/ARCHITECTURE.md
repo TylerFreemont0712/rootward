@@ -25,7 +25,7 @@ content format, ADR-0003 JavaScript sandbox, ADR-0004 encounter rules). The buil
 |---|---|---|---|
 | `packages/content-schema` | zod schemas for every content and config file; the schema output *is* the file shape | zod | touch the filesystem |
 | `packages/content-tools` | load packs with file:line diagnostics, validate, build runner jobs, `content:validate` CLI | content-schema, runners | know game rules |
-| `packages/runners` | `Runner` contract, registry, limiter, io comparator, sentinel protocol, `wasm-js` runner, static code scanner | zod, QuickJS | import game code; `./static` must stay browser-safe |
+| `packages/runners` | `Runner` contract, registry, limiter, io comparator, sentinel protocol, `wasm-js` runner (QuickJS in a worker thread), `wasm-python` runner (Pyodide in a permission-restricted child process), static code scanner | zod, QuickJS, Pyodide | import game code; `./static` must stay browser-safe |
 | `packages/core` | pure engine: seeded RNG, run events, `decide`/`evolve`, moves, rewards | content-schema (types), zod | do I/O, read clocks, or call `Math.random` |
 | `packages/shared` | HTTP contract as zod schemas | zod | import Node modules (the browser loads it) |
 | `apps/server` | Fastify host: content at startup, run service, sandbox, views | everything above | send hidden test data or keys to the client |
@@ -73,7 +73,7 @@ reference solution. See `docs/CONTENT_AUTHORING.md`.
 | Invariant (PROMPT.md) | Enforced in | Tested in |
 |---|---|---|
 | Hidden tests never leave the backend | `apps/server/src/runs/views.ts` (labels, opaque ids, fixed failure phrases, visible-only console) and the strict `EncounterView` schema | `apps/server/test/api.test.ts` (an echo program cannot leak hidden input) |
-| Player code runs only in a sandbox with limits | `packages/runners/src/wasm-js/` (QuickJS limits, worker per job, wall-clock kill) | `packages/runners/test/wasm-js-safety.test.ts` |
+| Player code runs only in a sandbox with limits | `packages/runners/src/wasm-js/` (QuickJS limits, worker per job, wall-clock kill); `packages/runners/src/wasm-python/` (Node permission model, empty environment, per-case CPU and memory limits) | `packages/runners/test/wasm-js-safety.test.ts`, `packages/runners/test/wasm-python-safety.test.ts` |
 | Output cannot exhaust memory | `OutputBuffer` | `packages/runners/test/output.test.ts`, safety suite |
 | At most N sandboxes at once | `ConcurrencyLimiter` via `Sandbox` | `packages/runners/test/registry-limiter.test.ts` |
 | Deterministic, seeded rules | `packages/core` (`randomFor`, decider) | `packages/core/test/encounter.test.ts` |

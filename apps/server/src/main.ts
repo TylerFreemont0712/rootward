@@ -1,5 +1,5 @@
 import path from "node:path";
-import { WasmJsRunner } from "@rootward/runners";
+import { WasmJsRunner, WasmPythonRunner } from "@rootward/runners";
 import { buildApp } from "./app.ts";
 import { ContentLoadError, loadGameContent } from "./content.ts";
 import { defaultRootDir, loadDotEnv, readEnv } from "./env.ts";
@@ -13,13 +13,16 @@ async function main(): Promise<void> {
   const content = await loadGameContent(env.rootDir);
   for (const warning of content.warnings) console.warn(warning);
 
-  const sandbox = new Sandbox(content.balance, [new WasmJsRunner()]);
+  const python = new WasmPythonRunner({ warm: true });
+  // Load one Python sandbox now so the first Python Probe does not wait for Pyodide.
+  python.prewarm();
+  const sandbox = new Sandbox(content.balance, [new WasmJsRunner(), python]);
   const service = new RunService({ content, sandbox, store: new InMemoryEventStore() });
   const app = await buildApp({ service, sandbox, clientDir: path.join(env.rootDir, "apps/client/dist"), logger: true });
 
   const shutdown = (signal: string): void => {
     app.log.info(`${signal} received, shutting down`);
-    app.close().then(
+    Promise.all([app.close(), sandbox.dispose()]).then(
       () => process.exit(0),
       (error: unknown) => {
         app.log.error(error);

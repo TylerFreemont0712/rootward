@@ -42,6 +42,16 @@ language feature took more than a minute to understand.
   harness inside the player's VM (`packages/runners/src/wasm-js/worker.ts`), so player code cannot fake results.
 - **Nonces against forged output.** `packages/runners/src/protocol/sentinel.ts`: harness lines carry a random
   per-run prefix that player code never sees.
+- **"Runs in WebAssembly" does not mean "sandboxed".** A spike showed Pyodide's `os.system` running a real shell,
+  because Emscripten implements it with Node's `child_process`. Always test the escape routes of a sandbox
+  (`packages/runners/test/wasm-python-safety.test.ts`) instead of trusting a label.
+- **Node's permission model.** `node --permission --allow-fs-read=<dir>` denies everything not allowed for the whole
+  process: other files, network, child processes, workers. `sandboxFlags` in
+  `packages/runners/src/wasm-python/process.ts` is the whole policy in six lines (ADR-0005).
+- **A shim that answers one question.** Pyodide calls the forbidden `process.binding("constants")` while starting;
+  `host.mts` replaces it with a function that returns only the file-flag constants and refuses everything else.
+- **Keep the answers out of the sandbox.** The Python sandbox receives inputs but never expected outputs; the parent
+  compares (`toTestResult` in `packages/runners/src/wasm-python/runner.ts`).
 
 ## Engine
 

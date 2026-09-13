@@ -80,8 +80,9 @@ length is long (9 rooms). Seed content grows toward PROMPT.md section 13.4. **Do
 runs on different seeds, learner model changes verified by tests and the Chronicle, resume after restart, no AI).
 
 Task breakdown:
-- [ ] `wasm-python` runner (Pyodide in a worker thread, io tests graded outside the interpreter, same safety suite);
-      Tally Wisp Python variant validated and playable
+- [x] `wasm-python` runner: Pyodide in a permission-restricted child process (ADR-0005; a spike showed Pyodide in
+      Node is not a sandbox by itself), outputs compared outside the sandbox, warm spare process, safety suite; the
+      Tally Wisp Python variant is validated by `content:validate` and playable end to end
 - [ ] Persistence ADR (`node:sqlite` built-in vs `better-sqlite3` + Drizzle; Drizzle 0.45 has no `node:sqlite`
       driver), SQLite event store behind `EventStore`, attempts table for artifacts, migrations, resume after restart,
       `db:export`/`db:import`
@@ -120,6 +121,18 @@ Task breakdown:
 - **Your Turn (hard):** Add an `order_insensitive` comparison mode for io test cases (schema flag, comparator,
   unit tests, and one content case that uses it).
 
+## Next session: start here
+
+State at the end of build session 1 (2026-09-13): M0 is done; M1 is underway with the Python runner shipped. Suggested
+order for the rest of M1:
+1. Persistence ADR and a SQLite `EventStore` plus an attempts table, so runs survive a server restart (M1 DoD).
+2. Planner v1 in `packages/core` and the walkable map layout (kickoff answer 8), with property tests over many seeds.
+3. Learner model (mastery rules, Elo, FSRS via ts-fsrs, Commits, Version) and the Bastion and Debrief screens.
+4. Content: the JavaScript track nodes, the concepts-per-language ADR, and more Foundry challenges.
+
+Housekeeping: the folder is still named `ProgramMe`. Rename it to `Rootward` between sessions, not during one (moving
+the working directory breaks a running session).
+
 ## Blockers and open questions
 
-- None blocking. Open: persistence library choice (decide at the start of M1, ADR).
+- None blocking. Open: persistence library choice (`node:sqlite` vs `better-sqlite3` + Drizzle), decided in an ADR.

@@ -17,9 +17,10 @@ pnpm install
 pnpm dev        # open http://127.0.0.1:5173 (the API runs on 127.0.0.1:7331)
 ```
 
-On the Guild Board pick **The Tally Wisp → javascript**. Read the task, write code in the editor, **Probe** (free,
-visible tests only) and **Cast** (1 Focus, every test, the enemy strikes back) until the wisp is gone.
-Ctrl+Enter casts, Ctrl+Shift+Enter probes. Python is listed but waits for its sandbox runner in M1.
+On the Guild Board pick **The Tally Wisp** in **python** or **javascript**. Read the task, write code in the editor,
+**Probe** (free, visible tests only) and **Cast** (1 Focus, every test, the enemy strikes back) until the wisp is
+gone. Ctrl+Enter casts, Ctrl+Shift+Enter probes. Python runs in Pyodide inside a locked-down process; the first
+Python run after starting the server can take a couple of seconds while it loads.
 
 `pnpm start` builds the client and serves the whole game from one process at http://127.0.0.1:7331.
 

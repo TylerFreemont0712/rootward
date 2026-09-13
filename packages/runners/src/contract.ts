@@ -87,4 +87,6 @@ export interface Runner {
   readonly tier: RunnerTier;
   isAvailable(): Promise<boolean>;
   run(job: RunJob, signal: AbortSignal): Promise<RunResult>;
+  /** Release long-lived resources such as warm sandbox processes. */
+  dispose?(): Promise<void>;
 }
