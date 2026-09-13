@@ -13,3 +13,9 @@ polish), and the follow-up (a ROADMAP item or the commit that fixed it).
   (`bonuses.efficiency_max_ratio_vs_reference`). Fair for reasonable non-optimal solutions?
 - **Out of Focus.** An encounter ends as a forced retreat when Focus reaches 0 (ADR-0004). Does that feel right, or
   should it cost more?
+- **Retreat keeps the path open.** A retreat clears its room and the expedition goes on (ADR-0008). Once rooms feed
+  Commits and mastery, does that make retreating too cheap?
+- **Map pace.** Click-to-travel walks one tile every 40 ms (`STEP_MS` in
+  `apps/client/src/screens/ExpeditionScreen.tsx`). Too slow on a nine-floor dungeon?
+- **What fog of war hides.** Room kinds are visible for the whole dungeon; titles and enemies only once a door has
+  been open. Enough to make branch choices interesting, or too little?

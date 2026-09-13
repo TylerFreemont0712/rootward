@@ -6,7 +6,7 @@ import type { EncounterState, RunEvent, RunState } from "./types.ts";
  */
 export function evolve(state: RunState | undefined, event: RunEvent): RunState {
   if (event.type === "RunStarted") {
-    return {
+    const started: RunState = {
       runId: event.runId,
       seed: event.seed,
       classId: event.classId,
@@ -16,11 +16,23 @@ export function evolve(state: RunState | undefined, event: RunEvent): RunState {
       cycles: event.cycles,
       focusBase: event.focusBase,
       critLootMultiplier: event.critLootMultiplier,
+      clearedRooms: [],
     };
+    if (event.plan) started.plan = event.plan;
+    return started;
   }
   if (!state) throw new Error(`event ${event.type} arrived before RunStarted`);
 
   switch (event.type) {
+    case "RoomEntered":
+      return { ...state, currentRoomId: event.roomId };
+    case "RoomCleared": {
+      if (state.currentRoomId !== event.roomId) {
+        throw new Error(`room ${event.roomId} was cleared, but the current room is ${state.currentRoomId ?? "none"}`);
+      }
+      const { currentRoomId: _left, ...rest } = state;
+      return { ...rest, clearedRooms: [...state.clearedRooms, { roomId: event.roomId, outcome: event.outcome }] };
+    }
     case "EncounterStarted":
       return { ...state, encounter: event.encounter };
     case "Probed":

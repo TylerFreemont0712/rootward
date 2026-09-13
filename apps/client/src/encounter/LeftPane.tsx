@@ -1,36 +1,62 @@
-import type { EncounterView } from "@rootward/shared";
+import type { EncounterView, ExpeditionView } from "@rootward/shared";
+import { Minimap } from "../map/Minimap.tsx";
+import { ROOM_NAMES } from "../map/rooms.ts";
 import { useGame } from "../state/store.ts";
 
 const percent = (value: number, max: number) => `${max <= 0 ? 0 : Math.max(0, Math.min(100, (value / max) * 100))}%`;
 
 export function LeftPane({ view }: { view: EncounterView }) {
-  const leave = useGame((s) => s.leave);
-  const active = view.status === "active";
-  const onLeave = () => {
-    if (!active || window.confirm("Leave this encounter? It stays unfinished on the server until it restarts.")) leave();
-  };
-
+  const expedition = useGame((s) => s.run?.expedition);
   return (
     <aside className="pane" aria-label="Expedition and status">
-      <section className="block">
-        <h3>Expedition · floor 1 of 1</h3>
-        <ul className="floors">
-          <li className="here">
-            <span className="g" aria-hidden="true">
-              ⚔
-            </span>
-            Encounter · {view.enemy.name}
-          </li>
-        </ul>
-        <div className="actions">
-          <button type="button" className="btn" onClick={onLeave}>
-            {active ? "Leave encounter" : "Back to the Guild Board"}
-          </button>
-        </div>
-      </section>
+      {expedition ? <ExpeditionBlock expedition={expedition} view={view} /> : <PracticeBlock view={view} />}
       <Hud view={view} />
       <EnemyCard view={view} />
     </aside>
+  );
+}
+
+function ExpeditionBlock({ expedition, view }: { expedition: ExpeditionView; view: EncounterView }) {
+  const room = expedition.rooms.find((candidate) => candidate.id === view.roomId);
+  return (
+    <section className="block">
+      <h3>
+        Expedition · floor {(room?.floor ?? 0) + 1} of {expedition.floorCount}
+      </h3>
+      <Minimap expedition={expedition} />
+      {room && (
+        <p className="meta">
+          {ROOM_NAMES[room.kind]} · {room.purpose}
+          {view.status === "active" ? " · retreat is the way out" : ""}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function PracticeBlock({ view }: { view: EncounterView }) {
+  const leave = useGame((s) => s.leave);
+  const active = view.status === "active";
+  const onLeave = () => {
+    if (!active || window.confirm("Leave this practice fight? It stays unfinished.")) leave();
+  };
+  return (
+    <section className="block">
+      <h3>Practice fight</h3>
+      <ul className="floors">
+        <li className="here">
+          <span className="g" aria-hidden="true">
+            ⚔
+          </span>
+          Encounter · {view.enemy.name}
+        </li>
+      </ul>
+      <div className="actions">
+        <button type="button" className="btn" onClick={onLeave}>
+          {active ? "Leave practice" : "Back to the Guild Board"}
+        </button>
+      </div>
+    </section>
   );
 }
 

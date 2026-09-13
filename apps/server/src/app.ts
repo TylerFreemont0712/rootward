@@ -5,10 +5,12 @@ import { ENGINE_VERSION } from "@rootward/content-schema";
 import {
   ActionRequest,
   ChallengeListResponse,
-  EncounterResponse,
+  EnterRoomRequest,
   ErrorResponse,
   HealthResponse,
+  RunResponse,
   StartEncounterRequest,
+  StartExpeditionRequest,
 } from "@rootward/shared";
 import Fastify, { type FastifyInstance, type FastifyReply } from "fastify";
 import { z } from "zod";
@@ -58,15 +60,23 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   );
 
   app.post("/api/encounters", async (request) =>
-    EncounterResponse.parse(await deps.service.startEncounter(parseBody(StartEncounterRequest, request.body))),
+    RunResponse.parse(await deps.service.startEncounter(parseBody(StartEncounterRequest, request.body))),
+  );
+
+  app.post("/api/expeditions", async (request) =>
+    RunResponse.parse(await deps.service.startExpedition(parseBody(StartExpeditionRequest, request.body))),
   );
 
   app.get<{ Params: { runId: string } }>("/api/runs/:runId", async (request) =>
-    EncounterResponse.parse(await deps.service.getRun(request.params.runId)),
+    RunResponse.parse(await deps.service.getRun(request.params.runId)),
+  );
+
+  app.post<{ Params: { runId: string } }>("/api/runs/:runId/rooms", async (request) =>
+    RunResponse.parse(await deps.service.enterRoom(request.params.runId, parseBody(EnterRoomRequest, request.body))),
   );
 
   app.post<{ Params: { runId: string } }>("/api/runs/:runId/actions", async (request) =>
-    EncounterResponse.parse(await deps.service.act(request.params.runId, parseBody(ActionRequest, request.body))),
+    RunResponse.parse(await deps.service.act(request.params.runId, parseBody(ActionRequest, request.body))),
   );
 
   if (deps.clientDir !== undefined && existsSync(path.join(deps.clientDir, "index.html"))) {

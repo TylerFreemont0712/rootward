@@ -1,19 +1,22 @@
-import type { ActionRequest, ChallengeSummary, EncounterResponse, EncounterView, FileMap } from "@rootward/shared";
+import type { ActionRequest, ChallengeSummary, FileMap, RunView, SessionLength } from "@rootward/shared";
 import { create } from "zustand";
 import { api, ApiError } from "../api/client.ts";
 
-// One store for M0's two screens. Game rules never run here: every change of game state comes back from the server
-// as a fresh EncounterView. The store only holds what the player is typing and which request is in flight.
+// One store for the client. Game rules never run here: every change of game state comes back from the server as a
+// fresh RunView. The store holds what the player is typing, which screen is up, and which request is in flight.
 
 const RUN_KEY = "rootward:run";
-const draftKey = (runId: string) => `rootward:draft:${runId}`;
+const draftKey = (runId: string, roomId: string) => `rootward:draft:${runId}:${roomId}`;
 
-export type Busy = "loading" | "start" | "probe" | "cast" | "hint" | "retreat";
+export type Busy = "loading" | "start" | "enter" | "probe" | "cast" | "hint" | "retreat" | "abandon";
 export type CenterTab = "task" | "editor";
+/** The Guild Board (no run), the expedition map, or a fight. */
+export type Screen = "board" | "map" | "encounter";
 
 export interface GameStore {
   challenges: ChallengeSummary[];
-  view: EncounterView | undefined;
+  run: RunView | undefined;
+  screen: Screen;
   files: FileMap;
   busy: Busy | undefined;
   tab: CenterTab;
@@ -21,8 +24,14 @@ export interface GameStore {
   notice: string | undefined;
   loadChallenges: () => Promise<void>;
   resumeSavedRun: () => Promise<void>;
-  start: (challengeId: string, language: string) => Promise<void>;
+  startPractice: (challengeId: string, language: string) => Promise<void>;
+  startExpedition: (language: string, length: SessionLength) => Promise<void>;
+  enterRoom: (roomId: string) => Promise<void>;
+  /** Leave a finished fight for the map. */
+  showMap: () => void;
+  /** Back to the Guild Board. */
   leave: () => void;
+  abandon: () => Promise<void>;
   setTab: (tab: CenterTab) => void;
   editFile: (path: string, contents: string) => void;
   resetToStarter: () => void;
@@ -33,21 +42,26 @@ export interface GameStore {
   dismiss: () => void;
 }
 
+/** Where a loaded run belongs: the map between rooms of an expedition, otherwise its fight. */
+function screenFor(run: RunView): Screen {
+  return run.expedition && run.expedition.currentRoomId === undefined ? "map" : "encounter";
+}
+
 export const useGame = create<GameStore>()((set, get) => {
-  /** Show a server view, restoring an unsent draft for this run if one was saved. */
-  const showView = (view: EncounterView, preferDraft: boolean) => {
-    const draft = preferDraft ? readDraft(view.runId) : undefined;
-    writeStorage(RUN_KEY, view.runId);
-    set({ view, files: draft ?? view.editorFiles });
+  /** Show a server run, restoring an unsent draft for its current fight if one was saved. */
+  const showRun = (run: RunView, screen: Screen, preferDraft: boolean) => {
+    const encounter = run.encounter;
+    const draft = preferDraft && encounter ? readDraft(draftKey(run.runId, encounter.roomId)) : undefined;
+    writeStorage(RUN_KEY, run.runId);
+    set({ run, screen, files: draft ?? encounter?.editorFiles ?? {} });
   };
 
-  const act = async (busy: Exclude<Busy, "loading" | "start">, action: ActionRequest) => {
-    const { view } = get();
-    if (!view || get().busy) return;
+  /** One request at a time: a busy flag while it runs, and its error in the banner if it fails. */
+  const request = async (busy: Busy, work: () => Promise<void>) => {
+    if (get().busy) return;
     set({ busy, error: undefined, notice: undefined });
     try {
-      const response: EncounterResponse = await api.act(view.runId, action);
-      set({ view: response.view, notice: response.refused?.message });
+      await work();
     } catch (error) {
       set({ error: describe(error) });
     } finally {
@@ -55,9 +69,18 @@ export const useGame = create<GameStore>()((set, get) => {
     }
   };
 
+  const act = (busy: Exclude<Busy, "loading" | "start" | "enter">, action: ActionRequest) =>
+    request(busy, async () => {
+      const { run } = get();
+      if (!run) return;
+      const response = await api.act(run.runId, action);
+      set({ run: response.run, notice: response.refused?.message });
+    });
+
   return {
     challenges: [],
-    view: undefined,
+    run: undefined,
+    screen: "board",
     files: {},
     busy: undefined,
     tab: "task",
@@ -79,31 +102,54 @@ export const useGame = create<GameStore>()((set, get) => {
       const runId = readStorage(RUN_KEY);
       if (runId === undefined) return;
       try {
-        showView((await api.getRun(runId)).view, true);
+        const { run } = await api.getRun(runId);
+        showRun(run, screenFor(run), true);
       } catch (error) {
-        // The server keeps runs in memory until M1, so a restart forgets them. That is expected, not an error.
+        // The run may be gone (for example the server uses a different data directory now). Forget it quietly.
         if (error instanceof ApiError && error.status === 404) removeStorage(RUN_KEY);
         else set({ error: describe(error) });
       }
     },
 
-    start: async (challengeId, language) => {
-      set({ busy: "start", error: undefined, notice: undefined });
-      try {
-        const { view } = await api.startEncounter({ challengeId, language });
-        showView(view, false);
+    startPractice: (challengeId, language) =>
+      request("start", async () => {
+        const { run } = await api.startEncounter({ challengeId, language });
+        showRun(run, "encounter", false);
         set({ tab: "task" });
-      } catch (error) {
-        set({ error: describe(error) });
-      } finally {
-        set({ busy: undefined });
-      }
+      }),
+
+    startExpedition: (language, length) =>
+      request("start", async () => {
+        const { run } = await api.startExpedition({ language, length });
+        showRun(run, "map", false);
+      }),
+
+    enterRoom: (roomId) =>
+      request("enter", async () => {
+        const { run } = get();
+        if (!run) return;
+        const response = await api.enterRoom(run.runId, { roomId });
+        if (response.refused) {
+          set({ run: response.run, notice: response.refused.message });
+          return;
+        }
+        showRun(response.run, "encounter", true);
+        set({ tab: "task" });
+      }),
+
+    showMap: () => {
+      set({ screen: "map", notice: undefined });
     },
 
     leave: () => {
       removeStorage(RUN_KEY);
-      set({ view: undefined, files: {}, notice: undefined, error: undefined });
+      set({ run: undefined, screen: "board", files: {}, notice: undefined, error: undefined });
       void get().loadChallenges();
+    },
+
+    abandon: async () => {
+      await act("abandon", { type: "abandon" });
+      if (get().error === undefined) get().leave();
     },
 
     setTab: (tab) => {
@@ -113,13 +159,13 @@ export const useGame = create<GameStore>()((set, get) => {
     editFile: (path, contents) => {
       const files = { ...get().files, [path]: contents };
       set({ files });
-      const runId = get().view?.runId;
-      if (runId !== undefined) writeStorage(draftKey(runId), JSON.stringify(files));
+      const encounter = get().run?.encounter;
+      if (encounter) writeStorage(draftKey(encounter.runId, encounter.roomId), JSON.stringify(files));
     },
 
     resetToStarter: () => {
-      const { view } = get();
-      if (view) get().editFile(view.challenge.entry, view.starterFiles[view.challenge.entry] ?? "");
+      const encounter = get().run?.encounter;
+      if (encounter) get().editFile(encounter.challenge.entry, encounter.starterFiles[encounter.challenge.entry] ?? "");
     },
 
     probe: () => act("probe", { type: "probe", files: get().files }),
@@ -138,8 +184,8 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function readDraft(runId: string): FileMap | undefined {
-  const saved = readStorage(draftKey(runId));
+function readDraft(key: string): FileMap | undefined {
+  const saved = readStorage(key);
   if (saved === undefined) return undefined;
   try {
     const parsed: unknown = JSON.parse(saved);
@@ -147,7 +193,7 @@ function readDraft(runId: string): FileMap | undefined {
     return Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
   } catch {
     // A corrupt draft is dropped; the server's copy of the last submission is used instead.
-    removeStorage(draftKey(runId));
+    removeStorage(key);
     return undefined;
   }
 }

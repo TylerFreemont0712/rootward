@@ -5,8 +5,9 @@ sandbox; classes are engineering disciplines; the skill graph is a curriculum wi
 hot-swappable AI layer plays tutor, narrator, content forge, reviewer, and adversary. Built by one person, for one
 person, to become a much better programmer.
 
-**Status:** Milestone 0 (foundations): one playable encounter in the browser, a real JavaScript sandbox, the content
-pipeline, and the event-sourced combat engine. Progress and what comes next: `docs/ROADMAP.md`.
+**Status:** Milestone 1 in progress: expeditions through a planned, walkable ASCII dungeon, real Python and JavaScript
+sandboxes, and runs that resume after a restart. Content is still thin (one challenge). Progress and what comes next:
+`docs/ROADMAP.md`.
 
 ## Run it
 
@@ -17,10 +18,13 @@ pnpm install
 pnpm dev        # open http://127.0.0.1:5173 (the API runs on 127.0.0.1:7331)
 ```
 
-On the Guild Board pick **The Tally Wisp** in **python** or **javascript**. Read the task, write code in the editor,
-**Probe** (free, visible tests only) and **Cast** (1 Focus, every test, the enemy strikes back) until the wisp is
-gone. Ctrl+Enter casts, Ctrl+Shift+Enter probes. Python runs in Pyodide inside a locked-down process; the first
-Python run after starting the server can take a couple of seconds while it loads.
+On the Guild Board, pick a length and **Descend** in **python** or **javascript**. Walk the map with the arrow keys,
+`hjkl`, or WASD (or click a spot, or use the door list) and press Enter at a lit door (`+`). In a fight, read the task,
+write code in the editor, **Probe** (free, visible tests only) and **Cast** (1 Focus, every test, the enemy strikes
+back) until the enemy is gone. Retreat shows the reference solution and the way on stays open. Beating the boss on the
+last floor completes the expedition. Ctrl+Enter casts, Ctrl+Shift+Enter probes. Single practice fights are on the
+Guild Board too. Python runs in Pyodide inside a locked-down process; the first Python run after starting the server
+can take a couple of seconds while it loads.
 
 `pnpm start` builds the client and serves the whole game from one process at http://127.0.0.1:7331.
 
@@ -31,7 +35,7 @@ Python run after starting the server can take a couple of seconds while it loads
 | `pnpm test` | Unit, sandbox-safety, and API tests across every package (Vitest) |
 | `pnpm lint` · `pnpm typecheck` · `pnpm format` | Quality gates |
 | `pnpm content:validate` | Validate content packs and run every reference solution in the sandbox |
-| `pnpm test:e2e` | Build, start the server, and beat an encounter in headless Chromium |
+| `pnpm test:e2e` | Build, start the server, and play a whole expedition in headless Chromium |
 
 ## Where things are
 
@@ -52,5 +56,5 @@ Python run after starting the server can take a couple of seconds while it loads
 Copy `.env.example` to `.env` if you want to override the port or, later, add AI provider keys. Nothing is required.
 The server binds to 127.0.0.1 only; it runs player code and is not meant to be reachable from a network.
 
-Runs are saved in `~/.local/share/rootward/rootward.db` (set `ROOTWARD_DATA_DIR` to move it), so a fight survives a
-server restart. The file is created on first start; schema upgrades back it up first.
+Runs are saved in `~/.local/share/rootward/rootward.db` (set `ROOTWARD_DATA_DIR` to move it), so an expedition
+survives a server restart. The file is created on first start; schema upgrades back it up first.

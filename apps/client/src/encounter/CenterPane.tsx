@@ -201,11 +201,20 @@ function Hints({ view }: { view: EncounterView }) {
 
 function Outcome({ view }: { view: EncounterView }) {
   const leave = useGame((s) => s.leave);
+  const showMap = useGame((s) => s.showMap);
+  const inExpedition = useGame((s) => s.run?.expedition !== undefined);
+  const runEnded = useGame((s) => s.run?.status === "ended");
   const back = (
     <div className="actions">
-      <button type="button" className="btn primary" onClick={leave}>
-        Back to the Guild Board →
-      </button>
+      {inExpedition ? (
+        <button type="button" className="btn primary" onClick={showMap}>
+          {runEnded ? "See how the expedition ended →" : "Continue to the map →"}
+        </button>
+      ) : (
+        <button type="button" className="btn primary" onClick={leave}>
+          Back to the Guild Board →
+        </button>
+      )}
     </div>
   );
 

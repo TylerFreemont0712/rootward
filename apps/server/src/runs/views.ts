@@ -2,20 +2,24 @@ import { type Balance, type ClassDef, type Enemy, HINT_LEVEL_NAMES, Language, re
 import type { LoadedChallenge } from "@rootward/content-tools";
 import {
   displayedEnemyHp,
+  type DungeonPlan,
   type EncounterState,
   type EnemyAction,
   enemyHp,
   enemyHpMax,
+  layoutDungeon,
+  reachableRoomIds,
   retreatSuggested,
   type RunEvent,
   type RunState,
 } from "@rootward/core";
 import type { TestResult } from "@rootward/runners";
-import { EncounterView, type LogEntry, type TestView } from "@rootward/shared";
+import { EncounterView, type LogEntry, RunView, type TestView } from "@rootward/shared";
 import type { RunArtifacts } from "./artifacts.ts";
 
 // The only place where server state becomes client data. Fairness rule (PROMPT.md section 7.6): hidden tests leave
 // the server as a category label and pass/fail, never as names, inputs, expected or actual output, or program output.
+// The run seed stays here too, because it would let a client predict enemy moves.
 
 const MAX_DETAIL_CHARS = 2000;
 const MAX_CONSOLE_CHARS = 8000;
@@ -23,6 +27,7 @@ const MAX_LOG_ENTRIES = 60;
 
 export interface ViewInput {
   state: RunState;
+  /** The events of this fight only, starting at its EncounterStarted event. */
   events: readonly RunEvent[];
   challenge: LoadedChallenge;
   enemy: Enemy;
@@ -60,7 +65,8 @@ export function buildEncounterView({ state, events, challenge, enemy, classDef, 
     },
     enemy: {
       name: enemy.name,
-      tier: enemy.tier,
+      // The room sets the tier: the same template can guard an Elite or a Boss room.
+      tier: encounter.enemy.tier,
       art: enemy.art,
       intro: enemy.flavor.intro,
       defeat: enemy.flavor.defeat,
@@ -94,6 +100,101 @@ export function buildEncounterView({ state, events, challenge, enemy, classDef, 
   };
   // Parsing validates the contract and strips any property the schema does not list.
   return EncounterView.parse(view);
+}
+
+/** What the map may say about the challenge behind a door. */
+export interface RoomDetails {
+  title: string;
+  enemyName: string;
+  difficulty: number;
+}
+
+export interface RunViewInput {
+  state: RunState;
+  classDef: ClassDef;
+  /** The current or most recent fight, built with buildEncounterView. */
+  encounter: EncounterView | undefined;
+  describeChallenge: (challengeId: string) => RoomDetails | undefined;
+}
+
+export function buildRunView({ state, classDef, encounter, describeChallenge }: RunViewInput): RunView {
+  const view = {
+    runId: state.runId,
+    status: state.status,
+    endReason: state.endReason,
+    player: {
+      className: classDef.name,
+      integrity: state.integrity,
+      integrityMax: state.integrityMax,
+      cycles: state.cycles,
+    },
+    expedition: state.plan ? expeditionView(state, state.plan, describeChallenge) : undefined,
+    encounter,
+  };
+  return RunView.parse(view);
+}
+
+/**
+ * The dungeon from where the player stands (ADR-0008): the laid-out map, each room's state, and what waits behind the
+ * doors that have been open to the player. Rooms further down show only their kind.
+ */
+function expeditionView(state: RunState, plan: DungeonPlan, describeChallenge: RunViewInput["describeChallenge"]) {
+  const map = layoutDungeon(plan);
+  const planRooms = new Map(plan.rooms.map((room) => [room.id, room]));
+  const outcomes = new Map(state.clearedRooms.map((record) => [record.roomId, record.outcome]));
+  const open = new Set(reachableRoomIds(state));
+  // Doors that were ever open: the whole first floor, and every room an edge leads to from a cleared room.
+  const inReach = new Set([
+    ...(plan.floors[0] ?? []),
+    ...plan.edges.filter(([from]) => outcomes.has(from)).map(([, to]) => to),
+  ]);
+  const visited = state.currentRoomId === undefined ? [...outcomes.keys()] : [...outcomes.keys(), state.currentRoomId];
+  const deepestVisited = Math.max(-1, ...visited.map((id) => planRooms.get(id)?.floor ?? -1));
+
+  const rooms = map.rooms.map((geometry) => {
+    const room = planRooms.get(geometry.roomId);
+    if (!room) throw new Error(`map room ${geometry.roomId} is not in the plan`);
+    const outcome = outcomes.get(room.id);
+    let roomState: "cleared" | "current" | "open" | "ahead" | "sealed";
+    if (outcome !== undefined) roomState = "cleared";
+    else if (room.id === state.currentRoomId) roomState = "current";
+    else if (open.has(room.id)) roomState = "open";
+    else if (state.status === "ended" || room.floor <= deepestVisited) roomState = "sealed";
+    else roomState = "ahead";
+    const details = inReach.has(room.id) && room.challengeId !== undefined ? describeChallenge(room.challengeId) : undefined;
+    return {
+      id: room.id,
+      floor: room.floor,
+      kind: room.kind,
+      purpose: room.purpose,
+      state: roomState,
+      outcome,
+      details: details ? { ...details, concept: room.nodeId } : undefined,
+      x: geometry.x,
+      y: geometry.y,
+      width: geometry.width,
+      height: geometry.height,
+      center: geometry.center,
+      doorIn: geometry.doorIn,
+      doorOut: geometry.doorOut,
+    };
+  });
+
+  return {
+    length: plan.length,
+    language: plan.language,
+    floorCount: plan.floors.length,
+    width: map.width,
+    height: map.height,
+    tiles: map.tiles,
+    entrance: map.entrance,
+    start: map.start,
+    rooms,
+    edges: plan.edges,
+    currentRoomId: state.currentRoomId,
+    lastClearedRoomId: state.clearedRooms.at(-1)?.roomId,
+    rationale: plan.rationale.map(({ kind, text }) => ({ kind, text })),
+  };
 }
 
 function testViews(encounter: EncounterState, challenge: LoadedChallenge, artifacts: RunArtifacts): TestView[] {
@@ -251,16 +352,30 @@ function logEntries(events: readonly RunEvent[], enemyName: string): LogEntry[] 
         });
         break;
       case "RunEnded":
-        if (event.reason === "kernel-panic") {
-          entries.push({ kind: "panic", text: "Kernel panic - not syncing: Maintainer out of Integrity." });
-        }
+        entries.push(runEndedEntry(event.reason));
         break;
       case "RunStarted":
+      case "RoomEntered":
+      case "RoomCleared":
       case "EncounterStarted":
         break;
     }
   }
   return entries.slice(-MAX_LOG_ENTRIES);
+}
+
+function runEndedEntry(reason: RunState["endReason"]): LogEntry {
+  switch (reason) {
+    case "kernel-panic":
+      return { kind: "panic", text: "Kernel panic - not syncing: Maintainer out of Integrity." };
+    case "completed":
+      return { kind: "won", text: "The Legacy System falls. The expedition is complete." };
+    case "retreated":
+      return { kind: "retreat", text: "You withdraw from the Legacy System. The expedition ends here." };
+    case "abandoned":
+    case undefined:
+      return { kind: "retreat", text: "The expedition is abandoned." };
+  }
 }
 
 function clip(text: string, max: number): string {

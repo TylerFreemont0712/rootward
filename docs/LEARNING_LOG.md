@@ -111,3 +111,22 @@ language feature took more than a minute to understand.
   changes in as transactions; Compartments swap language and read-only mode without rebuilding.
 - **Locators must be unambiguous.** Playwright's strict mode failed the first e2e run because "Tally Wisp defeated"
   appeared twice (outcome heading and combat log); `e2e/smoke.ts` now targets the heading by role.
+
+## Expeditions
+
+- **Rules vs presentation.** Walking, fog of war, and locked doors live on the client (`apps/client/src/map/fog.ts`).
+  The only gameplay event is entering a room, and `enterRoom` in `packages/core/src/run/decide.ts` checks it against
+  the plan, so a client that ignores the fog still cannot take a shortcut (ADR-0008).
+- **Flood fill.** `revealedTiles` spreads through corridor tiles from each exit and stops at doors: breadth-first
+  search without a goal.
+- **Pure state updaters.** Click-to-travel keeps the avatar and the remaining route in one state object and advances
+  it with a pure function (`ExpeditionScreen.tsx`), so React's StrictMode, which may call updaters twice, cannot make
+  the avatar take two steps.
+- **A key as a reset button.** `ExpeditionScreen` keys the map component by the last cleared room. When it changes,
+  React mounts a fresh component with fresh state instead of syncing state inside an effect.
+- **Subpath exports.** `@rootward/core/map` (`packages/core/package.json` `exports`) lets the browser import the
+  pathfinding without the rest of the engine.
+- **Caches keyed by a log position.** A fight's artifacts are cached under `runId#<index of its EncounterStarted
+  event>` (`apps/server/src/runs/service.ts`), so entering a new room can never show the previous room's editor.
+- **Checking rules before expensive work, again.** `RunService.enterRoom` asks `decide` without a fight setup first;
+  only a reachable fight room is worth loading a challenge and checking for a sandbox.

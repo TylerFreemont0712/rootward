@@ -2,11 +2,14 @@ import { type DungeonMap, type Point, TILE } from "./types.ts";
 
 const WALKABLE = new Set<string>([TILE.floor, TILE.door, TILE.corridor, TILE.rubble]);
 
+/** The part of a map that movement needs; the client's expedition view has the same shape. */
+export type TileGrid = Pick<DungeonMap, "width" | "height" | "tiles">;
+
 export function isWalkable(code: string | undefined): boolean {
   return code !== undefined && WALKABLE.has(code);
 }
 
-export function tileAt(map: DungeonMap, point: Point): string | undefined {
+export function tileAt(map: TileGrid, point: Point): string | undefined {
   return map.tiles[point.y]?.[point.x];
 }
 
@@ -17,7 +20,7 @@ export function tileAt(map: DungeonMap, point: Point): string | undefined {
  * it has found a shortest path; `previous` remembers how each tile was reached so the path can be walked back.
  */
 export function findPath(
-  map: DungeonMap,
+  map: TileGrid,
   from: Point,
   to: Point,
   passable: (point: Point, code: string | undefined) => boolean = (_, code) => isWalkable(code),

@@ -33,6 +33,7 @@ export type ChallengeSummary = z.infer<typeof ChallengeSummary>;
 export const ChallengeListResponse = z.strictObject({ challenges: z.array(ChallengeSummary) });
 export type ChallengeListResponse = z.infer<typeof ChallengeListResponse>;
 
+/** A single practice fight outside any dungeon. */
 export const StartEncounterRequest = z.strictObject({
   challengeId: z.string().min(1),
   language: z.string().min(1),
@@ -40,11 +41,27 @@ export const StartEncounterRequest = z.strictObject({
 });
 export type StartEncounterRequest = z.infer<typeof StartEncounterRequest>;
 
+export const SessionLength = z.enum(["short", "standard", "long"]);
+export type SessionLength = z.infer<typeof SessionLength>;
+
+export const StartExpeditionRequest = z.strictObject({
+  language: z.string().min(1),
+  /** Defaults to `planner.default_session` in config/balance.yaml. */
+  length: SessionLength.optional(),
+  seed: z.string().min(1).max(100).optional(),
+});
+export type StartExpeditionRequest = z.infer<typeof StartExpeditionRequest>;
+
+export const EnterRoomRequest = z.strictObject({ roomId: z.string().min(1).max(100) });
+export type EnterRoomRequest = z.infer<typeof EnterRoomRequest>;
+
 export const ActionRequest = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("probe"), files: FileMap }),
   z.strictObject({ type: z.literal("cast"), files: FileMap }),
   z.strictObject({ type: z.literal("hint") }),
   z.strictObject({ type: z.literal("retreat") }),
+  /** Give up on the whole run. */
+  z.strictObject({ type: z.literal("abandon") }),
 ]);
 export type ActionRequest = z.infer<typeof ActionRequest>;
 
@@ -141,19 +158,108 @@ export const EncounterView = z.strictObject({
   rewards: z.strictObject({ bonuses: z.array(z.string()), commits: z.number(), cycles: z.number() }).optional(),
   /** Present after a Retreat or when Focus ran out: the reference solution and its explanation. */
   retreat: z.strictObject({ solutionFiles: FileMap, explanation: z.string().optional() }).optional(),
+  /** This fight's log; every room starts a fresh one. */
   log: z.array(LogEntry),
 });
 export type EncounterView = z.infer<typeof EncounterView>;
 
+// ---- The expedition map (ADR-0008) ----
+
+export const MapPoint = z.strictObject({ x: z.int(), y: z.int() });
+export type MapPoint = z.infer<typeof MapPoint>;
+
+export const RoomKind = z.enum(["encounter", "elite", "shrine", "puzzle", "rest", "boss"]);
+export type RoomKind = z.infer<typeof RoomKind>;
+
+/**
+ * A room as seen from where the player stands: `open` rooms can be entered now, `ahead` rooms lie on later floors, and
+ * `sealed` rooms are branches not taken (or out of reach because the run is over).
+ */
+export const RoomState = z.enum(["cleared", "current", "open", "ahead", "sealed"]);
+export type RoomState = z.infer<typeof RoomState>;
+
+export const MapRoomView = z.strictObject({
+  id: z.string(),
+  floor: z.int(),
+  kind: RoomKind,
+  purpose: z.string(),
+  state: RoomState,
+  outcome: z.enum(["won", "retreated", "exhausted"]).optional(),
+  /** What waits inside, once the room's door has been open to the player. Fog of war hides rooms further down. */
+  details: z
+    .strictObject({
+      title: z.string(),
+      enemyName: z.string(),
+      difficulty: z.number(),
+      concept: z.string().optional(),
+    })
+    .optional(),
+  x: z.int(),
+  y: z.int(),
+  width: z.int(),
+  height: z.int(),
+  /** Where the avatar stands inside the room. */
+  center: MapPoint,
+  /** The door in the top wall; the room is entered here. */
+  doorIn: MapPoint,
+  /** The door toward the next floor; the boss room has none. */
+  doorOut: MapPoint.optional(),
+});
+export type MapRoomView = z.infer<typeof MapRoomView>;
+
+export const ExpeditionView = z.strictObject({
+  length: SessionLength,
+  language: z.string(),
+  floorCount: z.int(),
+  width: z.int(),
+  height: z.int(),
+  /** One string per row of tile codes: " " rock, "#" wall, "." floor, "+" door, "," corridor, "&" prop, "~" rubble. */
+  tiles: z.array(z.string()),
+  entrance: z.strictObject({
+    x: z.int(),
+    y: z.int(),
+    width: z.int(),
+    height: z.int(),
+    center: MapPoint,
+    doorOut: MapPoint,
+  }),
+  start: MapPoint,
+  rooms: z.array(MapRoomView),
+  edges: z.array(z.tuple([z.string(), z.string()])),
+  currentRoomId: z.string().optional(),
+  /** The last room finished; the path continues from its lower door. */
+  lastClearedRoomId: z.string().optional(),
+  /** Why the planner built this dungeon, in plain words. */
+  rationale: z.array(z.strictObject({ kind: z.string(), text: z.string() })),
+});
+export type ExpeditionView = z.infer<typeof ExpeditionView>;
+
 export const ApiError = z.strictObject({ code: z.string(), message: z.string() });
 export type ApiError = z.infer<typeof ApiError>;
 
-export const EncounterResponse = z.strictObject({
-  view: EncounterView,
-  /** Set when the action was refused by the rules; the view is still current. */
+export const RunView = z.strictObject({
+  runId: z.string(),
+  status: z.enum(["active", "ended"]),
+  endReason: z.enum(["kernel-panic", "completed", "retreated", "abandoned"]).optional(),
+  player: z.strictObject({
+    className: z.string(),
+    integrity: z.number(),
+    integrityMax: z.number(),
+    cycles: z.number(),
+  }),
+  /** Present for expeditions; a practice fight has no dungeon around it. */
+  expedition: ExpeditionView.optional(),
+  /** The fight in progress, or the one that just ended, so its outcome can still be shown. */
+  encounter: EncounterView.optional(),
+});
+export type RunView = z.infer<typeof RunView>;
+
+export const RunResponse = z.strictObject({
+  run: RunView,
+  /** Set when the action was refused by the rules; the run view is still current. */
   refused: ApiError.optional(),
 });
-export type EncounterResponse = z.infer<typeof EncounterResponse>;
+export type RunResponse = z.infer<typeof RunResponse>;
 
 export const ErrorResponse = z.strictObject({ error: ApiError });
 export type ErrorResponse = z.infer<typeof ErrorResponse>;

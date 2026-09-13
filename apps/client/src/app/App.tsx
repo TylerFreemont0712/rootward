@@ -1,10 +1,12 @@
 import { useEffect } from "react";
-import { ChallengeSelect } from "../screens/ChallengeSelect.tsx";
 import { EncounterScreen } from "../screens/EncounterScreen.tsx";
+import { ExpeditionScreen } from "../screens/ExpeditionScreen.tsx";
+import { GuildBoard } from "../screens/GuildBoard.tsx";
 import { useGame } from "../state/store.ts";
 
 export function App() {
-  const view = useGame((s) => s.view);
+  const run = useGame((s) => s.run);
+  const screen = useGame((s) => s.screen);
   const error = useGame((s) => s.error);
   const notice = useGame((s) => s.notice);
   const dismiss = useGame((s) => s.dismiss);
@@ -16,25 +18,34 @@ export function App() {
     void loadChallenges();
   }, [loadChallenges, resumeSavedRun]);
 
+  const encounter = screen === "encounter" ? run?.encounter : undefined;
+  const expedition = screen === "map" ? run?.expedition : undefined;
+
+  let body = <GuildBoard />;
+  if (run && encounter) body = <EncounterScreen view={encounter} />;
+  else if (run && expedition) body = <ExpeditionScreen run={run} expedition={expedition} />;
+
   return (
     <>
       <div className="crt" aria-hidden="true" />
       <header className="topbar">
         <div className="brand">
-          ROOTWARD<small>M0 · a single encounter</small>
+          ROOTWARD<small>M1 · expeditions</small>
         </div>
-        {view && (
+        {run && (
           <div className="hud-mini" aria-label="Status summary">
             <span>
-              Integrity <b>{view.player.integrity}</b>
+              Integrity <b>{run.player.integrity}</b>
             </span>
+            {encounter && (
+              <span>
+                Focus <b>{encounter.player.focus}</b>/{encounter.player.focusMax}
+              </span>
+            )}
             <span>
-              Focus <b>{view.player.focus}</b>/{view.player.focusMax}
+              Cycles <b>{run.player.cycles}</b>
             </span>
-            <span>
-              Cycles <b>{view.player.cycles}</b>
-            </span>
-            <span>{view.player.className}</span>
+            <span>{run.player.className}</span>
           </div>
         )}
       </header>
@@ -47,16 +58,29 @@ export function App() {
             </button>
           </div>
         )}
-        {view ? <EncounterScreen view={view} /> : <ChallengeSelect />}
+        {body}
       </main>
       <footer className="statusbar">
-        <span>
-          <kbd>Ctrl</kbd>+<kbd>Enter</kbd> Cast
-        </span>
-        <span>
-          <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> Probe
-        </span>
-        <span className="right">wasm-js sandbox · no AI configured</span>
+        {expedition ? (
+          <>
+            <span>
+              <kbd>←↑↓→</kbd> <kbd>hjkl</kbd> <kbd>WASD</kbd> walk · click to travel
+            </span>
+            <span>
+              <kbd>Enter</kbd> step through a lit door
+            </span>
+          </>
+        ) : (
+          <>
+            <span>
+              <kbd>Ctrl</kbd>+<kbd>Enter</kbd> Cast
+            </span>
+            <span>
+              <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> Probe
+            </span>
+          </>
+        )}
+        <span className="right">wasm sandboxes · no AI configured</span>
       </footer>
     </>
   );

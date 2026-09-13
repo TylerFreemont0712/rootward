@@ -5,7 +5,8 @@
   "description": "Pure, deterministic game engine: RNG, run events, encounter rules. No I/O.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./map": "./src/map/index.ts"
   },
   "scripts": {
     "test": "vitest run",

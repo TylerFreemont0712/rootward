@@ -4,8 +4,8 @@ Living plan. Milestone goals and definitions of done come from `PROMPT.md` secti
 task list, what is done, what is next, and decisions made in conversation. Update it at the end of every session
 (`AGENT.md` section 7).
 
-- **Current milestone:** M1 — Vertical slice (starting). M0 is done.
-- **Last updated:** 2026-09-13
+- **Current milestone:** M1 — Vertical slice (in progress). M0 is done.
+- **Last updated:** 2026-09-14
 
 ## Kickoff decisions (2026-09-13)
 
@@ -63,7 +63,7 @@ Deviations from the M0 plan, recorded so nothing is silent:
 - The client bundle is about 1 MB (mostly CodeMirror and the markdown renderer); code-splitting can come with M1's
   extra screens.
 
-## M1 — Vertical slice: one complete run (next)
+## M1 — Vertical slice: one complete run (in progress)
 
 M1 turns one encounter into a whole expedition. The server gains SQLite persistence for profiles, characters, run
 events, and attempts, so a run resumes after a restart; Python arrives through a `wasm-python` (Pyodide) runner. The
@@ -95,13 +95,18 @@ Task breakdown:
 - [x] Planner v1 in `packages/core` (ADR-0007, `docs/PLANNER.md`): language tracks, Elo selection, spine with safe
       branches, rationale, unit tests and a 1,000-seed property test
 - [x] Map layout and pathfinding in `packages/core`, property-tested for reachability and overlaps
-- [ ] Run flow over a plan: plan saved in `RunStarted`, `RoomEntered` validated against plan edges, room clearing,
-      boss ends the run; server builds the planner catalog and learner snapshot
-- [ ] Map screen: ASCII renderer behind a `MapRenderer` interface, client-side movement (arrows, hjkl, WASD,
-      click-to-travel), fog of war, locked doors, minimap in the encounter screen
+- [x] Run flow over a plan (ADR-0008): plan saved in `RunStarted`, `EnterRoom` checked against the plan's edges, any
+      fight outcome clears the room, Elite and Boss tiers come from the room, the boss room ends the run, `AbandonRun`;
+      the server builds the planner catalog from content (the learner snapshot stays empty until the learner model
+      lands); artifacts and drafts per room; resume mid-expedition
+- [x] Map screen: ASCII renderer behind a `MapRenderer` interface, client-side movement (arrows, hjkl, WASD,
+      click-to-travel, and a door list), fog of war, locked doors, route, legend, and "why this dungeon" panels, minimap
+      in the encounter screen; `pnpm test:e2e` plays a whole expedition
 - [ ] Learner simulation script (planner converges to target success on synthetic learners)
-- [ ] Rooms: Shrine, Puzzle (predict-output, spot-the-bug, Parsons), Rest, Boss
-- [ ] Screens: Bastion (character creation, Artificer, Oath of the Foundry), Expedition map, Debrief, Chronicle
+- [ ] Rooms: Shrine, Puzzle (predict-output, spot-the-bug, Parsons), Rest, and multi-phase Boss (boss rooms already play
+      as a boss-tier fight); enable lessons, puzzles, and due cards in `apps/server/src/planning.ts` as each lands
+- [ ] Screens: Bastion (character creation, Artificer, Oath of the Foundry), Debrief, Chronicle (the Guild Board stands
+      in for the Bastion; the Expedition map is done)
 - [ ] Content: `content:new`, `content:stats`, seed content per section 13.4 (Foundry Python + JS, Grove, puzzles,
       cards, 15 enemies, 12 items, Warden class data)
 
@@ -130,11 +135,15 @@ Task breakdown:
 
 ## Next session: start here
 
-State (2026-09-14): M0 is done. M1 has the Python runner, SQLite persistence with resume, and the planner and map
-layout in core (not yet wired into play). Suggested order for the rest of M1:
-1. Run flow over a plan plus the map screen, so an expedition of several rooms is playable end to end.
-2. Learner model (mastery rules, Elo, FSRS via ts-fsrs, Commits, Version) and the Bastion and Debrief screens.
-3. Content: the JavaScript track nodes, the concepts-per-language ADR, and more Foundry challenges.
+State (2026-09-14): M0 is done. M1 has the Python runner, SQLite persistence with resume, planner v1, and expeditions
+playable end to end: Guild Board, walkable ASCII map with fog of war, fights room by room, and a boss that ends the run
+(ADR-0008). Content is now the bottleneck: with one challenge, every expedition is two rooms (the fight, then the same
+fight as the boss). Suggested order for the rest of M1:
+1. Content: more Foundry challenges in Python and JavaScript so expeditions get real floors and branches, the
+   JavaScript track nodes, and the concepts-per-language ADR.
+2. Learner model (mastery rules, Elo, FSRS via ts-fsrs, Commits, Version) feeding the planner's learner snapshot, then
+   the Bastion and Debrief screens.
+3. Shrine, Puzzle, and Rest rooms.
 4. `db:export` / `db:import`.
 
 Housekeeping: the folder is still named `ProgramMe`. Rename it to `Rootward` between sessions, not during one (moving

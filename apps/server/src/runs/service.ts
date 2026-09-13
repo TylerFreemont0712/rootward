@@ -2,30 +2,46 @@ import { randomUUID } from "node:crypto";
 import { type ClassDef, type Enemy, type IoCase, Language } from "@rootward/content-schema";
 import type { LoadedChallenge } from "@rootward/content-tools";
 import {
+  type Decision,
   decide,
+  type EncounterSetup,
   type EncounterState,
   evolve,
   foldRun,
+  type PlannerCatalog,
+  planDungeon,
   type RunCommand,
   type RunEvent,
   type RunState,
   type TestOutcome,
 } from "@rootward/core";
 import type { RunResult } from "@rootward/runners";
-import type { ActionRequest, ChallengeSummary, EncounterResponse, StartEncounterRequest } from "@rootward/shared";
+import type {
+  ActionRequest,
+  ChallengeSummary,
+  EncounterView,
+  EnterRoomRequest,
+  RunResponse,
+  RunView,
+  StartEncounterRequest,
+  StartExpeditionRequest,
+} from "@rootward/shared";
 import type { GameContent } from "../content.ts";
 import { ServiceError } from "../errors.ts";
+import { buildPlannerCatalog, EMPTY_LEARNER } from "../planning.ts";
 import { LARGE_INPUT_CATEGORY, type Sandbox } from "../sandbox.ts";
 import type { RunArtifacts } from "./artifacts.ts";
 import { applyAttempt, type Attempt, type AttemptStore, InMemoryAttemptStore } from "./attempts.ts";
 import { KeyedLock } from "./lock.ts";
 import type { EventStore } from "./store.ts";
-import { buildEncounterView } from "./views.ts";
+import { buildEncounterView, buildRunView, type RoomDetails } from "./views.ts";
 
-/** M0 has one playable class; the Guild Hall (M1) makes it a choice. */
+/** One playable class and one Oath until the Bastion (M1) makes them a choice. */
 const DEFAULT_CLASS_ID = "artificer";
-const ROOM_ID = "room-1";
-/** How many runs keep their artifacts in memory; others are rebuilt from stored attempts when needed. */
+const DEFAULT_OATH_ID = "oath-of-the-foundry";
+/** The room id of a practice fight, which has no dungeon around it. */
+const PRACTICE_ROOM_ID = "room-1";
+/** How many fights keep their artifacts in memory; others are rebuilt from stored attempts when needed. */
 const ARTIFACT_CACHE_SIZE = 50;
 
 export interface RunServiceDeps {
@@ -51,6 +67,7 @@ export class RunService {
   private readonly newId: () => string;
   private readonly artifactCache = new Map<string, RunArtifacts>();
   private readonly lock = new KeyedLock();
+  private catalog: PlannerCatalog | undefined;
 
   constructor(deps: RunServiceDeps) {
     this.content = deps.content;
@@ -83,93 +100,114 @@ export class RunService {
     return summaries.sort((a, b) => a.difficulty - b.difficulty || a.title.localeCompare(b.title));
   }
 
-  async startEncounter(request: StartEncounterRequest): Promise<EncounterResponse> {
-    const challenge = this.challenge(request.challengeId);
-    const language = this.language(challenge, request.language);
+  /** A single practice fight outside any dungeon. */
+  async startEncounter(request: StartEncounterRequest): Promise<RunResponse> {
+    const setup = await this.encounterSetup(this.challenge(request.challengeId), request.language);
+    const runId = this.newId();
+    const events = this.applyAll(undefined, [
+      { type: "StartRun", runId, seed: request.seed ?? this.newId(), classDef: this.classDef(DEFAULT_CLASS_ID) },
+      { type: "StartEncounter", roomId: PRACTICE_ROOM_ID, ...setup },
+    ]);
+    await this.store.create(runId, events);
+    return { run: await this.runView(foldRun(events), events) };
+  }
+
+  /** Plan a dungeon for the character and start an expedition through it (ADR-0007, ADR-0008). */
+  async startExpedition(request: StartExpeditionRequest): Promise<RunResponse> {
+    const parsed = Language.safeParse(request.language);
+    if (!parsed.success) {
+      throw new ServiceError(400, "unsupported-language", `There is no language called ${request.language}.`);
+    }
+    const language = parsed.data;
     if (!(await this.sandbox.canRun(language))) {
       throw new ServiceError(409, "no-runner", `No sandbox can run ${language} on this machine yet.`);
     }
+    const { balance, index } = this.content;
+    const classDef = this.classDef(DEFAULT_CLASS_ID);
+    const seed = request.seed ?? this.newId();
+    this.catalog ??= buildPlannerCatalog(index);
+    const planned = planDungeon({
+      seed,
+      length: request.length ?? balance.planner.default_session,
+      language,
+      catalog: this.catalog,
+      learner: EMPTY_LEARNER,
+      oathRealms: index.oaths.get(DEFAULT_OATH_ID)?.value.weights.realms ?? {},
+      classAffinity: classDef.affinity,
+      balance,
+    });
+    if (!planned.ok) throw new ServiceError(409, planned.error.code, planned.error.message);
+
     const runId = this.newId();
-    const visible = challenge.visibleTests?.cases ?? [];
-    const hidden = challenge.hiddenTests?.cases ?? [];
-    const { manifest } = challenge;
-
-    const events = this.applyAll(undefined, [
-      { type: "StartRun", runId, seed: request.seed ?? this.newId(), classDef: this.classDef() },
-      {
-        type: "StartEncounter",
-        roomId: ROOM_ID,
-        challenge: {
-          id: manifest.id,
-          language,
-          difficulty: manifest.difficulty,
-          retreatable: manifest.retreatable,
-          scoring: manifest.scoring,
-        },
-        enemy: this.enemy(challenge),
-        tests: [
-          ...visible.map((c) => ({ id: c.id, name: c.name, visibility: "visible" as const })),
-          ...hidden
-            .filter((c) => !c.reserve)
-            .map((c) => ({
-              id: c.id,
-              name: c.name,
-              visibility: "hidden" as const,
-              ...(c.category !== undefined ? { category: c.category } : {}),
-            })),
-        ],
-        reserve: hidden.flatMap((c) =>
-          c.reserve && c.category !== undefined ? [{ id: c.id, name: c.name, category: c.category }] : [],
-        ),
-        mastery: 0,
-      },
-    ]);
+    const events = this.applyAll(undefined, [{ type: "StartRun", runId, seed, classDef, plan: planned.plan }]);
     await this.store.create(runId, events);
-    const artifacts = this.freshArtifacts(challenge, language);
-    this.remember(runId, artifacts);
-    return { view: this.view(foldRun(events), events, artifacts) };
+    return { run: await this.runView(foldRun(events), events) };
   }
 
-  async getRun(runId: string): Promise<EncounterResponse> {
-    const events = await this.loadEvents(runId);
-    const state = foldRun(events);
-    return { view: this.view(state, events, await this.artifacts(state)) };
-  }
-
-  act(runId: string, action: ActionRequest): Promise<EncounterResponse> {
+  /** Step through a door. The rules decide whether the room is on the path; content supplies the fight inside. */
+  enterRoom(runId: string, request: EnterRoomRequest): Promise<RunResponse> {
     return this.lock.run(runId, async () => {
       const events = await this.loadEvents(runId);
       const state = foldRun(events);
-      const artifacts = await this.artifacts(state);
+      const ctx = { balance: this.content.balance };
+      // As with Casts, ask the rules first: only a reachable fight room is worth loading a challenge for.
+      const precheck = decide(state, { type: "EnterRoom", roomId: request.roomId }, ctx);
+      const room = state.plan?.rooms.find((candidate) => candidate.id === request.roomId);
+      if (precheck.ok || precheck.error.code !== "missing-setup" || !state.plan || room?.challengeId === undefined) {
+        return this.commit(runId, state, events, precheck);
+      }
+      const encounter = await this.encounterSetup(this.challenge(room.challengeId), state.plan.language);
+      return this.commit(runId, state, events, decide(state, { type: "EnterRoom", roomId: room.id, encounter }, ctx));
+    });
+  }
+
+  async getRun(runId: string): Promise<RunResponse> {
+    const events = await this.loadEvents(runId);
+    return { run: await this.runView(foldRun(events), events) };
+  }
+
+  act(runId: string, action: ActionRequest): Promise<RunResponse> {
+    return this.lock.run(runId, async () => {
+      const events = await this.loadEvents(runId);
+      const state = foldRun(events);
       const ctx = { balance: this.content.balance };
 
       // Refuse early when running code would be pointless (run over, no Focus): decide() checks those conditions
       // before it looks at results, so an empty result list yields exactly the refusal the real command would get.
       if (action.type === "probe" || action.type === "cast") {
         const precheck = decide(state, { type: action.type === "probe" ? "Probe" : "Cast", results: [] }, ctx);
-        if (!precheck.ok && precheck.error.code !== "results-mismatch") {
-          return { view: this.view(state, events, artifacts), refused: precheck.error };
-        }
+        if (!precheck.ok && precheck.error.code !== "results-mismatch") return this.commit(runId, state, events, precheck);
       }
 
       const prepared = await this.prepare(state, action);
-      const decision = decide(state, prepared.command, ctx);
-      if (!decision.ok) return { view: this.view(state, events, artifacts), refused: decision.error };
-
-      await this.store.append(runId, events.length, decision.events);
-      if (prepared.attempt) {
-        const attempt: Attempt = { ...prepared.attempt, seq: events.length };
-        await this.attempts.record(runId, attempt);
-        applyAttempt(artifacts, attempt, this.visibleIds(this.challenge(this.encounterOf(state).challengeId)));
-      }
-      const all = [...events, ...decision.events];
-      return { view: this.view(foldRun(all), all, artifacts) };
+      return this.commit(runId, state, events, decide(state, prepared.command, ctx), prepared.attempt);
     });
+  }
+
+  /** Append an accepted decision (and the attempt behind it), or report a refusal, and answer with the run view. */
+  private async commit(
+    runId: string,
+    state: RunState,
+    events: readonly RunEvent[],
+    decision: Decision<RunEvent>,
+    attempt?: Omit<Attempt, "seq">,
+  ): Promise<RunResponse> {
+    if (!decision.ok) return { run: await this.runView(state, events), refused: decision.error };
+    await this.store.append(runId, events.length, decision.events);
+    if (attempt && state.encounter) {
+      const recorded: Attempt = { ...attempt, seq: events.length };
+      await this.attempts.record(runId, recorded);
+      const artifacts = await this.artifacts(state, state.encounter, events);
+      applyAttempt(artifacts, recorded, this.visibleIds(this.challenge(state.encounter.challengeId)));
+    }
+    const all = [...events, ...decision.events];
+    return { run: await this.runView(foldRun(all), all) };
   }
 
   private async prepare(state: RunState, action: ActionRequest): Promise<PreparedCommand> {
     if (action.type === "hint") return { command: { type: "TakeHint" } };
     if (action.type === "retreat") return { command: { type: "Retreat" } };
+    if (action.type === "abandon") return { command: { type: "AbandonRun" } };
 
     const encounter = this.encounterOf(state);
     const challenge = this.challenge(encounter.challengeId);
@@ -193,6 +231,43 @@ export class RunService {
     return {
       command: timing ? { type: "Cast", results: outcomes, timing } : { type: "Cast", results: outcomes },
       attempt,
+    };
+  }
+
+  /** The fight a challenge holds, ready for the rules: tests by visibility (reserve tests held back) and its enemy. */
+  private async encounterSetup(challenge: LoadedChallenge, requestedLanguage: string): Promise<EncounterSetup> {
+    const language = this.language(challenge, requestedLanguage);
+    if (!(await this.sandbox.canRun(language))) {
+      throw new ServiceError(409, "no-runner", `No sandbox can run ${language} on this machine yet.`);
+    }
+    const { manifest } = challenge;
+    const visible = challenge.visibleTests?.cases ?? [];
+    const hidden = challenge.hiddenTests?.cases ?? [];
+    return {
+      challenge: {
+        id: manifest.id,
+        language,
+        difficulty: manifest.difficulty,
+        retreatable: manifest.retreatable,
+        scoring: manifest.scoring,
+      },
+      enemy: this.enemy(challenge),
+      tests: [
+        ...visible.map((c) => ({ id: c.id, name: c.name, visibility: "visible" as const })),
+        ...hidden
+          .filter((c) => !c.reserve)
+          .map((c) => ({
+            id: c.id,
+            name: c.name,
+            visibility: "hidden" as const,
+            ...(c.category !== undefined ? { category: c.category } : {}),
+          })),
+      ],
+      reserve: hidden.flatMap((c) =>
+        c.reserve && c.category !== undefined ? [{ id: c.id, name: c.name, category: c.category }] : [],
+      ),
+      // The learner model (M1) will price hints by real mastery; until then every concept counts as new.
+      mastery: 0,
     };
   }
 
@@ -221,29 +296,43 @@ export class RunService {
     return events;
   }
 
-  private view(state: RunState, events: readonly RunEvent[], artifacts: RunArtifacts) {
-    const challenge = this.challenge(this.encounterOf(state).challengeId);
-    return buildEncounterView({
-      state,
-      events,
-      challenge,
-      enemy: this.enemy(challenge),
-      classDef: this.classDef(),
-      balance: this.content.balance,
-      artifacts,
-    });
+  private async runView(state: RunState, events: readonly RunEvent[]): Promise<RunView> {
+    const classDef = this.classDef(state.classId);
+    let encounter: EncounterView | undefined;
+    if (state.encounter) {
+      const challenge = this.challenge(state.encounter.challengeId);
+      encounter = buildEncounterView({
+        state,
+        events: events.slice(encounterStart(events)),
+        challenge,
+        enemy: this.enemy(challenge),
+        classDef,
+        balance: this.content.balance,
+        artifacts: await this.artifacts(state, state.encounter, events),
+      });
+    }
+    return buildRunView({ state, classDef, encounter, describeChallenge: (id) => this.describeChallenge(id) });
   }
 
-  /** A run's artifacts: from the cache, or rebuilt by replaying its stored attempts (for example after a restart). */
-  private async artifacts(state: RunState): Promise<RunArtifacts> {
-    const cached = this.artifactCache.get(state.runId);
-    if (cached) return cached;
-    const encounter = this.encounterOf(state);
+  /**
+   * The current fight's artifacts: from the cache, or rebuilt by replaying the attempts made since the fight started
+   * (for example after a restart). Keyed by the fight's first event, so every room starts from its own starter files.
+   */
+  private async artifacts(state: RunState, encounter: EncounterState, events: readonly RunEvent[]): Promise<RunArtifacts> {
+    const start = encounterStart(events);
+    const key = `${state.runId}#${start}`;
+    const cached = this.artifactCache.get(key);
+    if (cached) {
+      this.remember(key, cached);
+      return cached;
+    }
     const challenge = this.challenge(encounter.challengeId);
     const artifacts = this.freshArtifacts(challenge, this.language(challenge, encounter.language));
     const visibleIds = this.visibleIds(challenge);
-    for (const attempt of await this.attempts.list(state.runId)) applyAttempt(artifacts, attempt, visibleIds);
-    this.remember(state.runId, artifacts);
+    for (const attempt of await this.attempts.list(state.runId)) {
+      if (attempt.seq > start) applyAttempt(artifacts, attempt, visibleIds);
+    }
+    this.remember(key, artifacts);
     return artifacts;
   }
 
@@ -251,14 +340,24 @@ export class RunService {
     return { files: { ...(challenge.starter[language] ?? {}) }, latest: new Map() };
   }
 
-  private remember(runId: string, artifacts: RunArtifacts): void {
+  private remember(key: string, artifacts: RunArtifacts): void {
     // LEARN: a Map iterates in insertion order, so re-inserting on use and dropping the first key is a tiny LRU cache.
-    this.artifactCache.delete(runId);
-    this.artifactCache.set(runId, artifacts);
+    this.artifactCache.delete(key);
+    this.artifactCache.set(key, artifacts);
     if (this.artifactCache.size > ARTIFACT_CACHE_SIZE) {
       const oldest = this.artifactCache.keys().next();
       if (!oldest.done) this.artifactCache.delete(oldest.value);
     }
+  }
+
+  private describeChallenge(challengeId: string): RoomDetails | undefined {
+    const challenge = this.content.index.challenges.get(challengeId);
+    if (!challenge) return undefined;
+    return {
+      title: challenge.manifest.title,
+      enemyName: this.enemy(challenge).name,
+      difficulty: challenge.manifest.difficulty,
+    };
   }
 
   private visibleIds(challenge: LoadedChallenge): ReadonlySet<string> {
@@ -307,9 +406,14 @@ export class RunService {
     return enemy.value;
   }
 
-  private classDef(): ClassDef {
-    const loaded = this.content.index.classes.get(DEFAULT_CLASS_ID);
-    if (!loaded) throw new Error(`class ${DEFAULT_CLASS_ID} is missing from the content packs`);
+  private classDef(id: string): ClassDef {
+    const loaded = this.content.index.classes.get(id);
+    if (!loaded) throw new Error(`class ${id} is missing from the content packs`);
     return loaded.def;
   }
+}
+
+/** Index of the event that started the current fight; that fight's attempts and log come after it. */
+function encounterStart(events: readonly RunEvent[]): number {
+  return events.findLastIndex((event) => event.type === "EncounterStarted");
 }

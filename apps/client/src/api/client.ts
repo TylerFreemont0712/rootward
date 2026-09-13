@@ -1,9 +1,11 @@
 import {
   type ActionRequest,
   ChallengeListResponse,
-  EncounterResponse,
+  type EnterRoomRequest,
   ErrorResponse,
+  RunResponse,
   type StartEncounterRequest,
+  type StartExpeditionRequest,
 } from "@rootward/shared";
 import type { z } from "zod";
 
@@ -59,10 +61,13 @@ async function request<T extends z.ZodType>(
   return parsed.data;
 }
 
+const runUrl = (runId: string, suffix = "") => `/api/runs/${encodeURIComponent(runId)}${suffix}`;
+
 export const api = {
   challenges: () => request("GET", "/api/challenges", ChallengeListResponse),
-  startEncounter: (body: StartEncounterRequest) => request("POST", "/api/encounters", EncounterResponse, body),
-  getRun: (runId: string) => request("GET", `/api/runs/${encodeURIComponent(runId)}`, EncounterResponse),
-  act: (runId: string, action: ActionRequest) =>
-    request("POST", `/api/runs/${encodeURIComponent(runId)}/actions`, EncounterResponse, action),
+  startEncounter: (body: StartEncounterRequest) => request("POST", "/api/encounters", RunResponse, body),
+  startExpedition: (body: StartExpeditionRequest) => request("POST", "/api/expeditions", RunResponse, body),
+  getRun: (runId: string) => request("GET", runUrl(runId), RunResponse),
+  enterRoom: (runId: string, body: EnterRoomRequest) => request("POST", runUrl(runId, "/rooms"), RunResponse, body),
+  act: (runId: string, action: ActionRequest) => request("POST", runUrl(runId, "/actions"), RunResponse, action),
 };

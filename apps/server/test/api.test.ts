@@ -2,7 +2,14 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WasmJsRunner, WasmPythonRunner } from "@rootward/runners";
-import { ChallengeListResponse, EncounterResponse, ErrorResponse, HealthResponse } from "@rootward/shared";
+import {
+  ChallengeListResponse,
+  type EncounterView,
+  ErrorResponse,
+  HealthResponse,
+  RunResponse,
+  type RunView,
+} from "@rootward/shared";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.ts";
@@ -43,6 +50,11 @@ afterAll(async () => {
   await sandbox.dispose();
 });
 
+function encounterOf(run: RunView): EncounterView {
+  if (!run.encounter) throw new Error(`run ${run.runId} has no encounter`);
+  return run.encounter;
+}
+
 async function startEncounter(language = "javascript", seed = "api-test") {
   const response = await app.inject({
     method: "POST",
@@ -50,7 +62,9 @@ async function startEncounter(language = "javascript", seed = "api-test") {
     payload: { challengeId: TALLY_WISP, language, seed },
   });
   expect(response.statusCode, response.body).toBe(200);
-  return EncounterResponse.parse(response.json()).view;
+  const { run } = RunResponse.parse(response.json());
+  expect(run.expedition).toBeUndefined();
+  return encounterOf(run);
 }
 
 async function act(runId: string, payload: object) {
@@ -58,7 +72,10 @@ async function act(runId: string, payload: object) {
   return {
     status: response.statusCode,
     body: response.body,
-    json: (): EncounterResponse => EncounterResponse.parse(response.json()),
+    json: () => {
+      const parsed = RunResponse.parse(response.json());
+      return { view: encounterOf(parsed.run), refused: parsed.refused };
+    },
   };
 }
 

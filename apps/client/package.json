@@ -21,6 +21,7 @@
     "@fontsource/ibm-plex-mono": "5.3.0",
     "@fontsource/vt323": "5.3.0",
     "@lezer/highlight": "1.2.3",
+    "@rootward/core": "workspace:*",
     "@rootward/runners": "workspace:*",
     "@rootward/shared": "workspace:*",
     "codemirror": "6.0.2",

@@ -1,5 +1,6 @@
 import { type ClassDef, type Enemy, EnemyTier } from "@rootward/content-schema";
 import { z } from "zod";
+import { DungeonPlan } from "../planner/types.ts";
 
 // Engine state, events, and commands for a run. Runtime data uses camelCase; content files are snake_case (ADR-0002).
 //
@@ -109,8 +110,15 @@ export const EncounterState = z.strictObject({
 });
 export type EncounterState = z.infer<typeof EncounterState>;
 
-export const RunEndReason = z.enum(["kernel-panic", "completed", "abandoned"]);
+/** How the run ended: the boss fell, Integrity hit 0, the player retreated from the boss, or gave up. */
+export const RunEndReason = z.enum(["kernel-panic", "completed", "retreated", "abandoned"]);
 export type RunEndReason = z.infer<typeof RunEndReason>;
+
+export const RoomOutcome = z.enum(["won", "retreated", "exhausted"]);
+export type RoomOutcome = z.infer<typeof RoomOutcome>;
+
+export const RoomRecord = z.strictObject({ roomId: z.string(), outcome: RoomOutcome });
+export type RoomRecord = z.infer<typeof RoomRecord>;
 
 export const RunState = z.strictObject({
   runId: z.string(),
@@ -123,6 +131,12 @@ export const RunState = z.strictObject({
   cycles: z.number(),
   focusBase: z.number(),
   critLootMultiplier: z.number(),
+  /** The expedition's dungeon. Absent for a single practice fight. */
+  plan: DungeonPlan.optional(),
+  /** The plan room being played right now. */
+  currentRoomId: z.string().optional(),
+  /** Rooms finished so far, in order; the last one is where the path continues from. */
+  clearedRooms: z.array(RoomRecord),
   encounter: EncounterState.optional(),
 });
 export type RunState = z.infer<typeof RunState>;
@@ -139,7 +153,10 @@ export const RunEvent = z.discriminatedUnion("type", [
     cycles: z.number(),
     focusBase: z.number(),
     critLootMultiplier: z.number(),
+    plan: DungeonPlan.optional(),
   }),
+  z.strictObject({ type: z.literal("RoomEntered"), roomId: z.string() }),
+  z.strictObject({ type: z.literal("RoomCleared"), roomId: z.string(), outcome: RoomOutcome }),
   z.strictObject({ type: z.literal("EncounterStarted"), encounter: EncounterState }),
   z.strictObject({ type: z.literal("Probed"), roomId: z.string(), results: z.array(TestOutcome) }),
   z.strictObject({
@@ -176,18 +193,23 @@ export interface EncounterChallenge {
   scoring: Scoring;
 }
 
+/** Everything the rules need to start a fight; the server fills it from content. */
+export interface EncounterSetup {
+  challenge: EncounterChallenge;
+  enemy: Enemy;
+  tests: readonly { id: string; name: string; visibility: TestVisibility; category?: string }[];
+  reserve: readonly ReserveTest[];
+  /** Mastery (0-5) of the challenge's primary concept; prices hints. */
+  mastery: number;
+}
+
 export type RunCommand =
-  | { type: "StartRun"; runId: string; seed: string; classDef: ClassDef }
-  | {
-      type: "StartEncounter";
-      roomId: string;
-      challenge: EncounterChallenge;
-      enemy: Enemy;
-      tests: readonly { id: string; name: string; visibility: TestVisibility; category?: string }[];
-      reserve: readonly ReserveTest[];
-      /** Mastery (0-5) of the challenge's primary concept; prices hints. */
-      mastery: number;
-    }
+  | { type: "StartRun"; runId: string; seed: string; classDef: ClassDef; plan?: DungeonPlan }
+  /** A single fight outside an expedition (practice). */
+  | ({ type: "StartEncounter"; roomId: string } & EncounterSetup)
+  /** Step into a plan room. Fight rooms (encounter, elite, boss) need their setup. */
+  | { type: "EnterRoom"; roomId: string; encounter?: EncounterSetup }
+  | { type: "AbandonRun" }
   | { type: "Probe"; results: TestOutcome[] }
   | {
       type: "Cast";

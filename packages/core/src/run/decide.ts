@@ -1,10 +1,20 @@
-import type { Balance, ClassDef } from "@rootward/content-schema";
+import type { Balance, ClassDef, EnemyTier } from "@rootward/content-schema";
 import { accept, type Decision, refuse } from "../result.ts";
 import { pickWeighted, randomFor } from "../rng.ts";
 import { masteryKey, tierKey } from "./keys.ts";
 import { type MoveContext, type MoveOutcome, MOVES, strike } from "./moves.ts";
+import { reachableRoomIds } from "./queries.ts";
 import { computeRewards, type RewardInput } from "./rewards.ts";
-import type { EncounterState, EncounterTest, RunCommand, RunEvent, RunState, TestOutcome } from "./types.ts";
+import type {
+  EncounterSetup,
+  EncounterState,
+  EncounterTest,
+  RoomOutcome,
+  RunCommand,
+  RunEvent,
+  RunState,
+  TestOutcome,
+} from "./types.ts";
 
 export interface DecideContext {
   balance: Balance;
@@ -20,7 +30,10 @@ export function decide(state: RunState | undefined, command: RunCommand, ctx: De
 
   switch (command.type) {
     case "StartEncounter":
-      return startEncounter(state, command, ctx.balance);
+      if (state.plan) return refuse("in-expedition", "This run is an expedition: enter a room of the dungeon instead.");
+      return startEncounter(state, command, command.roomId, ctx.balance);
+    case "EnterRoom":
+      return enterRoom(state, command, ctx.balance);
     case "Probe":
       return probe(state, command.results);
     case "Cast":
@@ -29,6 +42,8 @@ export function decide(state: RunState | undefined, command: RunCommand, ctx: De
       return takeHint(state);
     case "Retreat":
       return retreat(state);
+    case "AbandonRun":
+      return accept({ type: "RunEnded", reason: "abandoned" });
     default:
       return assertNever(command);
   }
@@ -65,23 +80,53 @@ function startRun(
     cycles: balance.player.cycles_start,
     focusBase: stats.focus,
     critLootMultiplier: critLootMultiplier(command.classDef),
+    ...(command.plan ? { plan: command.plan } : {}),
   });
+}
+
+/**
+ * Step into a room of the plan (ADR-0008). Only rooms reachable from the last cleared room along the plan's edges
+ * may be entered; the map's geometry plays no part in this check.
+ */
+function enterRoom(state: RunState, command: Extract<RunCommand, { type: "EnterRoom" }>, balance: Balance): Decision<RunEvent> {
+  const plan = state.plan;
+  if (!plan) return refuse("no-plan", "This run has no dungeon to explore.");
+  if (state.currentRoomId !== undefined) return refuse("room-active", "Finish the room you are in first.");
+  const room = plan.rooms.find((candidate) => candidate.id === command.roomId);
+  if (!room) return refuse("unknown-room", "There is no such room in this dungeon.");
+  if (!reachableRoomIds(state).includes(room.id)) {
+    return refuse("unreachable", "That door is sealed: it is not on a path from where you stand.");
+  }
+  if (room.kind !== "encounter" && room.kind !== "elite" && room.kind !== "boss") {
+    return refuse("unsupported-room", `${room.kind} rooms are not playable yet.`);
+  }
+  const setup = command.encounter;
+  if (!setup) return refuse("missing-setup", "A fight room needs its challenge and enemy.");
+  if (room.challengeId !== undefined && setup.challenge.id !== room.challengeId) {
+    return refuse("wrong-challenge", `Room ${room.id} holds ${room.challengeId}, not ${setup.challenge.id}.`);
+  }
+  // The room decides how dangerous the fight is: any enemy template can guard an Elite or Boss room.
+  const tier: EnemyTier | undefined = room.kind === "elite" ? "elite" : room.kind === "boss" ? "boss" : undefined;
+  const started = startEncounter(state, setup, room.id, balance, tier);
+  return started.ok ? accept({ type: "RoomEntered", roomId: room.id }, ...started.events) : started;
 }
 
 function startEncounter(
   state: RunState,
-  command: Extract<RunCommand, { type: "StartEncounter" }>,
+  setup: EncounterSetup,
+  roomId: string,
   balance: Balance,
+  tierOverride?: EnemyTier,
 ): Decision<RunEvent> {
   if (state.encounter?.status === "active") {
     return refuse("encounter-active", "Finish or retreat from the current encounter first.");
   }
-  const ids = [...command.tests.map((t) => t.id), ...command.reserve.map((t) => t.id)];
-  if (command.tests.length === 0) return refuse("no-tests", "An encounter needs at least one test.");
+  const ids = [...setup.tests.map((t) => t.id), ...setup.reserve.map((t) => t.id)];
+  if (setup.tests.length === 0) return refuse("no-tests", "An encounter needs at least one test.");
   if (new Set(ids).size !== ids.length) return refuse("duplicate-tests", "Test ids must be unique.");
 
   const weights = balance.encounter.test_weights;
-  const tests = command.tests.map((t): EncounterTest => {
+  const tests = setup.tests.map((t): EncounterTest => {
     const test: EncounterTest = {
       id: t.id,
       name: t.name,
@@ -92,11 +137,12 @@ function startEncounter(
     if (t.category !== undefined) test.category = t.category;
     return test;
   });
-  const hintMultiplier = balance.encounter.hint_cost_multiplier_by_mastery[masteryKey(command.mastery)];
-  const { enemy, challenge } = command;
+  const hintMultiplier = balance.encounter.hint_cost_multiplier_by_mastery[masteryKey(setup.mastery)];
+  const { enemy, challenge } = setup;
+  const tier = tierOverride ?? enemy.tier;
 
   const encounter: EncounterState = {
-    roomId: command.roomId,
+    roomId,
     challengeId: challenge.id,
     language: challenge.language,
     difficulty: challenge.difficulty,
@@ -105,14 +151,14 @@ function startEncounter(
     enemy: {
       id: enemy.id,
       name: enemy.name,
-      tier: enemy.tier,
-      atk: enemy.base_atk ?? balance.enemy_moves.strike_atk_by_tier[tierKey(enemy.tier)],
+      tier,
+      atk: enemy.base_atk ?? balance.enemy_moves.strike_atk_by_tier[tierKey(tier)],
       hpDisplayOffset: enemy.hp_display_offset,
       moves: enemy.moves.map((m) => ({ move: m.move, weight: m.weight, params: m.params })),
       taunts: [...enemy.flavor.taunt],
     },
     tests,
-    reserve: command.reserve.map((r) => ({ ...r })),
+    reserve: setup.reserve.map((r) => ({ ...r })),
     focus: state.focusBase,
     focusMax: state.focusBase,
     casts: 0,
@@ -163,7 +209,7 @@ function cast(state: RunState, command: Extract<RunCommand, { type: "Cast" }>, b
     if (command.timing) input.timing = command.timing;
     const rewards = computeRewards(input);
     events.push({ type: "EncounterWon", roomId, rewards, cycles: state.cycles + rewards.cycles });
-    return accept(...events);
+    return accept(...events, ...closeRoom(state, "won"));
   }
 
   const outcome = enemyTurn({ encounter: afterCast, balance, failingCount, integrity: state.integrity }, state.seed);
@@ -176,8 +222,22 @@ function cast(state: RunState, command: Extract<RunCommand, { type: "Cast" }>, b
   } else {
     events.push({ type: "EdgeCaseRevealed", roomId, action: outcome.action, test: outcome.test });
   }
-  if (focus === 0) events.push({ type: "Exhausted", roomId });
+  if (focus === 0) events.push({ type: "Exhausted", roomId }, ...closeRoom(state, "exhausted"));
   return accept(...events);
+}
+
+/**
+ * In an expedition, a finished fight clears its room and the path continues from it. Clearing the boss room ends the
+ * run: completed on a win, retreated otherwise (PROMPT.md section 7.6: bosses can be retreated from but end the run).
+ */
+function closeRoom(state: RunState, outcome: RoomOutcome): RunEvent[] {
+  const roomId = state.currentRoomId;
+  if (!state.plan || roomId === undefined) return [];
+  const events: RunEvent[] = [{ type: "RoomCleared", roomId, outcome }];
+  if (state.plan.rooms.find((room) => room.id === roomId)?.kind === "boss") {
+    events.push({ type: "RunEnded", reason: outcome === "won" ? "completed" : "retreated" });
+  }
+  return events;
 }
 
 /** The enemy's move after a Cast it survived: a weighted random choice from its template, drawn from the run seed. */
@@ -211,7 +271,7 @@ function retreat(state: RunState): Decision<RunEvent> {
   const encounter = activeEncounter(state);
   if (!encounter) return refuse("no-encounter", "There is no active encounter.");
   if (!encounter.retreatable) return refuse("not-retreatable", "There is no retreating from this fight.");
-  return accept({ type: "Retreated", roomId: encounter.roomId });
+  return accept({ type: "Retreated", roomId: encounter.roomId }, ...closeRoom(state, "retreated"));
 }
 
 function activeEncounter(state: RunState): EncounterState | undefined {
