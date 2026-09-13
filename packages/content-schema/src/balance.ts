@@ -23,7 +23,6 @@ export const Balance = z.strictObject({
   encounter: z.strictObject({
     test_weights: z.strictObject({ visible: NonNegativeInt, hidden: NonNegativeInt, adversary: NonNegativeInt }),
     regression_heals_enemy: z.boolean(),
-    crit_requires_first_cast: z.boolean(),
     suggest_retreat_after_failed_casts: PositiveInt,
     hint_costs_cycles: z.tuple([NonNegativeInt, NonNegativeInt, NonNegativeInt, NonNegativeInt]),
     hint_cost_multiplier_by_mastery: z.record(MasteryKey, z.number().min(0)),

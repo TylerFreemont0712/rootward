@@ -311,6 +311,13 @@ importers:
       '@rootward/content-schema':
         specifier: workspace:*
         version: link:../content-schema
+      zod:
+        specifier: 4.6.4
+        version: 4.6.4
+    devDependencies:
+      yaml:
+        specifier: 2.9.1
+        version: 2.9.1
 
   packages/runners:
     dependencies:

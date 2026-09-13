@@ -12,6 +12,10 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@rootward/content-schema": "workspace:*"
+    "@rootward/content-schema": "workspace:*",
+    "zod": "4.6.4"
+  },
+  "devDependencies": {
+    "yaml": "2.9.1"
   }
 }
