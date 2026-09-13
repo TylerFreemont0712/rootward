@@ -83,9 +83,10 @@ Task breakdown:
 - [x] `wasm-python` runner: Pyodide in a permission-restricted child process (ADR-0005; a spike showed Pyodide in
       Node is not a sandbox by itself), outputs compared outside the sandbox, warm spare process, safety suite; the
       Tally Wisp Python variant is validated by `content:validate` and playable end to end
-- [ ] Persistence ADR (`node:sqlite` built-in vs `better-sqlite3` + Drizzle; Drizzle 0.45 has no `node:sqlite`
-      driver), SQLite event store behind `EventStore`, attempts table for artifacts, migrations, resume after restart,
-      `db:export`/`db:import`
+- [x] Persistence: ADR-0006 (`node:sqlite`, plain SQL, numbered migrations with backups), SQLite event store with
+      zod-validated events, attempts table that rebuilds editor contents and test results, resume after a server
+      restart (`apps/server/test/resume.test.ts`)
+- [ ] `db:export` / `db:import` JSON backups of the database
 - [ ] JavaScript unit-form harness (sentinel protocol inside QuickJS), moved from M0
 - [ ] Concepts per language: decide how a JavaScript play of a multi-language challenge credits `js.*` nodes (ADR)
 - [ ] Artificer Inspect and Refactor abilities (effect primitives `revealHiddenTest`, `resetStarter`)
@@ -123,16 +124,16 @@ Task breakdown:
 
 ## Next session: start here
 
-State at the end of build session 1 (2026-09-13): M0 is done; M1 is underway with the Python runner shipped. Suggested
-order for the rest of M1:
-1. Persistence ADR and a SQLite `EventStore` plus an attempts table, so runs survive a server restart (M1 DoD).
-2. Planner v1 in `packages/core` and the walkable map layout (kickoff answer 8), with property tests over many seeds.
-3. Learner model (mastery rules, Elo, FSRS via ts-fsrs, Commits, Version) and the Bastion and Debrief screens.
-4. Content: the JavaScript track nodes, the concepts-per-language ADR, and more Foundry challenges.
+State (2026-09-14): M0 is done. M1 has the Python runner and SQLite persistence with resume. Suggested order for the
+rest of M1:
+1. Planner v1 in `packages/core` and the walkable map layout (kickoff answer 8), with property tests over many seeds.
+2. Learner model (mastery rules, Elo, FSRS via ts-fsrs, Commits, Version) and the Bastion and Debrief screens.
+3. Content: the JavaScript track nodes, the concepts-per-language ADR, and more Foundry challenges.
+4. `db:export` / `db:import`.
 
 Housekeeping: the folder is still named `ProgramMe`. Rename it to `Rootward` between sessions, not during one (moving
 the working directory breaks a running session).
 
 ## Blockers and open questions
 
-- None blocking. Open: persistence library choice (`node:sqlite` vs `better-sqlite3` + Drizzle), decided in an ADR.
+- None blocking.

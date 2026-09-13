@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
@@ -12,6 +13,8 @@ const EnvSchema = z.object({
   // Local only by default: the server runs player code and must not be reachable from the network.
   ROOTWARD_HOST: z.preprocess(emptyToUndefined, z.string().default("127.0.0.1")),
   ROOTWARD_ROOT: z.preprocess(emptyToUndefined, z.string().optional()),
+  ROOTWARD_DATA_DIR: z.preprocess(emptyToUndefined, z.string().optional()),
+  XDG_DATA_HOME: z.preprocess(emptyToUndefined, z.string().optional()),
 });
 
 export interface ServerEnv {
@@ -19,6 +22,8 @@ export interface ServerEnv {
   host: string;
   /** Repository root: content/, config/, and apps/client/dist live under it. */
   rootDir: string;
+  /** Where the SQLite database lives (ADR-0006). */
+  dataDir: string;
 }
 
 /** The repository root, found from this file's location. */
@@ -39,9 +44,12 @@ export function loadDotEnv(rootDir: string): void {
 export function readEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
   const parsed = EnvSchema.safeParse(source);
   if (!parsed.success) throw new Error(`invalid environment:\n${z.prettifyError(parsed.error)}`);
+  const xdgData = parsed.data.XDG_DATA_HOME;
+  const defaultDataDir = xdgData === undefined ? path.join(homedir(), ".local", "share", "rootward") : path.join(xdgData, "rootward");
   return {
     port: parsed.data.ROOTWARD_PORT,
     host: parsed.data.ROOTWARD_HOST,
     rootDir: path.resolve(parsed.data.ROOTWARD_ROOT ?? defaultRootDir()),
+    dataDir: path.resolve(parsed.data.ROOTWARD_DATA_DIR ?? defaultDataDir),
   };
 }

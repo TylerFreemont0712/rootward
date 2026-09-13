@@ -5,8 +5,9 @@
 // is cached locally (revision 1217); if no browser is cached, install one with `pnpm exec playwright-core install
 // chromium` from this folder. This is deliberately not part of `pnpm test`, which must stay hermetic.
 import { type ChildProcess, spawn } from "node:child_process";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
@@ -52,9 +53,11 @@ async function main(): Promise<void> {
   const port = await freePort();
   const baseUrl = `http://127.0.0.1:${port}`;
   const serverLog: string[] = [];
+  // A throwaway data directory, so the test never touches the player's real saved runs.
+  const dataDir = mkdtempSync(path.join(os.tmpdir(), "rootward-e2e-"));
   const server = spawn(process.execPath, ["apps/server/src/main.ts"], {
     cwd: root,
-    env: { ...process.env, ROOTWARD_PORT: String(port) },
+    env: { ...process.env, ROOTWARD_PORT: String(port), ROOTWARD_DATA_DIR: dataDir },
     stdio: ["ignore", "pipe", "pipe"],
   });
   server.stdout.on("data", (chunk: Buffer) => serverLog.push(chunk.toString("utf8")));
@@ -94,6 +97,7 @@ async function main(): Promise<void> {
   } finally {
     await browser.close();
     server.kill("SIGTERM");
+    rmSync(dataDir, { recursive: true, force: true });
   }
 }
 

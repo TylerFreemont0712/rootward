@@ -51,3 +51,6 @@ Python run after starting the server can take a couple of seconds while it loads
 
 Copy `.env.example` to `.env` if you want to override the port or, later, add AI provider keys. Nothing is required.
 The server binds to 127.0.0.1 only; it runs player code and is not meant to be reachable from a network.
+
+Runs are saved in `~/.local/share/rootward/rootward.db` (set `ROOTWARD_DATA_DIR` to move it), so a fight survives a
+server restart. The file is created on first start; schema upgrades back it up first.

@@ -64,6 +64,22 @@ language feature took more than a minute to understand.
 - **Refusals are values.** `Decision<T>` in `packages/core/src/result.ts` makes "no Focus left" ordinary flow and
   keeps exceptions for bugs.
 
+## Persistence
+
+- **Schema versions without a bookkeeping table.** SQLite keeps an integer, `PRAGMA user_version`, in the file header.
+  `migrate` in `apps/server/src/db/database.ts` applies every numbered `.sql` file above it, each in a transaction.
+- **Back up before you migrate.** `VACUUM INTO 'file'` writes a consistent copy even while the write-ahead log holds
+  recent changes, which copying the file would miss.
+- **STRICT tables.** `apps/server/src/db/migrations/0001-runs.sql` uses them so SQLite rejects wrongly typed values
+  instead of storing them anyway.
+- **A primary key as a concurrency guard.** `run_events` is keyed by `(run_id, seq)`: two writers appending event N to
+  the same run cannot both succeed.
+- **Types inferred from schemas.** `packages/core/src/run/types.ts` defines events as zod schemas and infers the
+  TypeScript types from them, so data read back from the database is validated against exactly the types the code
+  uses.
+- **Caches rebuilt from a log.** After a restart, `RunService` replays a run's stored attempts through `applyAttempt`
+  to rebuild the editor contents and test results; the in-memory copy is only a cache.
+
 ## Server and client
 
 - **One redaction boundary.** `apps/server/src/runs/views.ts` is the only place state becomes client data. Hidden

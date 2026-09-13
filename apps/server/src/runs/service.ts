@@ -17,6 +17,7 @@ import type { GameContent } from "../content.ts";
 import { ServiceError } from "../errors.ts";
 import { LARGE_INPUT_CATEGORY, type Sandbox } from "../sandbox.ts";
 import type { RunArtifacts } from "./artifacts.ts";
+import { applyAttempt, type Attempt, type AttemptStore, InMemoryAttemptStore } from "./attempts.ts";
 import { KeyedLock } from "./lock.ts";
 import type { EventStore } from "./store.ts";
 import { buildEncounterView } from "./views.ts";
@@ -24,18 +25,21 @@ import { buildEncounterView } from "./views.ts";
 /** M0 has one playable class; the Guild Hall (M1) makes it a choice. */
 const DEFAULT_CLASS_ID = "artificer";
 const ROOM_ID = "room-1";
+/** How many runs keep their artifacts in memory; others are rebuilt from stored attempts when needed. */
+const ARTIFACT_CACHE_SIZE = 50;
 
 export interface RunServiceDeps {
   content: GameContent;
   sandbox: Sandbox;
   store: EventStore;
+  attempts?: AttemptStore;
   newId?: () => string;
 }
 
 interface PreparedCommand {
   command: RunCommand;
-  /** Side effects to keep only if the rules accept the command. */
-  onAccepted?: () => void;
+  /** The Probe or Cast to record if the rules accept the command. */
+  attempt?: Omit<Attempt, "seq">;
 }
 
 /** Orchestrates a run: loads events, runs code in the sandbox, asks the core rules, appends, and returns a view. */
@@ -43,14 +47,16 @@ export class RunService {
   private readonly content: GameContent;
   private readonly sandbox: Sandbox;
   private readonly store: EventStore;
+  private readonly attempts: AttemptStore;
   private readonly newId: () => string;
-  private readonly artifacts = new Map<string, RunArtifacts>();
+  private readonly artifactCache = new Map<string, RunArtifacts>();
   private readonly lock = new KeyedLock();
 
   constructor(deps: RunServiceDeps) {
     this.content = deps.content;
     this.sandbox = deps.sandbox;
     this.store = deps.store;
+    this.attempts = deps.attempts ?? new InMemoryAttemptStore();
     this.newId = deps.newId ?? randomUUID;
   }
 
@@ -119,19 +125,22 @@ export class RunService {
       },
     ]);
     await this.store.create(runId, events);
-    this.artifacts.set(runId, { files: { ...(challenge.starter[language] ?? {}) }, latest: new Map() });
-    return { view: this.view(foldRun(events), events) };
+    const artifacts = this.freshArtifacts(challenge, language);
+    this.remember(runId, artifacts);
+    return { view: this.view(foldRun(events), events, artifacts) };
   }
 
   async getRun(runId: string): Promise<EncounterResponse> {
     const events = await this.loadEvents(runId);
-    return { view: this.view(foldRun(events), events) };
+    const state = foldRun(events);
+    return { view: this.view(state, events, await this.artifacts(state)) };
   }
 
   act(runId: string, action: ActionRequest): Promise<EncounterResponse> {
     return this.lock.run(runId, async () => {
       const events = await this.loadEvents(runId);
       const state = foldRun(events);
+      const artifacts = await this.artifacts(state);
       const ctx = { balance: this.content.balance };
 
       // Refuse early when running code would be pointless (run over, no Focus): decide() checks those conditions
@@ -139,22 +148,26 @@ export class RunService {
       if (action.type === "probe" || action.type === "cast") {
         const precheck = decide(state, { type: action.type === "probe" ? "Probe" : "Cast", results: [] }, ctx);
         if (!precheck.ok && precheck.error.code !== "results-mismatch") {
-          return { view: this.view(state, events), refused: precheck.error };
+          return { view: this.view(state, events, artifacts), refused: precheck.error };
         }
       }
 
-      const prepared = await this.prepare(runId, state, action);
+      const prepared = await this.prepare(state, action);
       const decision = decide(state, prepared.command, ctx);
-      if (!decision.ok) return { view: this.view(state, events), refused: decision.error };
+      if (!decision.ok) return { view: this.view(state, events, artifacts), refused: decision.error };
 
       await this.store.append(runId, events.length, decision.events);
-      prepared.onAccepted?.();
+      if (prepared.attempt) {
+        const attempt: Attempt = { ...prepared.attempt, seq: events.length };
+        await this.attempts.record(runId, attempt);
+        applyAttempt(artifacts, attempt, this.visibleIds(this.challenge(this.encounterOf(state).challengeId)));
+      }
       const all = [...events, ...decision.events];
-      return { view: this.view(foldRun(all), all) };
+      return { view: this.view(foldRun(all), all, artifacts) };
     });
   }
 
-  private async prepare(runId: string, state: RunState, action: ActionRequest): Promise<PreparedCommand> {
+  private async prepare(state: RunState, action: ActionRequest): Promise<PreparedCommand> {
     if (action.type === "hint") return { command: { type: "TakeHint" } };
     if (action.type === "retreat") return { command: { type: "Retreat" } };
 
@@ -173,18 +186,13 @@ export class RunService {
       const test = result.tests?.find((t) => t.id === id);
       return { id, passed: test?.passed ?? false, durationMs: test?.durationMs ?? 0 };
     });
-    const onAccepted = () => {
-      const artifacts = this.artifactsFor(runId, challenge, language);
-      artifacts.files = { ...action.files };
-      for (const test of result.tests ?? []) artifacts.latest.set(test.id, test);
-      artifacts.lastRun = { kind: action.type, result, visibleIds: new Set(visibleIds) };
-    };
+    const attempt = { kind: action.type, language, files: { ...action.files }, result };
 
-    if (action.type === "probe") return { command: { type: "Probe", results: outcomes }, onAccepted };
+    if (action.type === "probe") return { command: { type: "Probe", results: outcomes }, attempt };
     const timing = await this.largeInputTiming(challenge, language, encounter, result);
     return {
       command: timing ? { type: "Cast", results: outcomes, timing } : { type: "Cast", results: outcomes },
-      onAccepted,
+      attempt,
     };
   }
 
@@ -213,10 +221,8 @@ export class RunService {
     return events;
   }
 
-  private view(state: RunState, events: readonly RunEvent[]) {
-    const encounter = this.encounterOf(state);
-    const challenge = this.challenge(encounter.challengeId);
-    const language = this.language(challenge, encounter.language);
+  private view(state: RunState, events: readonly RunEvent[], artifacts: RunArtifacts) {
+    const challenge = this.challenge(this.encounterOf(state).challengeId);
     return buildEncounterView({
       state,
       events,
@@ -224,23 +230,45 @@ export class RunService {
       enemy: this.enemy(challenge),
       classDef: this.classDef(),
       balance: this.content.balance,
-      artifacts: this.artifactsFor(state.runId, challenge, language),
+      artifacts,
     });
+  }
+
+  /** A run's artifacts: from the cache, or rebuilt by replaying its stored attempts (for example after a restart). */
+  private async artifacts(state: RunState): Promise<RunArtifacts> {
+    const cached = this.artifactCache.get(state.runId);
+    if (cached) return cached;
+    const encounter = this.encounterOf(state);
+    const challenge = this.challenge(encounter.challengeId);
+    const artifacts = this.freshArtifacts(challenge, this.language(challenge, encounter.language));
+    const visibleIds = this.visibleIds(challenge);
+    for (const attempt of await this.attempts.list(state.runId)) applyAttempt(artifacts, attempt, visibleIds);
+    this.remember(state.runId, artifacts);
+    return artifacts;
+  }
+
+  private freshArtifacts(challenge: LoadedChallenge, language: Language): RunArtifacts {
+    return { files: { ...(challenge.starter[language] ?? {}) }, latest: new Map() };
+  }
+
+  private remember(runId: string, artifacts: RunArtifacts): void {
+    // LEARN: a Map iterates in insertion order, so re-inserting on use and dropping the first key is a tiny LRU cache.
+    this.artifactCache.delete(runId);
+    this.artifactCache.set(runId, artifacts);
+    if (this.artifactCache.size > ARTIFACT_CACHE_SIZE) {
+      const oldest = this.artifactCache.keys().next();
+      if (!oldest.done) this.artifactCache.delete(oldest.value);
+    }
+  }
+
+  private visibleIds(challenge: LoadedChallenge): ReadonlySet<string> {
+    return new Set((challenge.visibleTests?.cases ?? []).map((c) => c.id));
   }
 
   private async loadEvents(runId: string): Promise<RunEvent[]> {
     const events = await this.store.load(runId);
-    if (!events) throw new ServiceError(404, "run-not-found", "No run with that id. It may have been lost on restart.");
+    if (!events) throw new ServiceError(404, "run-not-found", "No run with that id.");
     return events;
-  }
-
-  private artifactsFor(runId: string, challenge: LoadedChallenge, language: Language): RunArtifacts {
-    let artifacts = this.artifacts.get(runId);
-    if (!artifacts) {
-      artifacts = { files: { ...(challenge.starter[language] ?? {}) }, latest: new Map() };
-      this.artifacts.set(runId, artifacts);
-    }
-    return artifacts;
   }
 
   private casesById(challenge: LoadedChallenge, ids: readonly string[]): IoCase[] {
@@ -285,4 +313,3 @@ export class RunService {
     return loaded.def;
   }
 }
-

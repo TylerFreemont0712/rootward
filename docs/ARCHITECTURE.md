@@ -15,7 +15,7 @@ content format, ADR-0003 JavaScript sandbox, ADR-0004 encounter rules). The buil
                              │              ▼   │          ▼             │    RunJob / results
                              │           Sandbox ──── runners ───────────┼─────────────┘
                              │           ContentIndex (content-tools)    │
-                             │           EventStore (memory; SQLite M1)  │
+                             │           EventStore + attempts (SQLite)  │
                              └────────────────────────────────────────────┘
 ```
 
@@ -48,7 +48,8 @@ builds the client; Vitest compiles tests.
    solution's time on the same runner is attached for the efficiency bonus.
 6. `decide` (`packages/core/src/run/decide.ts`) applies the combat rules and returns events: `CastResolved`, then
    `EncounterWon`, or an enemy move (`EnemyStruck` / `EdgeCaseRevealed`) and possibly `Exhausted` or `RunEnded`.
-7. Events are appended to the `EventStore`; full runner output is kept in server-side `RunArtifacts`.
+7. Events are appended to `run_events` and the Cast itself (files and full runner output) to `attempts`, both in
+   SQLite; an in-memory `RunArtifacts` cache is updated from the same attempt.
 8. `buildEncounterView` (`apps/server/src/runs/views.ts`) turns state, events, content, and artifacts into an
    `EncounterView`, redacting hidden tests, and parses it with the shared schema before it is sent.
 
@@ -59,7 +60,13 @@ builds the client; Vitest compiles tests.
 - **State** (`RunState`) is always derived: `foldRun(events)`.
 - **Artifacts** (`RunArtifacts`) are the non-game data around a run: last submitted files and full test output,
   including hidden tests. They never leave the server except through `views.ts`.
-- M0 keeps events and artifacts in memory, so a server restart forgets runs. M1 adds SQLite behind `EventStore`.
+- Both live in SQLite (`apps/server/src/db/`, ADR-0006): `run_events` holds events as zod-validated JSON, and
+  `attempts` holds every accepted Probe and Cast. After a restart, state is refolded from events and artifacts are
+  rebuilt by replaying attempts (`applyAttempt`), so a fight resumes with its editor contents and test results.
+- The database is `$ROOTWARD_DATA_DIR/rootward.db` (default `~/.local/share/rootward`). Migrations are numbered
+  `.sql` files tracked in `PRAGMA user_version`, with a backup written before an existing database is upgraded.
+- Tests use `InMemoryEventStore` / `InMemoryAttemptStore` or a temporary database; `apps/server/test/resume.test.ts`
+  restarts a server on the same file.
 
 ## Content
 

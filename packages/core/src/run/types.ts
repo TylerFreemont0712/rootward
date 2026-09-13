@@ -1,131 +1,179 @@
-import type { ClassDef, Enemy, EnemyTier } from "@rootward/content-schema";
+import { type ClassDef, type Enemy, EnemyTier } from "@rootward/content-schema";
+import { z } from "zod";
 
-// Engine state, events, and commands for a run. Runtime state uses camelCase; content files are snake_case
-// (ADR-0002). Everything here is plain data, so it serializes to JSON for the event store as-is.
+// Engine state, events, and commands for a run. Runtime data uses camelCase; content files are snake_case (ADR-0002).
+//
+// LEARN: events are stored as JSON (ADR-0006), and JSON read back from a database is external input. So the event and
+// state shapes are defined once, as zod schemas, and the TypeScript types are inferred from them. The event store
+// parses every stored event with `RunEvent` before folding, and the two can never drift apart.
 
-export type TestVisibility = "visible" | "hidden";
+export const TestVisibility = z.enum(["visible", "hidden"]);
+export type TestVisibility = z.infer<typeof TestVisibility>;
 
-export interface EncounterTest {
-  id: string;
-  name: string;
-  visibility: TestVisibility;
-  category?: string;
-  weight: number;
+export const EncounterTest = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+  visibility: TestVisibility,
+  category: z.string().optional(),
+  weight: z.number().min(0),
   /** Whether the test passed at the most recent Cast; false before the first Cast. */
-  passing: boolean;
+  passing: z.boolean(),
   /** The enemy move that added this test mid-fight, if any. */
-  revealedBy?: string;
-}
+  revealedBy: z.string().optional(),
+});
+export type EncounterTest = z.infer<typeof EncounterTest>;
 
 /** A hidden test held back until an enemy move reveals it. */
-export interface ReserveTest {
-  id: string;
-  name: string;
-  category: string;
-}
+export const ReserveTest = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+  category: z.string(),
+});
+export type ReserveTest = z.infer<typeof ReserveTest>;
 
-export interface EnemySnapshot {
-  id: string;
-  name: string;
-  tier: EnemyTier;
-  atk: number;
-  hpDisplayOffset: number;
-  moves: readonly { move: string; weight: number; params: Readonly<Record<string, unknown>> }[];
-  taunts: readonly string[];
-}
+export const EnemySnapshot = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+  tier: EnemyTier,
+  atk: z.number().min(0),
+  hpDisplayOffset: z.number(),
+  moves: z.array(z.strictObject({ move: z.string(), weight: z.number(), params: z.record(z.string(), z.unknown()) })),
+  taunts: z.array(z.string()),
+});
+export type EnemySnapshot = z.infer<typeof EnemySnapshot>;
 
 /** One test's result as far as the rules care. The server keeps full output separately. */
-export interface TestOutcome {
-  id: string;
-  passed: boolean;
-  durationMs: number;
-}
+export const TestOutcome = z.strictObject({
+  id: z.string(),
+  passed: z.boolean(),
+  durationMs: z.number().min(0),
+});
+export type TestOutcome = z.infer<typeof TestOutcome>;
 
-export type BonusId = "crit" | "true_sight" | "efficiency" | "elegance" | "unaided";
+export const BonusId = z.enum(["crit", "true_sight", "efficiency", "elegance", "unaided"]);
+export type BonusId = z.infer<typeof BonusId>;
 
-export interface EncounterRewards {
-  bonuses: BonusId[];
-  commits: number;
-  cycles: number;
-}
+export const EncounterRewards = z.strictObject({
+  bonuses: z.array(BonusId),
+  commits: z.number().min(0),
+  cycles: z.number().min(0),
+});
+export type EncounterRewards = z.infer<typeof EncounterRewards>;
 
-export type EnemyAction =
-  | { move: "strike"; damage: number; fallbackFrom?: string; taunt?: string }
-  | { move: "edge-case"; testId: string; category: string; taunt?: string };
+export const StrikeAction = z.strictObject({
+  move: z.literal("strike"),
+  damage: z.number().min(0),
+  fallbackFrom: z.string().optional(),
+  taunt: z.string().optional(),
+});
 
-export type EncounterStatus = "active" | "won" | "retreated" | "exhausted" | "kernel-panic";
+export const EdgeCaseAction = z.strictObject({
+  move: z.literal("edge-case"),
+  testId: z.string(),
+  category: z.string(),
+  taunt: z.string().optional(),
+});
 
-export interface EncounterState {
-  roomId: string;
-  challengeId: string;
-  language: string;
-  difficulty: number;
-  retreatable: boolean;
-  scoring: { crit: boolean; efficiency: boolean; elegance: boolean };
-  enemy: EnemySnapshot;
-  tests: EncounterTest[];
-  reserve: ReserveTest[];
-  focus: number;
-  focusMax: number;
-  casts: number;
-  probes: number;
-  hintsTaken: number;
+export const EnemyAction = z.discriminatedUnion("move", [StrikeAction, EdgeCaseAction]);
+export type EnemyAction = z.infer<typeof EnemyAction>;
+
+export const EncounterStatus = z.enum(["active", "won", "retreated", "exhausted", "kernel-panic"]);
+export type EncounterStatus = z.infer<typeof EncounterStatus>;
+
+export const Scoring = z.strictObject({ crit: z.boolean(), efficiency: z.boolean(), elegance: z.boolean() });
+export type Scoring = z.infer<typeof Scoring>;
+
+export const EncounterState = z.strictObject({
+  roomId: z.string(),
+  challengeId: z.string(),
+  language: z.string(),
+  difficulty: z.number(),
+  retreatable: z.boolean(),
+  scoring: Scoring,
+  enemy: EnemySnapshot,
+  tests: z.array(EncounterTest),
+  reserve: z.array(ReserveTest),
+  focus: z.number(),
+  focusMax: z.number(),
+  casts: z.number(),
+  probes: z.number(),
+  hintsTaken: z.number(),
   /** Cycles for each hint level, already adjusted for the player's mastery of the concept. */
-  hintCosts: readonly number[];
-  inspected: boolean;
-  status: EncounterStatus;
-  lastProbe?: readonly TestOutcome[];
-  lastCast?: readonly TestOutcome[];
-  lastEnemyAction?: EnemyAction;
-  rewards?: EncounterRewards;
-}
+  hintCosts: z.array(z.number()),
+  inspected: z.boolean(),
+  status: EncounterStatus,
+  lastProbe: z.array(TestOutcome).optional(),
+  lastCast: z.array(TestOutcome).optional(),
+  lastEnemyAction: EnemyAction.optional(),
+  rewards: EncounterRewards.optional(),
+});
+export type EncounterState = z.infer<typeof EncounterState>;
 
-export type RunEndReason = "kernel-panic" | "completed" | "abandoned";
+export const RunEndReason = z.enum(["kernel-panic", "completed", "abandoned"]);
+export type RunEndReason = z.infer<typeof RunEndReason>;
 
-export interface RunState {
-  runId: string;
-  seed: string;
-  classId: string;
-  status: "active" | "ended";
-  endReason?: RunEndReason;
-  integrity: number;
-  integrityMax: number;
-  cycles: number;
-  focusBase: number;
-  critLootMultiplier: number;
-  encounter?: EncounterState;
-}
+export const RunState = z.strictObject({
+  runId: z.string(),
+  seed: z.string(),
+  classId: z.string(),
+  status: z.enum(["active", "ended"]),
+  endReason: RunEndReason.optional(),
+  integrity: z.number(),
+  integrityMax: z.number(),
+  cycles: z.number(),
+  focusBase: z.number(),
+  critLootMultiplier: z.number(),
+  encounter: EncounterState.optional(),
+});
+export type RunState = z.infer<typeof RunState>;
 
 // Events record facts, including the values that resulted (focus after a Cast, integrity after a Strike). Folding
 // them is simple assignment, so an old run replays exactly as it happened even after the rules change.
-export type RunEvent =
-  | {
-      type: "RunStarted";
-      runId: string;
-      seed: string;
-      classId: string;
-      integrityMax: number;
-      cycles: number;
-      focusBase: number;
-      critLootMultiplier: number;
-    }
-  | { type: "EncounterStarted"; encounter: EncounterState }
-  | { type: "Probed"; roomId: string; results: TestOutcome[] }
-  | { type: "CastResolved"; roomId: string; results: TestOutcome[]; damage: number; heal: number; focus: number }
-  | { type: "EnemyStruck"; roomId: string; action: Extract<EnemyAction, { move: "strike" }>; integrity: number }
-  | { type: "EdgeCaseRevealed"; roomId: string; action: Extract<EnemyAction, { move: "edge-case" }>; test: EncounterTest }
-  | { type: "HintTaken"; roomId: string; level: number; cost: number; cycles: number }
-  | { type: "Retreated"; roomId: string }
-  | { type: "Exhausted"; roomId: string }
-  | { type: "EncounterWon"; roomId: string; rewards: EncounterRewards; cycles: number }
-  | { type: "RunEnded"; reason: RunEndReason };
+export const RunEvent = z.discriminatedUnion("type", [
+  z.strictObject({
+    type: z.literal("RunStarted"),
+    runId: z.string(),
+    seed: z.string(),
+    classId: z.string(),
+    integrityMax: z.number(),
+    cycles: z.number(),
+    focusBase: z.number(),
+    critLootMultiplier: z.number(),
+  }),
+  z.strictObject({ type: z.literal("EncounterStarted"), encounter: EncounterState }),
+  z.strictObject({ type: z.literal("Probed"), roomId: z.string(), results: z.array(TestOutcome) }),
+  z.strictObject({
+    type: z.literal("CastResolved"),
+    roomId: z.string(),
+    results: z.array(TestOutcome),
+    damage: z.number(),
+    heal: z.number(),
+    focus: z.number(),
+  }),
+  z.strictObject({ type: z.literal("EnemyStruck"), roomId: z.string(), action: StrikeAction, integrity: z.number() }),
+  z.strictObject({ type: z.literal("EdgeCaseRevealed"), roomId: z.string(), action: EdgeCaseAction, test: EncounterTest }),
+  z.strictObject({
+    type: z.literal("HintTaken"),
+    roomId: z.string(),
+    level: z.number(),
+    cost: z.number(),
+    cycles: z.number(),
+  }),
+  z.strictObject({ type: z.literal("Retreated"), roomId: z.string() }),
+  z.strictObject({ type: z.literal("Exhausted"), roomId: z.string() }),
+  z.strictObject({ type: z.literal("EncounterWon"), roomId: z.string(), rewards: EncounterRewards, cycles: z.number() }),
+  z.strictObject({ type: z.literal("RunEnded"), reason: RunEndReason }),
+]);
+export type RunEvent = z.infer<typeof RunEvent>;
+
+// Commands are not stored, so they stay plain TypeScript types.
 
 export interface EncounterChallenge {
   id: string;
   language: string;
   difficulty: number;
   retreatable: boolean;
-  scoring: { crit: boolean; efficiency: boolean; elegance: boolean };
+  scoring: Scoring;
 }
 
 export type RunCommand =
