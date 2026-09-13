@@ -1,0 +1,19 @@
+{
+  "name": "@rootward/runners",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Sandboxed code runners behind one Runner contract (wasm-js first).",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@jitl/quickjs-wasmfile-release-sync": "0.32.0",
+    "quickjs-emscripten-core": "0.32.0",
+    "zod": "4.6.4"
+  }
+}

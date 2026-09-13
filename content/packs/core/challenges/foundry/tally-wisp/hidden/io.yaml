@@ -1,22 +1,36 @@
+# Backend-only. The player sees hidden tests by category and pass/fail, never by content.
 form: io
 cases:
   - id: h1
     name: empty input prints nothing
     category: empty-input
     stdin: ""
-    expectedStdout: ""
+    expected_stdout: ""
   - id: h2
     name: words that are only punctuation are discarded
     category: boundary
     stdin: "... hello --- ! hello\n"
-    expectedStdout: "hello 2\n--- 1\n"
+    expected_stdout: "hello 2\n--- 1\n"
   - id: h3
     name: inner punctuation is kept
     category: normalization
     stdin: "don't 'don't' (don't)\n"
-    expectedStdout: "don't 3\n"
+    expected_stdout: "don't 3\n"
   - id: h4
     name: large input within the efficiency band
     category: large-input
     generator: { repeat: "lorem ipsum dolor sit amet consectetur ", times: 20000 }
-    expectedStdout: "amet 20000\nconsectetur 20000\ndolor 20000\nipsum 20000\nlorem 20000\nsit 20000\n"
+    expected_stdout: "amet 20000\nconsectetur 20000\ndolor 20000\nipsum 20000\nlorem 20000\nsit 20000\n"
+  # Reserve cases join the fight only when an enemy's Edge Case move reveals one of their category.
+  - id: r1
+    name: whitespace-only input prints nothing
+    category: empty-input
+    reserve: true
+    stdin: "  \n\t \n"
+    expected_stdout: ""
+  - id: r2
+    name: tabs and newlines separate words
+    category: boundary
+    reserve: true
+    stdin: "tab\tseparated\nlines\ttab\n"
+    expected_stdout: "tab 2\nlines 1\nseparated 1\n"

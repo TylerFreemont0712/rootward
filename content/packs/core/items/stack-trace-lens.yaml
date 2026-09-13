@@ -1,0 +1,9 @@
+id: stack-trace-lens
+name: Stack Trace Lens
+rarity: common
+description: "Show full error traces in the console instead of only the last line."
+effects:
+  - { type: fullStackTraces }
+persistent: true
+implemented: false
+flavor: "Every frame, in order, with blame."

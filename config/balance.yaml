@@ -1,11 +1,12 @@
 # Starting tunables. Every number the engine uses for combat, economy, and progression comes from here.
 # See PROMPT.md sections 7, 9, 10 and ideas/solutions/adaptive-difficulty.md. Adjust from playtest data.
+# Schema: packages/content-schema/src/balance.ts. Changes from the pre-build seed are explained in ADR-0004.
 version: 1
 
 player:
   integrity_start: 100
   focus_base: 5
-  cycles_start: 0
+  cycles_start: 60                           # enough for the first hint levels on a brand-new concept
 
 encounter:
   test_weights: { visible: 1, hidden: 2, adversary: 1 }
@@ -16,8 +17,9 @@ encounter:
   hint_cost_multiplier_by_mastery: { 0: 0.5, 1: 0.75, 2: 1.0, 3: 1.25, 4: 1.5, 5: 2.0 }
 
 enemy_moves:
-  strike_atk_by_tier: { 1: 6, 2: 9, 3: 12, boss: 15 }
-  edge_case_hp_added: 2
+  strike_atk_by_tier: { 1: 6, 2: 9, 3: 12, elite: 12, boss: 15, special: 9 }   # when an enemy has no base_atk
+  strike_damage_cap: 24                      # one Strike never removes more Integrity than this
+  edge_case_hp_added: 2                      # weight of a test revealed by Edge Case
   drain_focus: 1
   timeout_breath_factor: 0.5                 # per-test time limit multiplier
   memory_bloat_factor: 0.5
@@ -26,7 +28,8 @@ enemy_moves:
 bonuses:
   commits_multiplier: { crit: 1.5, true_sight: 1.2, efficiency: 1.2, elegance: 1.2, unaided: 1.3 }
   elegance_threshold: 7                      # Reviewer rubric average out of 10
-  cycles_by_tier: { 1: 30, 2: 50, 3: 80, elite: 120, boss: 200 }
+  efficiency_max_ratio_vs_reference: 3       # large-input time within 3x the reference solution on the same runner
+  cycles_by_tier: { 1: 30, 2: 50, 3: 80, elite: 120, boss: 200, special: 50 }
 
 commits:
   base_by_difficulty: { 1: 6, 2: 8, 3: 10, 4: 12, 5: 15, 6: 18, 7: 22, 8: 26, 9: 30, 10: 35 }
@@ -41,6 +44,7 @@ mastery:
 
 planner:
   session_rooms: { short: 5, standard: 7, long: 9 }
+  default_session: long                      # kickoff 2026-09-13
   target_success: { frontier: 0.75, review: 0.90, elite: 0.55 }
   frontier_nodes_per_run: { min: 2, max: 4 }
   review_slots_per_run: { rest: 1, encounter: 1 }
@@ -56,7 +60,7 @@ rating:
   actual_score: { unaided: 1.0, assisted: 0.6, retreat: 0.0 }
   max_change_per_attempt: 40
 
-version:
+character_version:                           # the Maintainer's semver "level" (PROMPT.md section 9.4)
   patch_per_encounter: 1
   minor_per_dungeon: 1
   major_requires_realm_boss_and_avg_mastery: 3

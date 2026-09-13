@@ -1,0 +1,37 @@
+{
+  "name": "rootward",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Rootward: a programming-education roguelike where every fight is real code run in a sandbox.",
+  "type": "module",
+  "packageManager": "pnpm@12.4.1",
+  "engines": {
+    "node": ">=26.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @rootward/server --filter @rootward/client --parallel run dev",
+    "build": "pnpm --filter @rootward/client run build",
+    "start": "pnpm run build && pnpm --filter @rootward/server run start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "pnpm --filter @rootward/e2e run test",
+    "lint": "eslint .",
+    "typecheck": "pnpm -r --parallel run typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "content:validate": "node packages/content-tools/src/cli/validate.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.5.1",
+    "eslint": "10.10.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.12.0",
+    "prettier": "3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.0",
+    "vite": "8.3.0",
+    "vitest": "5.0.0"
+  }
+}

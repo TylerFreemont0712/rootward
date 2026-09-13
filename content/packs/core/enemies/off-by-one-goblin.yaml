@@ -12,3 +12,10 @@ flavor:
   intro: "It counts on its fingers and always ends one short. Or one over."
   taunt: ["Are you sure that's the last one?", "Index... what index?", "Did you count the letters too?"]
   defeat: "It finally counts to ten. Exactly ten."
+art: |2
+     .-"""-.
+    / -   - \
+   |  o   o  |
+    \  .-.  /
+     '-----'
+    1 2 3 .. 5?

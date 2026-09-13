@@ -1,0 +1,9 @@
+id: rubber-duck
+name: Rubber Duck
+rarity: common
+description: "Once per fight, explain your code to the duck. Without AI it shows the challenge's questions to ask yourself; with the Tutor configured, Lint answers Socratically at hint level 1 for free."
+effects:
+  - { type: rubberDuck, uses_per_fight: 1 }
+persistent: true
+implemented: false
+flavor: "It has heard worse code. It has never said so."

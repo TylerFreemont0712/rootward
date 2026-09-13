@@ -1,0 +1,8 @@
+# Artificer abilities (PROMPT.md section 6.1). Effects compose engine primitives by `type`; `implemented` flips to
+# true only when the engine supports every effect listed.
+abilities:
+  - { id: inspect,       name: Inspect,       description: "Reveal one hidden test's name and input.",           cost: { cycles: 20 },  unlock_version: "1.0.0", implemented: false, effects: [{ type: revealHiddenTest, count: 1 }] }
+  - { id: refactor,      name: Refactor,      description: "Reset the editor to the starter code, free.",        cost: {},              unlock_version: "1.0.0", implemented: false, effects: [{ type: resetStarter }] }
+  - { id: memoize,       name: Memoize,       description: "Paste a Spell from your Spellbook without cost.",    cost: { focus: 0 },    unlock_version: "1.2.0", implemented: false, effects: [{ type: pasteSpell }] }
+  - { id: trace,         name: Trace,         description: "Show a step-by-step trace of the failing test.",     cost: { focus: 1 },    unlock_version: "2.0.0", implemented: false, effects: [{ type: traceFailingTest }] }
+  - { id: big-o-insight, name: Big-O Insight, description: "Reveal the target complexity and a structure hint.", cost: { cycles: 100 }, unlock_version: "2.0.0", implemented: false, ultimate: true, effects: [{ type: revealTargets }] }

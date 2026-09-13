@@ -1,4 +1,4 @@
-# AGENT.md — standing instructions for any AI agent working on ProgramMe / Rootward
+# AGENT.md — standing instructions for any AI agent working on Rootward
 
 This file is the durable working agreement. `PROMPT.md` is the original design and build spec (read it first in a
 new session); `ideas/` is reference material; `docs/` holds the living project documentation once it exists. When

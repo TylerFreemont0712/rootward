@@ -1,20 +1,21 @@
 {
-  "_comment": "Template. Copy to config/ai.json or let the app create it. Keys come from env vars named in apiKeyEnv; never put keys here. Model names marked <pick> are filled from the provider's model list in Settings.",
+  "_comment": "Template. Copy to config/ai.json or let the app create it. Keys come from env vars named in apiKeyEnv; never put keys here. Model names marked <pick> are filled from the provider's model list in Settings. Local-first (kickoff 2026-09-13): every role defaults to the llama.cpp server so AI works with zero API keys. Ollama stays available as a provider kind but no role uses it. Point forge and adversary at a stronger hosted model once a key exists; hosted model ids are discovered, not hardcoded.",
   "providers": [
-    { "id": "ollama",     "kind": "ollama",            "baseUrl": "http://localhost:11434", "apiKeyEnv": null },
+    { "id": "llamacpp",   "kind": "openai-compatible", "baseUrl": "http://localhost:8080/v1", "apiKeyEnv": null },
     { "id": "lmstudio",   "kind": "openai-compatible", "baseUrl": "http://localhost:1234/v1", "apiKeyEnv": null },
-    { "id": "anthropic",  "kind": "anthropic",         "apiKeyEnv": "ANTHROPIC_API_KEY" },
+    { "id": "ollama",     "kind": "ollama",            "baseUrl": "http://localhost:11434",   "apiKeyEnv": null },
     { "id": "openai",     "kind": "openai",            "apiKeyEnv": "OPENAI_API_KEY" },
+    { "id": "anthropic",  "kind": "anthropic",         "apiKeyEnv": "ANTHROPIC_API_KEY" },
     { "id": "openrouter", "kind": "openrouter",        "apiKeyEnv": "OPENROUTER_API_KEY" }
   ],
   "roles": {
-    "tutor":       { "provider": "ollama",    "model": "<pick from ollama list>", "temperature": 0.4, "maxTokens": 600,  "fallbacks": [ { "provider": "anthropic", "model": "claude-sonnet-5" } ] },
-    "loremaster":  { "provider": "ollama",    "model": "<pick from ollama list>", "temperature": 0.9, "maxTokens": 300,  "fallbacks": [] },
-    "forge":       { "provider": "anthropic", "model": "claude-opus-5",           "temperature": 0.7, "maxTokens": 8000, "fallbacks": [] },
-    "reviewer":    { "provider": "anthropic", "model": "claude-sonnet-5",         "temperature": 0.2, "maxTokens": 800,  "fallbacks": [] },
-    "adversary":   { "provider": "anthropic", "model": "claude-opus-5",           "temperature": 0.5, "maxTokens": 2000, "fallbacks": [] },
-    "examiner":    { "provider": "anthropic", "model": "claude-sonnet-5",         "temperature": 0.2, "maxTokens": 800,  "fallbacks": [] },
-    "oathAdvisor": { "provider": "ollama",    "model": "<pick from ollama list>", "temperature": 0.3, "maxTokens": 400,  "fallbacks": [] }
+    "tutor":       { "provider": "llamacpp", "model": "<pick from llama-server /v1/models>", "temperature": 0.4, "maxTokens": 600,  "fallbacks": [] },
+    "loremaster":  { "provider": "llamacpp", "model": "<pick from llama-server /v1/models>", "temperature": 0.9, "maxTokens": 300,  "fallbacks": [] },
+    "forge":       { "provider": "llamacpp", "model": "<pick; a strong hosted model is recommended>", "temperature": 0.7, "maxTokens": 8000, "fallbacks": [] },
+    "reviewer":    { "provider": "llamacpp", "model": "<pick from llama-server /v1/models>", "temperature": 0.2, "maxTokens": 800,  "fallbacks": [] },
+    "adversary":   { "provider": "llamacpp", "model": "<pick; a strong hosted model is recommended>", "temperature": 0.5, "maxTokens": 2000, "fallbacks": [] },
+    "examiner":    { "provider": "llamacpp", "model": "<pick from llama-server /v1/models>", "temperature": 0.2, "maxTokens": 800,  "fallbacks": [] },
+    "oathAdvisor": { "provider": "llamacpp", "model": "<pick from llama-server /v1/models>", "temperature": 0.3, "maxTokens": 400,  "fallbacks": [] }
   },
   "privacy": { "sendCodeToHostedProviders": false, "storeTranscripts": true },
   "limits": { "maxConcurrent": 2, "timeoutMs": 60000, "dailyCostCapUsd": 5 }

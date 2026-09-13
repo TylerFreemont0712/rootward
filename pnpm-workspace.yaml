@@ -1,0 +1,6 @@
+packages:
+  - apps/*
+  - packages/*
+  - e2e
+minimumReleaseAgeExclude:
+  - zod@4.6.4

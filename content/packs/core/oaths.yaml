@@ -1,0 +1,35 @@
+# Oaths are learning goals: weights over realms and tags that steer the planner (PROMPT.md section 9.5).
+# A Custom Oath is written in the Guild Hall at runtime and stored in the profile, not here.
+oaths:
+  - id: oath-of-the-foundry
+    name: Oath of the Foundry
+    description: "Fundamentals in one language, done properly."
+    weights: { realms: { foundry: 1.0, grove: 0.3 } }
+  - id: oath-of-the-web
+    name: Oath of the Web
+    description: "HTTP, APIs, JavaScript and TypeScript, and a small web app."
+    weights: { realms: { spire: 1.0, foundry: 0.5, kernel: 0.2 }, tags: { http: 1.0, api: 1.0 } }
+    target_language: javascript
+  - id: oath-of-the-citadel
+    name: Oath of the Citadel
+    description: "Linux, then Docker, then CI, then Kubernetes."
+    weights: { realms: { kernel: 1.0, citadel: 1.0 } }
+    target_language: bash
+  - id: oath-of-the-archives
+    name: Oath of the Archives
+    description: "SQL, data modeling, and data pipelines."
+    weights: { realms: { archives: 1.0, foundry: 0.3 } }
+    target_language: sql
+  - id: oath-of-the-interview
+    name: Oath of the Interview
+    description: "Data structures and algorithms, drilled until they are boring."
+    weights: { realms: { grove: 1.0, foundry: 0.4 }, tags: { complexity: 1.0 } }
+  - id: oath-of-the-shadow
+    name: Oath of the Shadow
+    description: "Security: how systems break, and how to stop them breaking."
+    weights: { realms: { bazaar: 1.0, kernel: 0.5 } }
+  - id: oath-of-the-depths
+    name: Oath of the Depths
+    description: "C, C++, Rust, and how memory really works."
+    weights: { realms: { depths: 1.0, foundry: 0.2 } }
+    target_language: cpp

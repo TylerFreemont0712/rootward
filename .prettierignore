@@ -1,0 +1,13 @@
+# Prettier formats code only. Hand-aligned YAML content, design docs, and reference material keep their layout.
+node_modules
+dist
+coverage
+pnpm-lock.yaml
+assets
+mockups
+ideas
+content
+config
+*.md
+*.yaml
+*.yml

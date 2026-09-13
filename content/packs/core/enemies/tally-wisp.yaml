@@ -9,5 +9,10 @@ moves:
 loot_table: tier1-common
 flavor:
   intro: "A wisp of tallies flickers over the ledger, counting the same word twice and the last word never."
-  taunt: ["Was that 'the' or 'The'?", "Punctuation counts. Doesn't it?"]
+  taunt: ["Was that 'the' or 'The'?", "Punctuation counts. Doesn't it?", "One, two, many."]
   defeat: "The tallies settle into neat columns."
+art: |2
+      .  *  .
+    *  ||||  *
+     ( |||| )
+      `-..-'

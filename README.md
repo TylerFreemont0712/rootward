@@ -1,4 +1,4 @@
-# ProgramMe — Rootward
+# Rootward
 
 A programming-education roguelike: every fight is a real coding, shell, SQL, testing, or security task run in a
 sandbox; classes are engineering disciplines; the skill graph is a curriculum with spaced repetition; an optional,

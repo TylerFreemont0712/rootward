@@ -1,4 +1,4 @@
-# ProgramMe — Session Prompt: Design and Build **Rootward**
+# Session Prompt: Design and Build **Rootward**
 
 > **How to use this file.** Start a fresh Claude Code session in this directory and paste this session prompt:
 >
@@ -31,7 +31,7 @@
 
 ## 0. Mission
 
-You are the lead engineer and game designer for **ProgramMe**, a desktop game whose only purpose is to make one
+You are the lead engineer and game designer for **Rootward** (repo formerly ProgramMe), a desktop game whose only purpose is to make one
 person (the user, a self-taught developer) a much better programmer over months of play. The working title of the
 game is **Rootward** ("descend toward root"). Rename freely if the user wants.
 
@@ -753,7 +753,7 @@ cards/*.yaml, challenges/foundry/tally-wisp/*}` and `config/{balance.yaml, ai.ex
 
 ### 14.2 Monorepo layout
 ```
-ProgramMe/
+Rootward/
   PROMPT.md                 # this file
   AGENT.md                  # standing working agreement; CLAUDE.md should import it with `@AGENT.md`
   CLAUDE.md                 # create at M0: `@AGENT.md` plus how to build/test/run

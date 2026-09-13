@@ -4,12 +4,12 @@ cases:
   - id: v1
     name: counts simple repeated words
     stdin: "the cat and the hat\n"
-    expectedStdout: "the 2\nand 1\ncat 1\nhat 1\n"
+    expected_stdout: "the 2\nand 1\ncat 1\nhat 1\n"
   - id: v2
     name: ignores case and edge punctuation
     stdin: "The cat and the hat. The end!\n"
-    expectedStdout: "the 3\nand 1\ncat 1\nend 1\nhat 1\n"
+    expected_stdout: "the 3\nand 1\ncat 1\nend 1\nhat 1\n"
   - id: v3
     name: breaks ties alphabetically
     stdin: "b a c a b c\n"
-    expectedStdout: "a 2\nb 2\nc 2\n"
+    expected_stdout: "a 2\nb 2\nc 2\n"

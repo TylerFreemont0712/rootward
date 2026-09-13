@@ -1,0 +1,17 @@
+{
+  "name": "@rootward/shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "API contracts shared by client and server, as zod schemas.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "zod": "4.6.4"
+  }
+}
