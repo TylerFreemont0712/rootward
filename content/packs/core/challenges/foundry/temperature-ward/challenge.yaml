@@ -1,0 +1,29 @@
+id: foundry.py.temperature
+title: The Temperature Ward
+version: 1
+realm: foundry
+kind: code
+concepts: [py.functions.define]
+tags: [functions, print-vs-return, empty-input]
+difficulty: 2
+tier: 0
+languages: [python, javascript]
+estimated_minutes: 5
+enemy: { template: null-wraith, hp_override: null }
+constraints:
+  max_lines: 20
+  banned_tokens: []
+targets:
+  time_ms: 200
+retreatable: true
+scoring: { crit: true, efficiency: false, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "The Guild's hothouse keeps two thermometers, and the Null Wraith keeps swapping their readings for nothing at all."
+  defeat: "Both thermometers agree, and the hothouse warms up again."
+author: core
+generated: null

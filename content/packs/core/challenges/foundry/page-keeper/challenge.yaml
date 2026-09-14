@@ -1,0 +1,29 @@
+id: foundry.edge.page-range
+title: The Page Keeper
+version: 1
+realm: foundry
+kind: code
+concepts: [concept.edge-cases]
+tags: [edge-cases, boundary, off-by-one, empty-input]
+difficulty: 2
+tier: 0
+languages: [python, javascript]
+estimated_minutes: 6
+enemy: { template: type-mimic, hp_override: null }
+constraints:
+  max_lines: 20
+  banned_tokens: []
+targets:
+  time_ms: 200
+retreatable: true
+scoring: { crit: true, efficiency: false, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "The Guild's catalog shows its entries one page at a time, and the Type Mimic keeps asking for pages that do not exist."
+  defeat: "Every page shows exactly what it should, and the Mimic runs out of pages to fake."
+author: core
+generated: null

@@ -1,0 +1,30 @@
+# Backend-only. The player sees hidden tests by category and pass/fail, never by content.
+form: io
+cases:
+  - id: h1
+    name: empty input prints nothing
+    category: empty-input
+    stdin: ""
+    expected_stdout: ""
+  - id: h2
+    name: a unit without a number, and a number without a unit
+    category: malformed
+    stdin: "hm\n90\n"
+    expected_stdout: "invalid\ninvalid\n"
+  - id: h3
+    name: zero, many hours, and minutes past 59
+    category: boundary
+    stdin: "0s\n100h\n90m\n"
+    expected_stdout: "0\n360000\n5400\n"
+  - id: h4
+    name: a repeated unit, an empty line, an inner space, and a stray letter
+    category: malformed
+    stdin: "1h1h\n\n1h 30m\n1x\n"
+    expected_stdout: "invalid\ninvalid\ninvalid\ninvalid\n"
+  # Reserve cases join the fight only when an enemy's Edge Case move reveals one of their category.
+  - id: r1
+    name: a unit before its number, then spaces around a valid duration
+    category: malformed
+    reserve: true
+    stdin: "m5\n  2m  \n"
+    expected_stdout: "invalid\n120\n"

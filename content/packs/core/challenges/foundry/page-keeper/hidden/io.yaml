@@ -1,0 +1,30 @@
+# Backend-only. The player sees hidden tests by category and pass/fail, never by content.
+form: io
+cases:
+  - id: h1
+    name: a catalog with no entries
+    category: empty-input
+    stdin: "0 10 1\n"
+    expected_stdout: "none\n"
+  - id: h2
+    name: page zero and a negative page
+    category: boundary
+    stdin: "25 10 0\n25 10 -1\n"
+    expected_stdout: "none\nnone\n"
+  - id: h3
+    name: an exact number of full pages
+    category: boundary
+    stdin: "20 10 2\n\n20 10 3\n"
+    expected_stdout: "11-20\nnone\n"
+  - id: h4
+    name: more room on a page than entries
+    category: boundary
+    stdin: "5 10 1\n1 1 1\n"
+    expected_stdout: "1-5\n1-1\n"
+  # Reserve cases join the fight only when an enemy's Edge Case move reveals one of their category.
+  - id: r1
+    name: extra spaces between the numbers
+    category: format
+    reserve: true
+    stdin: "  25   10  2 \n"
+    expected_stdout: "11-20\n"

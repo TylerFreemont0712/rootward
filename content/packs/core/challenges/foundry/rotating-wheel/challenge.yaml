@@ -1,0 +1,29 @@
+id: foundry.py.rotate-list
+title: The Rotating Wheel
+version: 1
+realm: foundry
+kind: code
+concepts: [py.collections.list]
+tags: [list, slicing, modulo, off-by-one]
+difficulty: 3
+tier: 0
+languages: [python, javascript]
+estimated_minutes: 6
+enemy: { template: off-by-one-goblin, hp_override: null }
+constraints:
+  max_lines: 25
+  banned_tokens: []
+targets:
+  time_ms: 200
+retreatable: true
+scoring: { crit: true, efficiency: false, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "The Guild's prize wheel sticks, and the Off-By-One Goblin keeps giving it one turn too many."
+  defeat: "The wheel clicks into place, and the Goblin loses count of its turns."
+author: core
+generated: null

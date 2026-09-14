@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: hours, minutes, and seconds
+    stdin: "1h30m15s\n"
+    expected_stdout: "5415\n"
+  - id: v2
+    name: any part can be left out
+    stdin: "45m\n2h5s\n"
+    expected_stdout: "2700\n7205\n"
+  - id: v3
+    name: rejects parts in the wrong order
+    stdin: "15s30m\n"
+    expected_stdout: "invalid\n"

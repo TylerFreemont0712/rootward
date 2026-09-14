@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: reverses the order of the words
+    stdin: "hello brave new world\n"
+    expected_stdout: "world new brave hello\n"
+  - id: v2
+    name: collapses extra spaces
+    stdin: "  spaced   out  \n"
+    expected_stdout: "out spaced\n"
+  - id: v3
+    name: a single word
+    stdin: "one\n"
+    expected_stdout: "one\n"

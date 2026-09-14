@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: finds the longest run
+    stdin: "a a b b b c\n"
+    expected_stdout: "3 b\n"
+  - id: v2
+    name: every item is different
+    stdin: "x y z\n"
+    expected_stdout: "1 x\n"
+  - id: v3
+    name: a run that lasts to the end of the line
+    stdin: "4 4 4 4\n"
+    expected_stdout: "4 4\n"

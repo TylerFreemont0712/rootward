@@ -1,0 +1,29 @@
+id: foundry.py.reverse-words
+title: Reverse the Scroll
+version: 1
+realm: foundry
+kind: code
+concepts: [py.strings.split]
+tags: [strings, split, join, empty-input]
+difficulty: 2
+tier: 0
+languages: [python, javascript]
+estimated_minutes: 4
+enemy: { template: null-wraith, hp_override: null }
+constraints:
+  max_lines: 15
+  banned_tokens: []
+targets:
+  time_ms: 200
+retreatable: true
+scoring: { crit: true, efficiency: false, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "A scroll in the Guild archive was copied backwards, one word at a time, and the Null Wraith hides in its gaps."
+  defeat: "The scroll reads forwards again, and the gaps close."
+author: core
+generated: null

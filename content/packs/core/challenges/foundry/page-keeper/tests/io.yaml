@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: the first page
+    stdin: "25 10 1\n"
+    expected_stdout: "1-10\n"
+  - id: v2
+    name: a last page that is not full
+    stdin: "25 10 3\n"
+    expected_stdout: "21-25\n"
+  - id: v3
+    name: a page past the end
+    stdin: "25 10 4\n"
+    expected_stdout: "none\n"

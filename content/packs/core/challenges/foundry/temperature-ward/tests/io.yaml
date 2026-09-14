@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: Celsius to Fahrenheit
+    stdin: "C 100\n"
+    expected_stdout: "212.0 F\n"
+  - id: v2
+    name: Fahrenheit to Celsius
+    stdin: "F 32\n"
+    expected_stdout: "0.0 C\n"
+  - id: v3
+    name: one decimal place
+    stdin: "C 37\nF 100\n"
+    expected_stdout: "98.6 F\n37.8 C\n"

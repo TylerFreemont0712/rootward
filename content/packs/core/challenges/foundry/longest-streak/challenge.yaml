@@ -1,0 +1,29 @@
+id: foundry.py.longest-streak
+title: The Longest Streak
+version: 1
+realm: foundry
+kind: code
+concepts: [py.control.loops]
+tags: [loops, state, boundary]
+difficulty: 2
+tier: 0
+languages: [python, javascript]
+estimated_minutes: 6
+enemy: { template: tally-wisp, hp_override: null }
+constraints:
+  max_lines: 30
+  banned_tokens: []
+targets:
+  time_ms: 200
+retreatable: true
+scoring: { crit: true, efficiency: false, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "The Tally Wisp watches the Guild's dice rolls and keeps losing count of the repeats."
+  defeat: "Every streak is counted, and the Wisp finally rests."
+author: core
+generated: null

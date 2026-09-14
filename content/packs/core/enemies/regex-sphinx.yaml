@@ -1,0 +1,19 @@
+id: regex-sphinx
+name: Regex Sphinx
+tier: 2
+realm_affinity: [foundry]
+base_atk: 6
+moves:
+  - { move: strike, weight: 3 }
+  - { move: edge-case, weight: 2, params: { category: malformed } }
+loot_table: tier2-common
+flavor:
+  intro: "It crouches over the Guild's timetables and speaks only in patterns. Answer its riddle before it anchors you."
+  taunt: ["What matches nothing, yet is not empty?", "Greedy, are we?", "Anchor your answer, or I will anchor you."]
+  defeat: "The Sphinx nods once and lets the timetable pass."
+art: |2
+       /\_/\
+      ( o.o )
+     / \d+  \
+    ( [a-z]* )
+     ^^^^^^^^

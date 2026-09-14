@@ -1,0 +1,30 @@
+# Backend-only. The player sees hidden tests by category and pass/fail, never by content.
+form: io
+cases:
+  - id: h1
+    name: empty input prints nothing
+    category: empty-input
+    stdin: ""
+    expected_stdout: ""
+  - id: h2
+    name: a line with no items, then a zero step
+    category: boundary
+    stdin: "3\n0 x y\n"
+    expected_stdout: "\nx y\n"
+  - id: h3
+    name: a full turn, and a large negative turn
+    category: boundary
+    stdin: "4 a b c d\n-5 a b\n"
+    expected_stdout: "a b c d\nb a\n"
+  - id: h4
+    name: a big step on a longer wheel
+    category: size
+    stdin: "100 1 2 3 4 5 6 7\n"
+    expected_stdout: "6 7 1 2 3 4 5\n"
+  # Reserve cases join the fight only when an enemy's Edge Case move reveals one of their category.
+  - id: r1
+    name: a negative step longer than the wheel
+    category: boundary
+    reserve: true
+    stdin: "-4 a b c\n"
+    expected_stdout: "b c a\n"

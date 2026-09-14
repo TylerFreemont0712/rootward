@@ -1,0 +1,29 @@
+id: foundry.py.staircase
+title: The Staircase
+version: 1
+realm: foundry
+kind: code
+concepts: [py.control.loops]
+tags: [loops, range, off-by-one]
+difficulty: 1
+tier: 0
+languages: [python, javascript]
+estimated_minutes: 4
+enemy: { template: off-by-one-goblin, hp_override: null }
+constraints:
+  max_lines: 15
+  banned_tokens: []
+targets:
+  time_ms: 200
+retreatable: true
+scoring: { crit: true, efficiency: false, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "The Off-By-One Goblin builds staircases down into the Machine, and every one of them is a step short."
+  defeat: "The staircase reaches the floor below, one sure step at a time."
+author: core
+generated: null

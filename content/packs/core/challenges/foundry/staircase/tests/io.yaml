@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: a single step
+    stdin: "1\n"
+    expected_stdout: "#\n"
+  - id: v2
+    name: steps are pushed to the right
+    stdin: "4\n"
+    expected_stdout: "   #\n  ##\n ###\n####\n"
+  - id: v3
+    name: no steps for zero
+    stdin: "0\n"
+    expected_stdout: ""

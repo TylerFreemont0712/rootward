@@ -1,0 +1,29 @@
+id: foundry.py.parse-duration
+title: The Sphinx's Timetable
+version: 1
+realm: foundry
+kind: code
+concepts: [py.strings.split]
+tags: [strings, tokenizing, parsing, validation]
+difficulty: 3
+tier: 0
+languages: [python, javascript]
+estimated_minutes: 8
+enemy: { template: regex-sphinx, hp_override: null }
+constraints:
+  max_lines: 35
+  banned_tokens: []
+targets:
+  time_ms: 200
+retreatable: true
+scoring: { crit: true, efficiency: false, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "The Regex Sphinx guards the Guild's timetable and lets through only durations written exactly right."
+  defeat: "The Sphinx nods once, and the timetable runs on time."
+author: core
+generated: null

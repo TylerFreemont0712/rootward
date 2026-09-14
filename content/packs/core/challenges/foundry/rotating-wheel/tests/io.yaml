@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: rotates right
+    stdin: "1 a b c d\n"
+    expected_stdout: "d a b c\n"
+  - id: v2
+    name: a negative step rotates left
+    stdin: "-1 a b c d\n"
+    expected_stdout: "b c d a\n"
+  - id: v3
+    name: wraps around more than once
+    stdin: "6 a b c d\n"
+    expected_stdout: "c d a b\n"

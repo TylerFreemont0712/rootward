@@ -115,9 +115,9 @@ Task breakdown:
       Chronicle basics on the Guild Board
 - [ ] Screens: Bastion (character creation, Artificer, Oath of the Foundry) and a fuller Chronicle (skill map)
 - [ ] Content: `content:new`, `content:stats`, seed content per section 13.4 (Foundry Python + JS, Grove, puzzles,
-      cards, 15 enemies, 12 items, Warden class data). Progress: 9 Foundry challenges in Python and JavaScript
-      (values, variables, strings, conditionals, dictionaries) and 4 enemies (Tally Wisp, Off-By-One Goblin, Null
-      Wraith, Type Mimic)
+      cards, 15 enemies, 12 items, Warden class data). Progress: 16 Foundry challenges in Python and JavaScript
+      (values, variables, strings, splitting, conditionals, loops, functions, lists, dictionaries, edge cases) and 5
+      enemies (Tally Wisp, Off-By-One Goblin, Null Wraith, Type Mimic, Regex Sphinx)
 
 ## Later milestones (summaries; full text in PROMPT.md section 15)
 
@@ -149,11 +149,11 @@ playable end to end: Guild Board, walkable ASCII map with fog of war, fights roo
 (ADR-0008). Nine Foundry challenges exist, so a brand-new Python player's long expedition has nine rooms across values,
 variables, strings, and conditionals (JavaScript: seven rooms, because the shared concept graph reaches strings later).
 The learner model is live (ADR-0009): mastery, ratings, Commits, weak spots, and Version are folded from run events,
-the planner plans from them, and the Debrief and the Chronicle on the Guild Board show them. After one good run the
-frontier moves to concepts that have no challenges yet, so the planner falls back to practice. Suggested order for the
-rest of M1:
-1. Content for the next frontier: loops, lists, and functions challenges, plus more alternatives per node so floors
-   branch.
+the planner plans from them, and the Debrief and the Chronicle on the Guild Board show them. Sixteen Foundry challenges
+reach from values to dictionaries, so the first three expeditions each introduce new concepts; after that, expeditions
+run shorter than the chosen length until more content exists. Suggested order for the rest of M1:
+1. Content: a second and third challenge per node (so floors branch and later runs stay full length), then
+   comprehensions, exceptions, and functions with arguments.
 2. Rest rooms with FSRS review cards (ts-fsrs), which also bring Bit Rot; then Shrine and Puzzle rooms.
 3. The Bastion (character creation, class and Oath choice) and a fuller Chronicle.
 4. `db:export` / `db:import`, the learner simulation script, and the JavaScript track nodes.

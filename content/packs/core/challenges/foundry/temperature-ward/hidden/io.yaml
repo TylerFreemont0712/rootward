@@ -1,0 +1,30 @@
+# Backend-only. The player sees hidden tests by category and pass/fail, never by content.
+form: io
+cases:
+  - id: h1
+    name: empty input prints nothing
+    category: empty-input
+    stdin: ""
+    expected_stdout: ""
+  - id: h2
+    name: the reading where both scales agree
+    category: boundary
+    stdin: "C -40\nF -40\n"
+    expected_stdout: "-40.0 F\n-40.0 C\n"
+  - id: h3
+    name: an unknown scale
+    category: validation
+    stdin: "K 300\n"
+    expected_stdout: "unknown scale K\n"
+  - id: h4
+    name: readings that do not convert evenly
+    category: rounding
+    stdin: "F 31\nC -18\n"
+    expected_stdout: "-0.6 C\n-0.4 F\n"
+  # Reserve cases join the fight only when an enemy's Edge Case move reveals one of their category.
+  - id: r1
+    name: blank lines before a reading
+    category: empty-input
+    reserve: true
+    stdin: "\n  \nC 0\n"
+    expected_stdout: "32.0 F\n"
