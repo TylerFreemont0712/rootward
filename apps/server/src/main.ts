@@ -51,11 +51,21 @@ async function main(): Promise<void> {
     shutdown("SIGTERM");
   });
 
-  await app.listen({ host: env.host, port: env.port });
+  try {
+    await app.listen({ host: env.host, port: env.port });
+  } catch (error) {
+    // A failed listen (for example EADDRINUSE) must not leave the process running on its sandboxes and database.
+    await Promise.allSettled([app.close(), sandbox.dispose()]);
+    db.close();
+    throw error;
+  }
 }
 
 main().catch((error: unknown) => {
   // Content errors are the most likely startup failure, and their message already lists every problem.
   console.error(error instanceof ContentLoadError ? error.message : error);
   process.exitCode = 1;
+  // Nothing should be left running after a failed start. If something still is (a sandbox child), exit anyway;
+  // unref() keeps this timer from being the thing that holds the process open.
+  setTimeout(() => process.exit(1), 5000).unref();
 });
