@@ -159,7 +159,8 @@ run shorter than the chosen length until more content exists. Suggested order fo
 4. `db:export` / `db:import`, the learner simulation script, and the JavaScript track nodes.
 
 Housekeeping: the folder is still named `ProgramMe`. Rename it to `Rootward` between sessions, not during one (moving
-the working directory breaks a running session).
+the working directory breaks a running session), then run `scripts/rootward-launch.sh --install` so the desktop
+launcher points at the new path.
 
 ## Blockers and open questions
 

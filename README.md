@@ -28,6 +28,14 @@ can take a couple of seconds while it loads.
 
 `pnpm start` builds the client and serves the whole game from one process at http://127.0.0.1:7331.
 
+### Desktop launcher (Linux)
+
+`scripts/rootward-launch.sh --install` writes `Rootward.desktop` in the repository root, using this checkout's absolute
+paths, and puts a copy on your Desktop. Double-clicking it installs packages if the lockfile changed, builds the client,
+starts the server in the background, and opens the game; if Rootward is already running, it just opens it. Right-click
+the icon for **Restart** (use it after pulling new code), **Open**, and **Stop**. The launcher's log is
+`~/.local/state/rootward/launcher.log`. After moving the repository folder, run the install command again.
+
 ## Commands
 
 | Command | What it does |

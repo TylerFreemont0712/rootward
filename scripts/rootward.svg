@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 64 64">
+  <!-- Rootward launcher icon: a phosphor-amber pixel R on a dark CRT tile (colors from apps/client/src/theme/tokens.css). -->
+  <defs>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect x="1" y="1" width="62" height="62" rx="12" fill="#120e0a" stroke="#3c2f21" stroke-width="2"/>
+  <g fill="#f2a541" filter="url(#glow)">
+    <rect x="17" y="11" width="24" height="6"/>
+    <rect x="17" y="17" width="6" height="36"/>
+    <rect x="41" y="17" width="6" height="12"/>
+    <rect x="23" y="29" width="18" height="6"/>
+    <rect x="29" y="35" width="6" height="6"/>
+    <rect x="35" y="41" width="6" height="6"/>
+    <rect x="41" y="47" width="6" height="6"/>
+  </g>
+</svg>
