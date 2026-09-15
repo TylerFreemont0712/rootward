@@ -368,6 +368,79 @@ def post_picture(rgba: np.ndarray, post: dict) -> Image.Image:
     return Image.fromarray(rgba_u8, "RGBA")
 
 
+def sheet_figures(rgba: np.ndarray, min_fraction: float) -> list[np.ndarray]:
+    """The separate figures on a character sheet, top row first and left to right, each cropped with its alpha. Figures
+    drawn in one render share one design, which separate renders of "the same character" never quite do."""
+    height, width = rgba.shape[:2]
+    mask = Image.fromarray((rgba[..., 3] > 0.5).astype(np.uint8) * 255)
+    small = np.asarray(mask.resize((width // 4, height // 4), Image.Resampling.BOX)) > 40
+    labels = np.zeros(small.shape, dtype=np.int32)
+    boxes: list[tuple[int, int, int, int, int]] = []
+    for start_y, start_x in zip(*np.nonzero(small)):
+        if labels[start_y, start_x]:
+            continue
+        label = len(boxes) + 1
+        labels[start_y, start_x] = label
+        stack, count = [(start_y, start_x)], 0
+        y0 = y1 = start_y
+        x0 = x1 = start_x
+        while stack:
+            y, x = stack.pop()
+            count += 1
+            y0, y1, x0, x1 = min(y0, y), max(y1, y), min(x0, x), max(x1, x)
+            # A two-pixel reach bridges the hairline gaps pixel art leaves inside one figure.
+            for ny in range(y - 2, y + 3):
+                for nx in range(x - 2, x + 3):
+                    if 0 <= ny < small.shape[0] and 0 <= nx < small.shape[1] and small[ny, nx] and not labels[ny, nx]:
+                        labels[ny, nx] = label
+                        stack.append((ny, nx))
+        boxes.append((count, y0, y1, x0, x1))
+    largest = max((box[0] for box in boxes), default=0)
+    kept = sorted((box for box in boxes if box[0] >= largest * min_fraction), key=lambda box: (round(box[1] / 40), box[3]))
+    return [
+        rgba[max(0, y0 * 4 - 4) : min(height, (y1 + 1) * 4 + 4), max(0, x0 * 4 - 4) : min(width, (x1 + 1) * 4 + 4)]
+        for _, y0, y1, x0, x1 in kept
+    ]
+
+
+def stride(frame: np.ndarray, lifted: str) -> np.ndarray:
+    """One step of a walk: the body rises a pixel while one foot stays planted and the other lifts with it."""
+    solid = frame[..., 3] > 0
+    rows = np.nonzero(solid.any(axis=1))[0]
+    cols = np.nonzero(solid.any(axis=0))[0]
+    top, bottom = rows.min(), rows.max()
+    foot_top = bottom - max(3, round((bottom - top + 1) * 0.16)) + 1
+    middle = (cols.min() + cols.max()) // 2
+    out = np.zeros_like(frame)
+    out[top - 1 : foot_top - 1] = frame[top:foot_top]
+    bridge = out[foot_top - 1]
+    gap = bridge[:, 3] == 0
+    bridge[gap] = frame[foot_top - 1][gap]
+    feet = frame[foot_top : bottom + 1]
+    raised_columns = np.zeros(frame.shape[1], dtype=bool)
+    if lifted == "left":
+        raised_columns[: middle + 1] = True
+    else:
+        raised_columns[middle + 1 :] = True
+    planted, raised = feet.copy(), feet.copy()
+    planted[:, raised_columns] = 0
+    raised[:, ~raised_columns] = 0
+    ground = out[foot_top : bottom + 1]
+    ground[planted[..., 3] > 0] = planted[planted[..., 3] > 0]
+    lift = out[foot_top - 1 : bottom]
+    lift[raised[..., 3] > 0] = raised[raised[..., 3] > 0]
+    return out
+
+
+def walk_strip(sprite: Image.Image) -> Image.Image:
+    """Four frames side by side: stand, step, stand, other step. Two transparent rows on top give the body room to rise.
+    LEARN: at 32px a whole-body bob with alternating planted feet reads as a stride; drawing real leg poses would need
+    the model to keep one design across frames, which it cannot promise."""
+    frame = np.concatenate([np.zeros((2, sprite.width, 4), dtype=np.uint8), np.asarray(sprite.convert("RGBA"))], axis=0)
+    frames = [frame, stride(frame, "left"), frame, stride(frame, "right")]
+    return Image.fromarray(np.concatenate(frames, axis=1), "RGBA")
+
+
 def process(job: dict, raw: np.ndarray) -> list[tuple[str, Image.Image]]:
     post = job["post"]
     kind = post["kind"]
@@ -378,6 +451,26 @@ def process(job: dict, raw: np.ndarray) -> list[tuple[str, Image.Image]]:
         return [(f"{job['out']}-{i}", image) for i, image in enumerate(variants)]
     if kind == "picture":
         return with_copies([(job["out"], post_picture(raw, post))], post)
+    if kind == "walk-sheet":
+        # Background removal is made for one subject; across a sheet of figures it smears a band that joins them all into
+        # one blob. Sheets are drawn on plain white, so anything clearly darker than white is a figure.
+        solid = raw[..., :3].min(axis=2) < post.get("background_cut", 0.9)
+        # Sheets often draw a pale ground line or shadow under each figure; colors named here count as background too.
+        for color in post.get("background_colors", []):
+            target = np.array(hex_rgb(color), dtype=np.float32) / 255
+            near = np.sqrt(((raw[..., :3] - target) ** 2).sum(axis=2)) < post.get("background_tolerance", 0.14)
+            solid &= ~near
+        solid = solid.astype(np.float32)
+        figures = sheet_figures(np.dstack([raw[..., :3], solid]), post.get("figure_fraction", 0.25))
+        outputs = []
+        for direction, index in post["views"].items():
+            if index >= len(figures):
+                raise ValueError(f"{job['id']}: view {direction} wants figure {index}, but the sheet has {len(figures)}")
+            sprite = post_sprite(figures[index], {**post, "keep_fraction": post.get("keep_fraction", 0.2)})
+            outputs.append((f"{job['out']}-walk-{direction}", walk_strip(sprite)))
+            if direction == "down":
+                outputs.append((job["out"], sprite))
+        return outputs
     raise ValueError(f"unknown post kind {kind!r} for {job['id']}")
 
 

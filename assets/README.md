@@ -77,7 +77,7 @@ file needs its id added to that catalog** before the client asks for it.
 | `generated/npcs` | Map sprites for the ten NPCs in `content/packs/core/npcs/` (32x48; Lint is a 32x32 floating daemon). | `WorldRenderer` (`sprite` id). |
 | `generated/portraits` | 128x128 dialogue portraits for every NPC and for the Artificer. | `DialogueBox` (`portrait` id). |
 | `generated/creatures` | Map sprites for the six enemies (48x48; the Kiln Warden boss 80x96), standing on world markers. | `WorldRenderer` markers, keyed by enemy template id. |
-| `generated/avatars` | `artificer.png`, regenerated as a 32x48 walking sprite. | `WorldRenderer` and `TileMapRenderer`, keyed off the class slug; `@` without it. |
+| `generated/avatars` | `artificer.png` (32x48, facing the viewer) and three walk strips, `artificer-walk-down.png`, `-up.png`, and `-right.png`: four 32x50 frames each. All three directions are cut from one character-sheet render, so the design matches from every side; the stride is procedural (a one-pixel body rise with alternating planted feet). | `WorldRenderer` plays the strip for the facing direction while walking (left mirrors right); `TileMapRenderer` and the title screen use the static sprite; `@` without either. |
 | `generated/enemies/kiln-warden.png` | The boss's enemy-card portrait (96x96). | `EnemyCard` (`LeftPane.tsx`). |
 | `generated/backgrounds/title.png` | A 480x274 dusk panorama of the Machine: a mountain of amber circuitry above an abyss, the Bastion on a cliff. | `TitleScreen`, full-bleed behind everything (scaled up with `image-rendering: pixelated`). |
 | `generated/brand` | `emblem.png` (64x64, the Guild's gear crest with a root growing through it), `icon-256.png` (the same emblem scaled 4x with nearest-neighbor, via the manifest's `copies`), and `wanderer.png` (64x96, a hooded Maintainer seen from behind). | `TitleScreen` (emblem over the name, wanderer in the foreground); `icon-256.png` is the desktop launcher's icon (`scripts/rootward-launch.sh`), with `scripts/rootward.svg` as the fallback. |
@@ -106,6 +106,10 @@ $PY scripts/art/generate.py --only npc-pip,prop-*   # some ids, or prefixes endi
 $PY scripts/art/generate.py --only npc-pip --force  # render again even though a raw render is cached
 $PY scripts/art/generate.py --reprocess --sheet     # redo post-processing only, and write a contact sheet
 ```
+
+A `walk-sheet` asset renders a whole character sheet instead of one figure: the script cuts it into separate figures
+(connected blobs, top row first), `views` in the manifest names which figure faces down, up, and right, and each gets a
+four-frame walk strip. Look at the contact sheet, then set `views` like `pick`.
 
 Changing only `post` settings (or `pick`) never touches the GPU again. Changing a prompt, seed, or model re-renders
 that asset.

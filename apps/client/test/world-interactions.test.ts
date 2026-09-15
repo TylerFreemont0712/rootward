@@ -13,6 +13,7 @@ import {
   triggerAt,
   variantIndex,
   type Walker,
+  walkStrip,
 } from "../src/world/interactions.ts";
 
 // A 7x5 zone small enough to reason about by hand:
@@ -111,6 +112,12 @@ describe("world interactions", () => {
     expect(new Set(picks).size).toBeGreaterThan(1);
     expect(variantIndex(12, 7, 4)).toBe(variantIndex(12, 7, 4));
     expect(variantIndex(3, 3, 0)).toBe(0);
+  });
+
+  it("plays the right-facing walk strip mirrored when walking left", () => {
+    expect(walkStrip("left")).toEqual({ direction: "right", mirrored: true });
+    expect(walkStrip("up")).toEqual({ direction: "up", mirrored: false });
+    expect(walkStrip("down")).toEqual({ direction: "down", mirrored: false });
   });
 
   it("labels people, fights, and ways out for the hover tooltip", () => {

@@ -379,3 +379,9 @@ main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .title-panel .actions { flex-wrap: nowrap; }
 .title-panel .text-input { flex: 1; min-width: 0; }
 .title-foot { font-size: 11px; color: var(--muted); text-shadow: 0 1px 0 #000; text-align: center; }
+
+/* Walk strips: four frames side by side, stepped through while walking; frame one is the standing pose. */
+.w-avatar-strip { position: absolute; left: 50%; translate: -50% 0; image-rendering: pixelated; background-repeat: no-repeat; background-position: 0 0; filter: drop-shadow(0 0 5px var(--amber-glow)); }
+.w-avatar.walking .w-avatar-strip { animation: w-walk-cycle 0.56s steps(4) infinite; }
+.w-avatar.flip .w-avatar-strip { scale: -1 1; }
+@keyframes w-walk-cycle { from { background-position-x: 0; } to { background-position-x: var(--strip-end); } }

@@ -320,6 +320,7 @@ function WorldPlay({ world }: { world: WorldView }) {
           stepMs={STEP_MS}
           revealed={zone.sight !== undefined ? visited : undefined}
           avatarArt={classId !== undefined ? assetUrl("avatars", slugify(classId)) : undefined}
+          avatarClass={classId !== undefined ? slugify(classId) : undefined}
           nearbyNpcId={prompt?.kind === "npc" ? prompt.id : undefined}
           onTileClick={goTo}
         />

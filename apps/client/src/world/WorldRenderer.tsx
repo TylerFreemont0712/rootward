@@ -1,9 +1,9 @@
 import type { Point } from "@rootward/core/map";
 import type { ZoneMarkerView, ZoneNpcView, ZonePropView, ZoneView } from "@rootward/shared";
 import { type CSSProperties, memo, type MouseEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { assetUrl, terrainVariantUrls } from "../assets/AssetRegistry.ts";
+import { assetUrl, terrainVariantUrls, WALK_FRAMES, walkStripUrl } from "../assets/AssetRegistry.ts";
 import { useImages } from "./images.ts";
-import { type Facing, labelAt, tileKey, variantIndex } from "./interactions.ts";
+import { type Facing, labelAt, tileKey, variantIndex, walkStrip } from "./interactions.ts";
 
 // The world renderer (ADR-0011): the ground is painted once onto a canvas at art resolution, and everything standing
 // on it (props, people, monsters, the Maintainer) is an absolutely placed sprite whose z-index comes from the row it
@@ -26,6 +26,8 @@ export interface WorldRendererProps {
   /** Tiles uncovered so far where sight is limited; undefined when the whole zone is visible. */
   revealed: ReadonlySet<number> | undefined;
   avatarArt: string | undefined;
+  /** The class slug, for walk strips; without strips the static avatar bobs instead. */
+  avatarClass: string | undefined;
   /** Whose name to show: the person the Maintainer is standing beside. */
   nearbyNpcId: string | undefined;
   onTileClick: (point: Point) => void;
@@ -54,7 +56,7 @@ function cameraEdge(view: number, world: number, focus: number): number {
   return Math.min(Math.max(focus - view / 2, 0), world - view);
 }
 
-function WorldLayers({ zone, avatar, facing, walking, stepMs, revealed, avatarArt, nearbyNpcId, onTileClick }: WorldRendererProps) {
+function WorldLayers({ zone, avatar, facing, walking, stepMs, revealed, avatarArt, avatarClass, nearbyNpcId, onTileClick }: WorldRendererProps) {
   const viewport = useRef<HTMLDivElement>(null);
   const ground = useRef<HTMLCanvasElement>(null);
   const fog = useRef<HTMLCanvasElement>(null);
@@ -71,8 +73,9 @@ function WorldLayers({ zone, avatar, facing, walking, stepMs, revealed, avatarAr
     for (const npc of zone.npcs) add(assetUrl("npcs", npc.sprite));
     for (const marker of zone.markers) add(markerArt(marker));
     add(avatarArt);
+    if (avatarClass !== undefined) for (const direction of ["down", "up", "right"] as const) add(walkStripUrl(avatarClass, direction));
     return [...list];
-  }, [zone, avatarArt]);
+  }, [zone, avatarArt, avatarClass]);
   const images = useImages(urls);
   const image = (url: string | undefined) => (url === undefined ? undefined : images.get(url));
 
@@ -160,6 +163,9 @@ function WorldLayers({ zone, avatar, facing, walking, stepMs, revealed, avatarAr
   };
 
   const avatarImage = image(avatarArt);
+  const strip = walkStrip(facing);
+  const stripImage = image(avatarClass === undefined ? undefined : walkStripUrl(avatarClass, strip.direction));
+  const flipped = stripImage ? strip.mirrored : facing === "left";
   const light = {
     "--lx": `${(avatar.x + 0.5) * TILE_PX - cameraX}px`,
     "--ly": `${(avatar.y + 0.5) * TILE_PX - cameraY}px`,
@@ -208,7 +214,7 @@ function WorldLayers({ zone, avatar, facing, walking, stepMs, revealed, avatarAr
             ),
         )}
         <div
-          className={["w-avatar", walking ? "walking" : "", facing === "left" ? "flip" : ""].filter(Boolean).join(" ")}
+          className={["w-avatar", walking ? "walking" : "", flipped ? "flip" : ""].filter(Boolean).join(" ")}
           style={{
             width: TILE_PX,
             height: TILE_PX,
@@ -218,7 +224,21 @@ function WorldLayers({ zone, avatar, facing, walking, stepMs, revealed, avatarAr
           }}
         >
           <div className="w-shadow" />
-          {avatarImage ? (
+          {stripImage ? (
+            <div
+              className="w-avatar-strip"
+              style={
+                {
+                  backgroundImage: `url("${stripImage.src}")`,
+                  width: (stripImage.naturalWidth / WALK_FRAMES) * SCALE,
+                  height: stripImage.naturalHeight * SCALE,
+                  backgroundSize: `${stripImage.naturalWidth * SCALE}px ${stripImage.naturalHeight * SCALE}px`,
+                  bottom: FOOT_PX,
+                  "--strip-end": `${-stripImage.naturalWidth * SCALE}px`,
+                } as CSSProperties
+              }
+            />
+          ) : avatarImage ? (
             <img src={avatarImage.src} alt="" draggable={false} style={spriteSize(avatarImage, FOOT_PX)} />
           ) : (
             <span className="avatar-glyph" aria-hidden="true">

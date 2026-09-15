@@ -125,6 +125,10 @@ Task breakdown:
 - [x] Title screen (2026-09-15, at the player's request): a full-bleed pixel panorama, the Guild emblem, character
       cards with class sprite, version, fights, and whereabouts (`GET /api/profiles` now returns summaries and the
       starting class), last-played first; the emblem doubles as the desktop launcher's icon
+- [x] Walking animations (2026-09-15): four-frame walk strips facing down, up, and right for the Artificer, cut from one
+      character-sheet render so every direction matches (`walk-sheet` in `scripts/art/`)
+- [ ] Decide on scripted combat: brainstorm in `docs/proposals/scripted-combat.md` (duels where your code is the attack,
+      the Spellbook, language features as runes); prototype a first slice once a direction is picked
 - [ ] Screens: class and Oath choice at character creation (the Bastion itself is walkable now) and a fuller
       Chronicle (skill map)
 - [ ] Content: `content:new`, `content:stats`, seed content per section 13.4 (Foundry Python + JS, Grove, puzzles,

@@ -1,5 +1,6 @@
 import { findPath, isWalkable, type Point, tileAt } from "@rootward/core/map";
 import type { ZoneView } from "@rootward/shared";
+import type { WalkDirection } from "../assets/AssetRegistry.ts";
 
 // Walking and using things in a zone (ADR-0011), as plain functions over a ZoneView so they can be tested without a
 // browser. The server re-checks everything that matters (where the Maintainer stopped, who is close enough to talk
@@ -123,6 +124,11 @@ export function nextStep(walker: Walker, held: Facing | undefined, canStep: (poi
   const target = { x: walker.avatar.x + STEP[held].x, y: walker.avatar.y + STEP[held].y };
   if (canStep(target)) return { avatar: target, route: [], facing: held };
   return walker.facing === held ? walker : { ...walker, facing: held };
+}
+
+/** Walk strips exist for down, up, and right; walking left plays the right-facing strip mirrored. */
+export function walkStrip(facing: Facing): { direction: WalkDirection; mirrored: boolean } {
+  return facing === "left" ? { direction: "right", mirrored: true } : { direction: facing, mirrored: false };
 }
 
 /** Tiles within `radius` (a circle) of the Maintainer; nothing when the zone has no sight limit. */

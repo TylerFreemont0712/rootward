@@ -181,3 +181,10 @@ language feature took more than a minute to understand.
   averaging, so shrinking a sprite does not mix the removed white background into its edges.
 - **Seamless variants.** `post_tiles` rolls one crop by half its size so its seams move to the middle, then blends every
   variant toward that rolled copy at the edges: all variants share identical borders and tile in any order.
+- **Consistency from one render.** A diffusion model asked twice for "the same character" draws two slightly different
+  people. `sheet_figures` in `scripts/art/generate.py` asks once for a character sheet and cuts it into figures with a
+  flood fill, so the front, side, and back views share one design.
+- **Procedural animation.** `walk_strip` turns one standing sprite into a four-frame stride (the body rises a pixel while
+  one foot stays planted), and the client plays it with a CSS `steps(4)` animation over `background-position`
+  (`.w-avatar-strip` in `global.css`).
+

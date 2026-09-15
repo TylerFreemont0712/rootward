@@ -118,6 +118,16 @@ const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
 const TERRAIN = new Set(["grass", "dirt", "cobble", "flagstone", "planks", "water", "stone-wall", "ash", "basalt", "lava", "rock"]);
 const TERRAIN_VARIANTS = 4;
 
+/** Classes whose map sprite also has walk strips: `avatars/<id>-walk-<down|up|right>.png`, four frames side by side. */
+const WALK_STRIPS = new Set(["artificer"]);
+export const WALK_FRAMES = 4;
+export type WalkDirection = "down" | "up" | "right";
+
+/** A class's walk strip for one direction, or undefined when it has none (the static avatar is used instead). */
+export function walkStripUrl(classSlug: string, direction: WalkDirection): string | undefined {
+  return WALK_STRIPS.has(classSlug) ? `${BASE_URL}/avatars/${classSlug}-walk-${direction}.png` : undefined;
+}
+
 /** A display name to logical id, e.g. "Off-By-One Goblin" -> "off-by-one-goblin". */
 export function slugify(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, "-");
