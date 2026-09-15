@@ -38,6 +38,7 @@ async function main(): Promise<void> {
     profileService: new ProfileService({ db }),
     registry,
     world: new WorldService({ db, content, registry }),
+    content,
   };
   const app = await buildApp({
     service,

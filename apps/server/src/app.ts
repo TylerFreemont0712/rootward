@@ -30,8 +30,10 @@ import {
 } from "@rootward/shared";
 import Fastify, { type FastifyInstance, type FastifyReply } from "fastify";
 import { z } from "zod";
+import type { GameContent } from "./content.ts";
 import { ServiceError } from "./errors.ts";
 import type { ProfileService } from "./profiles/service.ts";
+import { profileSummary, startingClass } from "./profiles/summary.ts";
 import type { RunServiceRegistry } from "./runs/registry.ts";
 import { DEFAULT_CLASS_ID, type RunService } from "./runs/service.ts";
 import type { Sandbox } from "./sandbox.ts";
@@ -45,7 +47,7 @@ export interface AppDeps {
   logger?: boolean;
   /** Characters (ADR-0010): profile-scoped run routes and the world (ADR-0011), mirroring the unscoped routes above
    * without changing them. Optional so every existing caller of `buildApp` keeps compiling untouched. */
-  profiles?: { profileService: ProfileService; registry: RunServiceRegistry; world: WorldService };
+  profiles?: { profileService: ProfileService; registry: RunServiceRegistry; world: WorldService; content: GameContent };
 }
 
 /** HTTP routes. Every request body is parsed with the shared zod contract, and every response is parsed before sending. */
@@ -108,9 +110,21 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.get("/api/learner", async () => LearnerResponse.parse({ learner: await deps.service.learnerView() }));
 
   if (deps.profiles) {
-    const { profileService, registry, world } = deps.profiles;
+    const { profileService, registry, world, content } = deps.profiles;
 
-    app.get("/api/profiles", async () => ProfileListResponse.parse({ profiles: await profileService.list() }));
+    // The title screen's list: every character with a summary of what they have done, and the class new ones start as.
+    app.get("/api/profiles", async () => {
+      const profiles = await profileService.list();
+      const summaries = await Promise.all(
+        profiles.map(async (profile) => [profile.id, await profileSummary(profile, { content, registry, world })] as const),
+      );
+      const starting = startingClass(content, DEFAULT_CLASS_ID);
+      return ProfileListResponse.parse({
+        profiles,
+        summaries: Object.fromEntries(summaries),
+        ...(starting ? { startingClass: starting } : {}),
+      });
+    });
 
     app.post("/api/profiles", async (request) => {
       const body = parseBody(CreateProfileRequest, request.body);

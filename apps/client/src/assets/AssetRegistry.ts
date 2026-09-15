@@ -20,7 +20,8 @@ export type AssetCategory =
   | "props"
   | "npcs"
   | "portraits"
-  | "creatures";
+  | "creatures"
+  | "brand";
 
 /** Served from apps/client/public/generated, which is assets/generated at the repo root (see that folder's symlink). */
 const BASE_URL = "/generated";
@@ -62,7 +63,7 @@ const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
   hud: new Set(["integrity", "focus", "cycles"]),
   /** Full-bleed opaque backdrops (one per realm, eventually); id is the realm id. Only "foundry" exists so far --
    * it's the only realm any seeded content is actually set in. */
-  backgrounds: new Set(["foundry"]),
+  backgrounds: new Set(["foundry", "title"]),
   /** Map sprites for the player, keyed by class slug; distinct from the `classes` portrait. */
   avatars: new Set(["artificer"]),
   /** World props (content/packs/<pack>/props.yaml), drawn bottom-aligned on their footprint. */
@@ -109,6 +110,8 @@ const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
   portraits: new Set([...NPCS, "artificer"]),
   /** Enemy map sprites standing on world markers; id is the enemy template id. */
   creatures: new Set(ENEMIES),
+  /** The title screen: the Guild emblem and a Maintainer seen from behind. */
+  brand: new Set(["emblem", "wanderer"]),
 };
 
 /** Ground tile art: each terrain has this many interchangeable variants (`terrain/<id>-<n>.png`) that tile seamlessly. */

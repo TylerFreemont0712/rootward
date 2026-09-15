@@ -24,6 +24,8 @@ export PATH="$HOME/.npm-global/bin:/home/linuxbrew/.linuxbrew/bin:$HOME/.local/b
 SELF="$(readlink -f "$0")"
 ROOT="$(cd "$(dirname "$SELF")/.." && pwd)"
 ICON="$ROOT/scripts/rootward.svg"
+# The pixel emblem from scripts/art/generate.py, once it exists; the vector icon otherwise.
+[ -f "$ROOT/assets/generated/brand/icon-256.png" ] && ICON="$ROOT/assets/generated/brand/icon-256.png"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/rootward"
 LOG="$STATE_DIR/launcher.log"
 PIDFILE="$STATE_DIR/server.pid"

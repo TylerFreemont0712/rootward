@@ -5,9 +5,11 @@ import {
   type DebriefView,
   type FileMap,
   type LearnerView,
+  type ProfileSummaryView,
   ProfileView,
   type RunView,
   type SessionLength,
+  type StartingClassView,
   type WorldActionResponse,
   type WorldScreenId,
   type WorldView,
@@ -20,6 +22,8 @@ import { api, ApiError } from "../api/client.ts";
 // flight.
 
 const PROFILE_KEY = "rootward:profile";
+/** The character played last; kept when switching characters, so the title screen can offer to continue. */
+const LAST_PROFILE_KEY = "rootward:last-profile";
 const runKey = (profileId: string) => `rootward:run:${profileId}`;
 /** Which world marker the saved run was started from, so closing the app mid-fight still returns to the world. */
 const worldFightKey = (profileId: string) => `rootward:run:world:${profileId}`;
@@ -45,6 +49,10 @@ const BOARD_SECTION: Readonly<Record<WorldScreenId, BoardSection>> = {
 
 export interface GameStore {
   profiles: ProfileView[];
+  /** Profile id -> what that character has done, for the title screen. */
+  profileSummaries: Record<string, ProfileSummaryView>;
+  startingClass: StartingClassView | undefined;
+  lastProfileId: string | undefined;
   activeProfile: ProfileView | undefined;
   challenges: ChallengeSummary[];
   learner: LearnerView | undefined;
@@ -70,6 +78,8 @@ export interface GameStore {
   notice: string | undefined;
   /** Restore the last-played character (if any) and everything that follows from it; called once at startup. */
   restoreProfile: () => Promise<void>;
+  /** Refresh the character list and summaries. */
+  loadProfiles: () => Promise<void>;
   createProfile: (name: string) => Promise<void>;
   selectProfile: (profile: ProfileView) => void;
   /** Leave the current character for the select screen; its run and world progress are left as they are. */
@@ -179,6 +189,9 @@ export const useGame = create<GameStore>()((set, get) => {
 
   return {
     profiles: [],
+    profileSummaries: {},
+    startingClass: undefined,
+    lastProfileId: undefined,
     activeProfile: undefined,
     challenges: [],
     learner: undefined,
@@ -212,8 +225,8 @@ export const useGame = create<GameStore>()((set, get) => {
         }
       }
       try {
-        const { profiles } = await api.profiles();
-        set({ profiles, busy: undefined });
+        const { profiles, summaries, startingClass } = await api.profiles();
+        set({ profiles, profileSummaries: summaries, startingClass, lastProfileId: readStorage(LAST_PROFILE_KEY), busy: undefined });
         const match = candidateId !== undefined ? profiles.find((p) => p.id === candidateId) : undefined;
         if (match) get().selectProfile(match);
         else {
@@ -222,6 +235,15 @@ export const useGame = create<GameStore>()((set, get) => {
         }
       } catch (error) {
         set({ error: describe(error), busy: undefined, screen: "profiles" });
+      }
+    },
+
+    loadProfiles: async () => {
+      try {
+        const { profiles, summaries, startingClass } = await api.profiles();
+        set({ profiles, profileSummaries: summaries, startingClass });
+      } catch (error) {
+        set({ error: describe(error) });
       }
     },
 
@@ -234,7 +256,15 @@ export const useGame = create<GameStore>()((set, get) => {
 
     selectProfile: (profile) => {
       writeStorage(PROFILE_KEY, JSON.stringify(profile));
-      set({ activeProfile: profile, screen: "world", world: undefined, worldLoaded: false, conversation: undefined });
+      writeStorage(LAST_PROFILE_KEY, profile.id);
+      set({
+        activeProfile: profile,
+        lastProfileId: profile.id,
+        screen: "world",
+        world: undefined,
+        worldLoaded: false,
+        conversation: undefined,
+      });
       void get().loadChallenges();
       void get().loadLearner();
       void get().loadWorld();
@@ -256,6 +286,7 @@ export const useGame = create<GameStore>()((set, get) => {
         notice: undefined,
         error: undefined,
       });
+      void get().loadProfiles();
     },
 
     loadChallenges: async () => {

@@ -355,7 +355,33 @@ export type HealthResponse = z.infer<typeof HealthResponse>;
 export const ProfileView = z.strictObject({ id: z.string(), name: z.string(), classId: z.string(), createdAt: z.string() });
 export type ProfileView = z.infer<typeof ProfileView>;
 
-export const ProfileListResponse = z.strictObject({ profiles: z.array(ProfileView) });
+/** What a character has done so far, for the title screen. */
+export const ProfileSummaryView = z.strictObject({
+  className: z.string(),
+  version: z.string(),
+  fights: z.int(),
+  /** Where the character stands in the world; absent until they arrive. */
+  zoneName: z.string().optional(),
+  questsActive: z.int(),
+  questsDone: z.int(),
+});
+export type ProfileSummaryView = z.infer<typeof ProfileSummaryView>;
+
+/** The class a new character starts as, from content. */
+export const StartingClassView = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+  tagline: z.string(),
+  discipline: z.string(),
+});
+export type StartingClassView = z.infer<typeof StartingClassView>;
+
+export const ProfileListResponse = z.strictObject({
+  profiles: z.array(ProfileView),
+  /** Profile id -> summary. */
+  summaries: z.record(z.string(), ProfileSummaryView),
+  startingClass: StartingClassView.optional(),
+});
 export type ProfileListResponse = z.infer<typeof ProfileListResponse>;
 
 export const ProfileResponse = z.strictObject({ profile: ProfileView });

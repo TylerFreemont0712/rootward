@@ -79,6 +79,8 @@ file needs its id added to that catalog** before the client asks for it.
 | `generated/creatures` | Map sprites for the six enemies (48x48; the Kiln Warden boss 80x96), standing on world markers. | `WorldRenderer` markers, keyed by enemy template id. |
 | `generated/avatars` | `artificer.png`, regenerated as a 32x48 walking sprite. | `WorldRenderer` and `TileMapRenderer`, keyed off the class slug; `@` without it. |
 | `generated/enemies/kiln-warden.png` | The boss's enemy-card portrait (96x96). | `EnemyCard` (`LeftPane.tsx`). |
+| `generated/backgrounds/title.png` | A 480x274 dusk panorama of the Machine: a mountain of amber circuitry above an abyss, the Bastion on a cliff. | `TitleScreen`, full-bleed behind everything (scaled up with `image-rendering: pixelated`). |
+| `generated/brand` | `emblem.png` (64x64, the Guild's gear crest with a root growing through it), `icon-256.png` (the same emblem scaled 4x with nearest-neighbor, via the manifest's `copies`), and `wanderer.png` (64x96, a hooded Maintainer seen from behind). | `TitleScreen` (emblem over the name, wanderer in the foreground); `icon-256.png` is the desktop launcher's icon (`scripts/rootward-launch.sh`), with `scripts/rootward.svg` as the fallback. |
 
 **How the pipeline works.** `scripts/art/manifest.json` lists every asset: an id, an output path, a style, a prompt,
 a seed, and post-processing settings. The script sends each to a running ComfyUI (default `http://127.0.0.1:8188`)
@@ -92,7 +94,7 @@ in `assets/.art-cache/` (git-ignored). Post-processing then does what ComfyUI ha
 5. For terrain, cut four crops from one render and blend each toward a shared half-rolled border strip, which makes
    every variant tile seamlessly with every other.
 
-Styles: `terrain` and `prop` use SDXL base 1.0 with the [Pixel Art XL](https://civitai.com/models/120096) LoRA;
+Styles: `backdrop` renders a 1344x768 landscape and reduces it to 64 colors at 480x274; `terrain` and `prop` use SDXL base 1.0 with the [Pixel Art XL](https://civitai.com/models/120096) LoRA;
 `character` and `creature` use NovaAnimeXL (an Illustrious-based SDXL checkpoint) with Pixel Art XL at 0.8, which gives
 readable chibi proportions at 32x48; `portrait` uses NovaAnimeXL alone. Most assets render two candidates; the
 contact sheet shows them side by side and the manifest's `pick` chooses one.

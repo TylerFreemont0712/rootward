@@ -40,7 +40,7 @@ beforeAll(async () => {
   app = await buildApp({
     service: new RunService({ content, sandbox, store: new InMemoryEventStore() }),
     sandbox,
-    profiles: { profileService: new ProfileService({ db }), registry, world: new WorldService({ db, content, registry }) },
+    profiles: { profileService: new ProfileService({ db }), registry, world: new WorldService({ db, content, registry }), content },
   });
 });
 
@@ -65,8 +65,11 @@ describe("profile-scoped routes", () => {
   it("creates and lists characters", async () => {
     const ada = await createProfile("Ada");
     const grace = await createProfile("Grace");
-    const { profiles } = ProfileListResponse.parse((await app.inject({ method: "GET", url: "/api/profiles" })).json());
-    expect(profiles.map((p) => p.id)).toEqual(expect.arrayContaining([ada, grace]));
+    const listed = ProfileListResponse.parse((await app.inject({ method: "GET", url: "/api/profiles" })).json());
+    expect(listed.profiles.map((p) => p.id)).toEqual(expect.arrayContaining([ada, grace]));
+    expect(listed.summaries[ada]).toMatchObject({ className: "Artificer", fights: 0, questsActive: 0, questsDone: 0 });
+    expect(listed.summaries[ada]?.zoneName).toBeUndefined();
+    expect(listed.startingClass).toMatchObject({ id: "artificer", name: "Artificer" });
   });
 
   it("scopes practice fights and mastery per character", SLOW, async () => {
@@ -158,5 +161,8 @@ describe("profile-scoped routes", () => {
 
     const after = WorldStatusResponse.parse((await app.inject({ method: "GET", url: url("") })).json());
     expect(after.world?.position).toEqual({ x: 20, y: 17 });
+
+    const listed = ProfileListResponse.parse((await app.inject({ method: "GET", url: "/api/profiles" })).json());
+    expect(listed.summaries[ada]).toMatchObject({ zoneName: "The Bastion", questsActive: 1 });
   });
 });

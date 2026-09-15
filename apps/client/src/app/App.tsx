@@ -3,7 +3,7 @@ import { DebriefScreen } from "../screens/DebriefScreen.tsx";
 import { EncounterScreen } from "../screens/EncounterScreen.tsx";
 import { ExpeditionScreen } from "../screens/ExpeditionScreen.tsx";
 import { GuildBoard } from "../screens/GuildBoard.tsx";
-import { ProfileSelectScreen } from "../screens/ProfileSelectScreen.tsx";
+import { TitleScreen } from "../screens/TitleScreen.tsx";
 import { WorldScreen } from "../screens/WorldScreen.tsx";
 import { useGame } from "../state/store.ts";
 import { Toasts } from "../world/Toasts.tsx";
@@ -24,15 +24,37 @@ export function App() {
     void restoreProfile();
   }, [restoreProfile]);
 
+  const banner = (error ?? notice) !== undefined && (
+    <div className={error !== undefined ? "notice error" : "notice"} role={error !== undefined ? "alert" : "status"}>
+      {error ?? notice}
+      <button type="button" onClick={dismiss}>
+        dismiss
+      </button>
+    </div>
+  );
+
+  // Before a character is chosen, the title screen is the whole page: no bars around it.
+  if (!activeProfile) {
+    return (
+      <>
+        <div className="crt" aria-hidden="true" />
+        <main>
+          {banner}
+          <TitleScreen />
+        </main>
+      </>
+    );
+  }
+
   const encounter = screen === "encounter" ? run?.encounter : undefined;
   const expedition = screen === "map" ? run?.expedition : undefined;
-  const inWorld = activeProfile !== undefined && screen === "world";
+  const inWorld = screen === "world";
 
-  let body = activeProfile ? inWorld ? <WorldScreen /> : <GuildBoard /> : <ProfileSelectScreen />;
+  let body = inWorld ? <WorldScreen /> : <GuildBoard />;
   if (screen === "debrief" && debrief) body = <DebriefScreen debrief={debrief} />;
   else if (run && encounter) body = <EncounterScreen view={encounter} />;
   else if (run && expedition) body = <ExpeditionScreen run={run} expedition={expedition} />;
-  const betweenRuns = activeProfile !== undefined && !encounter && !expedition && !(screen === "debrief" && debrief);
+  const betweenRuns = !encounter && !expedition && !(screen === "debrief" && debrief);
 
   return (
     <>
@@ -76,14 +98,7 @@ export function App() {
         )}
       </header>
       <main>
-        {(error ?? notice) !== undefined && (
-          <div className={error !== undefined ? "notice error" : "notice"} role={error !== undefined ? "alert" : "status"}>
-            {error ?? notice}
-            <button type="button" onClick={dismiss}>
-              dismiss
-            </button>
-          </div>
-        )}
+        {banner}
         <Toasts />
         {body}
       </main>

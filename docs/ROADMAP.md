@@ -122,6 +122,9 @@ Task breakdown:
       canvas-and-sprites world renderer with dialogue portraits, a journal, fog, and ambience
 - [x] Art pipeline (`scripts/art/`): ComfyUI renders plus pixel-art post-processing; terrain, props, NPC sprites,
       portraits, and creature sprites generated for the world (`assets/README.md`)
+- [x] Title screen (2026-09-15, at the player's request): a full-bleed pixel panorama, the Guild emblem, character
+      cards with class sprite, version, fights, and whereabouts (`GET /api/profiles` now returns summaries and the
+      starting class), last-played first; the emblem doubles as the desktop launcher's icon
 - [ ] Screens: class and Oath choice at character creation (the Bastion itself is walkable now) and a fuller
       Chronicle (skill map)
 - [ ] Content: `content:new`, `content:stats`, seed content per section 13.4 (Foundry Python + JS, Grove, puzzles,

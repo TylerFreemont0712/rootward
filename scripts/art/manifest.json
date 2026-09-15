@@ -68,6 +68,23 @@
       "candidates": 2,
       "post": { "kind": "sprite", "size": [48, 48], "colors": 16 }
     },
+    "backdrop": {
+      "checkpoint": "sd_xl_base_1.0.safetensors",
+      "lora": "pixel-art-xl-v1.1.safetensors",
+      "lora_strength": 1.0,
+      "prefix": "pixel art, ",
+      "suffix": ", epic wide landscape, cinematic composition, highly detailed",
+      "negative": "text, watermark, signature, logo, blurry, frame, border, ui, people, characters, realistic, photo, 3d render",
+      "width": 1344,
+      "height": 768,
+      "steps": 30,
+      "cfg": 7,
+      "sampler": "euler_ancestral",
+      "scheduler": "normal",
+      "rmbg": false,
+      "candidates": 3,
+      "post": { "kind": "picture", "size": [480, 274], "colors": 64 }
+    },
     "portrait": {
       "checkpoint": "novaAnimeXL_ilV190.safetensors",
       "prefix": "masterpiece, best quality, fantasy rpg character portrait, ",
@@ -163,6 +180,10 @@
     { "id": "creature-type-mimic", "out": "creatures/type-mimic", "style": "creature", "seed": 509, "prompt": "treasure chest mimic with sharp teeth and a long tongue, glowing numbers and letters on its lid" },
     { "id": "creature-regex-sphinx", "out": "creatures/regex-sphinx", "style": "creature", "seed": 511, "prompt": "small sphinx, lion body, pharaoh headdress covered in glowing glyph patterns, sitting" },
     { "id": "creature-kiln-warden", "out": "creatures/kiln-warden", "pick": 1, "style": "creature", "seed": 521, "prompt": "huge armored golem built from kiln bricks and iron plates, glowing molten furnace core in its chest, fiery eyes", "post": { "size": [80, 96], "colors": 20 } },
-    { "id": "enemy-kiln-warden", "out": "enemies/kiln-warden", "style": "creature", "seed": 521, "prompt": "huge armored golem built from kiln bricks and iron plates, glowing molten furnace core in its chest, fiery eyes, portrait", "post": { "size": [96, 96], "colors": 24, "anchor": "center" } }
+    { "id": "enemy-kiln-warden", "out": "enemies/kiln-warden", "style": "creature", "seed": 521, "prompt": "huge armored golem built from kiln bricks and iron plates, glowing molten furnace core in its chest, fiery eyes, portrait", "post": { "size": [96, 96], "colors": 24, "anchor": "center" } },
+
+    {"id": "brand-title-backdrop", "pick": 1, "out": "backgrounds/title", "style": "backdrop", "seed": 601, "prompt": "at dusk a colossal ancient machine built into a mountainside, rivers of glowing amber circuitry pouring down the cliffs into a deep dark abyss, a small walled fantasy town with warm lit windows on a cliff edge, giant brass gears and towers in the distance, starry violet sky"},
+    {"id": "brand-emblem", "out": "brand/emblem", "style": "prop", "seed": 611, "candidates": 3, "prompt": "(single emblem:1.3), a round brass gear crest with a glowing amber tree root growing through its center, fantasy guild emblem, symmetrical, front view", "post": {"size": [64, 64], "anchor": "center", "colors": 20, "copies": [{"out": "brand/icon-256", "scale": 4}]}},
+    {"id": "brand-wanderer", "pick": 1, "out": "brand/wanderer", "style": "character", "seed": 621, "candidates": 3, "prompt": "1other, hooded mage in a long purple cloak, from behind, back view, holding a glowing lantern at their side, standing", "post": {"size": [64, 96], "colors": 24}}
   ]
 }

@@ -372,13 +372,22 @@ def process(job: dict, raw: np.ndarray) -> list[tuple[str, Image.Image]]:
     post = job["post"]
     kind = post["kind"]
     if kind == "sprite":
-        return [(job["out"], post_sprite(raw, post))]
+        return with_copies([(job["out"], post_sprite(raw, post))], post)
     if kind == "tiles":
         variants = post_tiles(raw, post)
         return [(f"{job['out']}-{i}", image) for i, image in enumerate(variants)]
     if kind == "picture":
-        return [(job["out"], post_picture(raw, post))]
+        return with_copies([(job["out"], post_picture(raw, post))], post)
     raise ValueError(f"unknown post kind {kind!r} for {job['id']}")
+
+
+def with_copies(outputs: list[tuple[str, Image.Image]], post: dict) -> list[tuple[str, Image.Image]]:
+    """Extra files from the same result, scaled up with nearest-neighbor (an app icon from a 64px emblem, say)."""
+    name, image = outputs[0]
+    for copy in post.get("copies", []):
+        scale = copy.get("scale", 1)
+        outputs.append((copy["out"], image.resize((image.width * scale, image.height * scale), Image.Resampling.NEAREST)))
+    return outputs
 
 
 # ---------------------------------------------------------------------------------------------------------------------
