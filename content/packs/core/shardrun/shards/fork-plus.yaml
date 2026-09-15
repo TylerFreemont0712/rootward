@@ -1,0 +1,34 @@
+id: fork-plus
+name: Fork+
+rarity: common
+cost: 1
+function: fork_plus
+summary: "Splits every bolt into two copies at 80% power."
+tags: [loops, lists]
+draftable: false
+code:
+  python: |
+    def fork_plus(bolts, battle):
+        split = []
+        for bolt in bolts:
+            # Two copies of every bolt, each weaker than the original.
+            split.append({**bolt, "power": bolt["power"] * 0.8})
+            split.append({**bolt, "power": bolt["power"] * 0.8})
+        return split
+  javascript: |
+    function forkPlus(bolts, battle) {
+      const split = [];
+      for (const bolt of bolts) {
+        // Two copies of every bolt, each weaker than the original.
+        split.push({ ...bolt, power: bolt.power * 0.8 });
+        split.push({ ...bolt, power: bolt.power * 0.8 });
+      }
+      return split;
+    }
+examples:
+  - name: one bolt becomes two
+    bolts:
+      - { power: 5, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 4, element: none, target: front, pierce: false, ward: false }

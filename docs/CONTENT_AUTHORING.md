@@ -19,6 +19,9 @@ content/packs/<pack>/
   zones/<id>.yaml           a walkable zone of the world (ADR-0011)
   npcs/<id>.yaml            a person and their conversation
   quests/<id>.yaml          a quest: who gives it, objectives, reward flags
+  shardrun/run.yaml         Shardrun: starting spells, floors, encounters, reward odds (ADR-0012)
+  shardrun/shards/<id>.yaml a shard: a function in Python and JavaScript, with worked examples
+  shardrun/foes/<id>.yaml   a Shardrun foe: HP, weaknesses, a trait, and its intents
   classes/<id>/             class.yaml, abilities.yaml, lore.md (folder name = class id)
   challenges/<realm>/<folder>/
 ```
@@ -190,6 +193,67 @@ some, add entries to `scripts/art/manifest.json` and run `scripts/art/generate.p
 the new ids to the catalog in `apps/client/src/assets/AssetRegistry.ts`. People use `npcs/<sprite>` and
 `portraits/<portrait>`, monsters on markers use `creatures/<enemy id>`, props use `props/<id>`, and terrain uses four
 seamless variants `terrain/<id>-0..3`.
+
+## Shardrun: shards, foes, and the run
+
+Shardrun (ADR-0012) is the roguelite mode. Its schemas are in `packages/content-schema/src/shardrun.ts`.
+
+### Shards
+
+A shard is one function with the signature `(bolts, battle) -> bolts`. A bolt is
+`{ power, element: none|fire|frost|spark, target: front|back|weakest|strongest|all, pierce, ward }`; `battle` is
+`{ turn, me: { hp, max, block, mana }, foes: [{ name, hp, max, shield, weak, resist }] }`, living foes only.
+
+```yaml
+id: amplify
+name: Amplify
+rarity: common              # common, uncommon, or rare: how often rewards offer it
+cost: 1                     # mana added to every cast of a spell holding it
+function: amplify           # snake_case; the JavaScript code uses the camelCase form (lazy_fork -> lazyFork)
+summary: "Adds 3 power to every bolt."
+tags: [lists, comprehension]
+forge: { into: amplify-plus, verb: upgrade }   # optional: what a forge turns it into (upgrade or repair)
+curse: { integrity: 3 }     # optional: Integrity burned on every cast
+draftable: true             # false for forge results, so rewards never offer them
+code:
+  python: |
+    def amplify(bolts, battle):
+        return [{**bolt, "power": bolt["power"] + 3} for bolt in bolts]
+  javascript: |
+    function amplify(bolts, battle) {
+      return bolts.map((bolt) => ({ ...bolt, power: bolt.power + 3 }));
+    }
+examples:                   # run in both languages by content:validate; power is compared with a small tolerance
+  - name: one bolt
+    bolts: [{ power: 4, element: none, target: front, pierce: false, ward: false }]
+    expect: [{ power: 7, element: none, target: front, pierce: false, ward: false }]
+```
+
+Quote a `summary` that contains a colon. Keep shards short enough to read in a card, and let each teach one idea (a
+comprehension, a filter, an accumulator, reading the battle). A shard never needs to guard against huge outputs or bad
+bolts: the engine clamps power, caps bolts, and charges mana for the work. A buggy shard is fine content if a forge can
+repair it (`lazy-fork`).
+
+### Foes
+
+```yaml
+id: null-wraith
+name: Null Wraith
+sprite: null-wraith          # a creatures/<id> art id
+hp: 18
+weak: [fire]                 # x1.5 from balance.yaml
+resist: []                   # x0.5
+trait: { kind: nullify-first }   # or thick-hide {threshold}, shifting-weakness {cycle}, pattern-ward {pattern}
+intents:                     # played in order, one per turn, then repeated
+  - { kind: strike, power: 5 }   # also multi {power, times}, shield {amount}, stoke, heal {amount}
+flavor: The first thing you throw at it becomes nothing.
+```
+
+### The run
+
+`shardrun/run.yaml` gives the starting spells (name, capacity, shards) and spare shards, the floors (each a list of
+room kinds to choose between: `fight`, `elite`, `boss`, `rest`, `forge`), the foe groups each battle kind draws from,
+and the rarity odds of rewards. Only one pack may define it. Validation checks every shard and foe it names.
 
 ## Quality checklist (from ideas/solutions/content-pipeline.md)
 

@@ -1,0 +1,36 @@
+# Shardrun (ADR-0012): what a run starts with, the floors of the Salvage, and who waits on them. Every number that is
+# a rule rather than content lives in config/balance.yaml under `shardrun`.
+start:
+  spells:
+    - { name: Bolt, capacity: 3, shards: [amplify] }
+    - { name: Ward, capacity: 3, shards: [ward] }
+    - { name: Fork, capacity: 3, shards: [fork] }
+  inventory: [kindle]
+
+# One list per floor: the rooms to choose between. Battles draw their foes from `encounters` by the run's seed.
+floors:
+  - [fight]
+  - [fight, fight]
+  - [fight, rest]
+  - [elite, forge]
+  - [fight, fight]
+  - [rest, forge]
+  - [boss]
+
+encounters:
+  fight:
+    - [tally-wisp]
+    - [off-by-one-goblin]
+    - [null-wraith]
+    - [tally-wisp, tally-wisp]
+  elite:
+    - [regex-sphinx]
+    - [type-mimic, tally-wisp]
+  boss:
+    - [kiln-warden]
+
+# Relative odds of each rarity when a won fight offers shards.
+rewards:
+  fight: { common: 70, uncommon: 25, rare: 5 }
+  elite: { common: 25, uncommon: 50, rare: 25 }
+  boss: { common: 0, uncommon: 50, rare: 50 }

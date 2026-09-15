@@ -127,6 +127,17 @@ function mergePack(index: ContentIndex, contents: PackContents, diagnostics: Dia
   addSourced("npc", index.npcs, contents.npcs);
   addSourced("quest", index.quests, contents.quests);
   addSourced("zone", index.zones, contents.zones);
+  addSourced("shard", index.shards, contents.shards);
+  addSourced("shardrun foe", index.shardrunFoes, contents.shardrunFoes);
+  if (contents.shardrun) {
+    if (index.shardrun) {
+      diagnostics.error("duplicate-id", `the Shardrun run is already defined in ${index.shardrun.file}`, {
+        file: contents.shardrun.file,
+      });
+    } else {
+      index.shardrun = contents.shardrun;
+    }
+  }
 
   for (const card of contents.cards) {
     const key = `${card.value.node}#${card.value.id}`;

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import sys
 import time
@@ -30,6 +31,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 
+import poses
+
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = Path(__file__).with_name("manifest.json")
 OUT_DIR = ROOT / "assets" / "generated"
@@ -37,7 +40,7 @@ CACHE_DIR = ROOT / "assets" / ".art-cache"
 
 GENERATION_KEYS = (
     "checkpoint", "lora", "lora_strength", "prefix", "prompt", "suffix", "negative",
-    "width", "height", "steps", "cfg", "sampler", "scheduler", "seed", "candidates", "rmbg",
+    "width", "height", "steps", "cfg", "sampler", "scheduler", "seed", "candidates", "rmbg", "control", "control_digest",
 )
 
 
@@ -79,8 +82,9 @@ def generation_hash(job: dict) -> str:
 # ComfyUI
 
 
-def build_graph(job: dict, prefix: str) -> dict:
-    """An API-format txt2img graph; with `rmbg`, BiRefNet's mask is saved beside the render as its own image."""
+def build_graph(job: dict, prefix: str, control_image: str | None = None) -> dict:
+    """An API-format txt2img graph; with `rmbg`, BiRefNet's mask is saved beside the render as its own image, and with
+    `control`, an uploaded pose sheet steers where the bodies go."""
     graph: dict[str, dict] = {"1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": job["checkpoint"]}}}
     model, clip = ["1", 0], ["1", 1]
     if job.get("lora"):
@@ -97,10 +101,24 @@ def build_graph(job: dict, prefix: str) -> dict:
         "class_type": "EmptyLatentImage",
         "inputs": {"width": job["width"], "height": job["height"], "batch_size": job["candidates"]},
     }
+    positive, negative = ["3", 0], ["4", 0]
+    control = job.get("control")
+    if control and control_image:
+        graph["12"] = {"class_type": "LoadImage", "inputs": {"image": control_image}}
+        graph["13"] = {"class_type": "ControlNetLoader", "inputs": {"control_net_name": control["model"]}}
+        graph["14"] = {
+            "class_type": "ControlNetApplyAdvanced",
+            "inputs": {
+                "positive": positive, "negative": negative, "control_net": ["13", 0], "image": ["12", 0], "vae": ["1", 2],
+                "strength": control.get("strength", 1.0),
+                "start_percent": control.get("start", 0.0), "end_percent": control.get("end", 1.0),
+            },
+        }
+        positive, negative = ["14", 0], ["14", 1]
     graph["6"] = {
         "class_type": "KSampler",
         "inputs": {
-            "model": model, "positive": ["3", 0], "negative": ["4", 0], "latent_image": ["5", 0],
+            "model": model, "positive": positive, "negative": negative, "latent_image": ["5", 0],
             "seed": job["seed"], "steps": job["steps"], "cfg": job["cfg"],
             "sampler_name": job["sampler"], "scheduler": job["scheduler"], "denoise": 1.0,
         },
@@ -132,9 +150,36 @@ def http_json(url: str, payload: dict | None = None) -> dict:
         sys.exit(f"Cannot reach ComfyUI at {url} ({error.reason}). Is it running?")
 
 
+def pose_sheet(job: dict) -> Image.Image | None:
+    control = job.get("control")
+    return poses.sheet(control["pose"], job["width"], job["height"]) if control else None
+
+
+def upload_image(comfy: str, image: Image.Image, name: str) -> str:
+    """Put an image in ComfyUI's input folder (its /upload/image endpoint takes a multipart form) and return its name."""
+    buffer = io.BytesIO()
+    image.save(buffer, "PNG")
+    boundary = uuid.uuid4().hex
+    body = b"".join([
+        f'--{boundary}\r\nContent-Disposition: form-data; name="image"; filename="{name}"\r\nContent-Type: image/png\r\n\r\n'.encode(),
+        buffer.getvalue(),
+        f'\r\n--{boundary}\r\nContent-Disposition: form-data; name="overwrite"\r\n\r\ntrue\r\n--{boundary}--\r\n'.encode(),
+    ])
+    request = urllib.request.Request(
+        f"{comfy}/upload/image", data=body, headers={"Content-Type": f"multipart/form-data; boundary={boundary}"}
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.loads(response.read())["name"]
+    except urllib.error.URLError as error:
+        sys.exit(f"Could not upload {name} to ComfyUI: {error}")
+
+
 def render(comfy: str, job: dict) -> tuple[list[Image.Image], list[Image.Image] | None]:
     prefix = f"rootward-art/{job['id']}"
-    queued = http_json(f"{comfy}/prompt", {"prompt": build_graph(job, prefix), "client_id": str(uuid.uuid4())})
+    pose = pose_sheet(job)
+    control_image = upload_image(comfy, pose, f"rootward-pose-{job['id']}.png") if pose else None
+    queued = http_json(f"{comfy}/prompt", {"prompt": build_graph(job, prefix, control_image), "client_id": str(uuid.uuid4())})
     prompt_id = queued["prompt_id"]
     started = time.monotonic()
     while True:
@@ -164,6 +209,10 @@ def ensure_raws(comfy: str, job: dict, force: bool, reprocess_only: bool) -> lis
     """Float RGBA arrays in 0..1, one per candidate, rendering only when the cache is missing or stale."""
     folder = CACHE_DIR / job["id"]
     meta_path = folder / "meta.json"
+    pose = pose_sheet(job)
+    if pose is not None:
+        # Editing poses.py changes the sheet, and a changed sheet must render again even though the manifest did not.
+        job["control_digest"] = hashlib.sha256(pose.tobytes()).hexdigest()
     digest = generation_hash(job)
     cached = meta_path.exists() and json.loads(meta_path.read_text()).get("hash") == digest
     if not cached or force:
@@ -173,6 +222,8 @@ def ensure_raws(comfy: str, job: dict, force: bool, reprocess_only: bool) -> lis
         print(f"  render {job['id']} ({job['candidates']} candidate(s), seed {job['seed']})", flush=True)
         rgbs, masks = render(comfy, job)
         folder.mkdir(parents=True, exist_ok=True)
+        if pose is not None:
+            pose.save(folder / "pose.png")
         for i, rgb in enumerate(rgbs):
             rgb.convert("RGB").save(folder / f"rgb_{i}.png")
             if masks:
@@ -441,6 +492,70 @@ def walk_strip(sprite: Image.Image) -> Image.Image:
     return Image.fromarray(np.concatenate(frames, axis=1), "RGBA")
 
 
+def sheet_alpha(raw: np.ndarray, post: dict) -> np.ndarray:
+    """A sheet of figures with its background cut away. Background removal is made for one subject; across a sheet it
+    smears a band that joins every figure into one blob. Sheets are drawn on plain white, so anything clearly darker than
+    white is a figure, except pale ground lines and shadows in `background_colors`."""
+    solid = raw[..., :3].min(axis=2) < post.get("background_cut", 0.9)
+    for color in post.get("background_colors", []):
+        target = np.array(hex_rgb(color), dtype=np.float32) / 255
+        near = np.sqrt(((raw[..., :3] - target) ** 2).sum(axis=2)) < post.get("background_tolerance", 0.14)
+        solid &= ~near
+    return np.dstack([raw[..., :3], solid.astype(np.float32)])
+
+
+def post_walk_cycle(rgba: np.ndarray, post: dict, job: dict) -> list[tuple[str, Image.Image]]:
+    """A pose-guided sheet (rows of directions; a standing pose, then walk frames) cut into one strip per direction.
+
+    Every figure is scaled by the same factor, so the character is one size whichever way it faces, and anchored by the
+    middle of its head with its lowest foot on the frame's bottom row, so the head holds still while the legs move and
+    the body's rise on a passing step survives. All frames share one palette, so colors do not flicker between frames."""
+    frame_w, frame_h = post["size"]
+    pad, headroom = 1, post.get("headroom", 2)
+    directions, columns = post["rows"], post["columns"]
+    cell_h, cell_w = rgba.shape[0] // len(directions), rgba.shape[1] // columns
+    figures = []
+    for r, direction in enumerate(directions):
+        for c in range(columns):
+            cell = drop_fragments(rgba[r * cell_h : (r + 1) * cell_h, c * cell_w : (c + 1) * cell_w], post.get("keep_fraction", 0.2))
+            ys, xs = np.nonzero(cell[..., 3] > 0.5)
+            if len(xs) == 0:
+                raise ValueError(f"{job['id']}: no figure in row {r} column {c}")
+            crop = cell[ys.min() : ys.max() + 1, xs.min() : xs.max() + 1]
+            head = np.nonzero(crop[: max(1, round(crop.shape[0] * 0.3)), :, 3] > 0.5)[1]
+            figures.append((direction, crop, float(head.mean())))
+    # LEARN: the head's middle anchors the figure, so the space it needs is twice its farthest reach from that point.
+    scale = min(
+        min((frame_w - 2 * pad) / (2 * max(head_x, crop.shape[1] - head_x)), (frame_h - 2 * pad - headroom) / crop.shape[0])
+        for _, crop, head_x in figures
+    )
+    frames = []
+    for direction, crop, head_x in figures:
+        size = (max(1, round(crop.shape[1] * scale)), max(1, round(crop.shape[0] * scale)))
+        small = resize_premultiplied(crop, size)
+        small = np.dstack([adjust(small[..., :3], post), small[..., 3:4]])
+        canvas = np.zeros((frame_h, frame_w, 4), dtype=np.float32)
+        top, left = frame_h - pad - size[1], round(frame_w / 2 - head_x * scale)
+        x0, x1 = max(pad, left), min(frame_w - pad, left + size[0])
+        canvas[top : top + size[1], x0:x1] = small[:, x0 - left : x1 - left]
+        frames.append((direction, canvas))
+    opaque_pixels = np.concatenate([np.round(f[..., :3][f[..., 3] > post.get("alpha_cut", 0.5)] * 255) for _, f in frames])
+    palette = palette_of(opaque_pixels, post.get("colors", 16))
+    by_direction: dict[str, list[np.ndarray]] = {}
+    for direction, canvas in frames:
+        opaque = canvas[..., 3] > post.get("alpha_cut", 0.5)
+        out = np.zeros((frame_h, frame_w, 4), dtype=np.uint8)
+        out[opaque, :3] = apply_palette(np.round(canvas[..., :3] * 255), palette)[opaque]
+        out[opaque, 3] = 255
+        by_direction.setdefault(direction, []).append(outline(out, post.get("outline_color", "#140c1c")))
+    outputs = []
+    for direction, strip in by_direction.items():
+        outputs.append((f"{job['out']}-walk-{direction}", Image.fromarray(np.concatenate(strip, axis=1), "RGBA")))
+        if direction == "down":
+            outputs.append((job["out"], Image.fromarray(strip[0], "RGBA")))
+    return outputs
+
+
 def process(job: dict, raw: np.ndarray) -> list[tuple[str, Image.Image]]:
     post = job["post"]
     kind = post["kind"]
@@ -451,17 +566,10 @@ def process(job: dict, raw: np.ndarray) -> list[tuple[str, Image.Image]]:
         return [(f"{job['out']}-{i}", image) for i, image in enumerate(variants)]
     if kind == "picture":
         return with_copies([(job["out"], post_picture(raw, post))], post)
+    if kind == "walk-cycle":
+        return post_walk_cycle(sheet_alpha(raw, post), post, job)
     if kind == "walk-sheet":
-        # Background removal is made for one subject; across a sheet of figures it smears a band that joins them all into
-        # one blob. Sheets are drawn on plain white, so anything clearly darker than white is a figure.
-        solid = raw[..., :3].min(axis=2) < post.get("background_cut", 0.9)
-        # Sheets often draw a pale ground line or shadow under each figure; colors named here count as background too.
-        for color in post.get("background_colors", []):
-            target = np.array(hex_rgb(color), dtype=np.float32) / 255
-            near = np.sqrt(((raw[..., :3] - target) ** 2).sum(axis=2)) < post.get("background_tolerance", 0.14)
-            solid &= ~near
-        solid = solid.astype(np.float32)
-        figures = sheet_figures(np.dstack([raw[..., :3], solid]), post.get("figure_fraction", 0.25))
+        figures = sheet_figures(sheet_alpha(raw, post), post.get("figure_fraction", 0.25))
         outputs = []
         for direction, index in post["views"].items():
             if index >= len(figures):

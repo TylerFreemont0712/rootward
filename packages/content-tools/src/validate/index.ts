@@ -3,6 +3,7 @@ import type { Diagnostics } from "../diagnostics.ts";
 import { validateChallenge } from "./challenges.ts";
 import { type ExecutionOptions, type ExecutionReport, validateExecution } from "./execute.ts";
 import { type EngineRegistries, validateReferences } from "./references.ts";
+import { executeShards, validateShardrun } from "./shardrun.ts";
 import { validateWorld } from "./world.ts";
 
 export type { EngineRegistries } from "./references.ts";
@@ -25,6 +26,7 @@ export async function validateContent(
 ): Promise<ExecutionReport> {
   validateReferences(index, diagnostics, options.engine);
   validateWorld(index, diagnostics);
+  validateShardrun(index, diagnostics);
 
   const challenges: LoadedChallenge[] = [...index.challenges.values()].filter(
     (challenge) => options.packId === undefined || challenge.packId === options.packId,
@@ -42,5 +44,7 @@ export async function validateContent(
   }
 
   if (!options.execution) return { executed: [], skipped: [] };
-  return validateExecution(challenges, diagnostics, options.execution);
+  const report = await validateExecution(challenges, diagnostics, options.execution);
+  await executeShards(index, diagnostics, options.execution, report, options.packId);
+  return report;
 }

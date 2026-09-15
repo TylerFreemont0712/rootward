@@ -1,0 +1,24 @@
+id: sieve
+name: Sieve
+rarity: common
+cost: 0
+function: sieve
+summary: "Throws away bolts under 3 power, so later shards spend no work on them. Wards are kept."
+tags: [filtering, conditionals]
+code:
+  python: |
+    def sieve(bolts, battle):
+        return [bolt for bolt in bolts if bolt["power"] >= 3 or bolt["ward"]]
+  javascript: |
+    function sieve(bolts, battle) {
+      return bolts.filter((bolt) => bolt.power >= 3 || bolt.ward);
+    }
+examples:
+  - name: weak bolts are dropped, wards stay
+    bolts:
+      - { power: 2, element: none, target: front, pierce: false, ward: false }
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 2, element: none, target: front, pierce: false, ward: true }
+    expect:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 2, element: none, target: front, pierce: false, ward: true }

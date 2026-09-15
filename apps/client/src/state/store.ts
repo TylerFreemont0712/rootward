@@ -31,8 +31,9 @@ const draftKey = (runId: string, roomId: string) => `rootward:draft:${runId}:${r
 
 export type Busy = "loading" | "start" | "enter" | "probe" | "cast" | "hint" | "retreat" | "abandon" | "debrief" | "world";
 export type CenterTab = "task" | "editor";
-/** Character select, the walkable world, the Guild Board, the expedition map, a fight, or a finished run's debrief. */
-export type Screen = "profiles" | "world" | "board" | "map" | "encounter" | "debrief";
+/** Character select, the walkable world, the Guild Board, the expedition map, a fight, a finished run's debrief, or
+ * Shardrun, the roguelite mode (ADR-0012). */
+export type Screen = "profiles" | "world" | "board" | "map" | "encounter" | "debrief" | "shardrun";
 /** A part of the Guild Board the world can send the player straight to. */
 export type BoardSection = "descend" | "chronicle" | "practice";
 
@@ -41,7 +42,7 @@ export interface Toast {
   text: string;
 }
 
-const BOARD_SECTION: Readonly<Record<WorldScreenId, BoardSection>> = {
+const BOARD_SECTION: Readonly<Record<Exclude<WorldScreenId, "shardrun">, BoardSection>> = {
   "guild-board": "descend",
   chronicle: "chronicle",
   practice: "practice",
@@ -100,6 +101,8 @@ export interface GameStore {
   showWorld: () => void;
   showBoard: (section?: BoardSection) => void;
   clearBoardSection: () => void;
+  /** Shardrun keeps its own run state (state/shardrun.ts); this only switches to its screen. */
+  showShardrun: () => void;
   loadWorld: () => Promise<void>;
   /** Arrive in the world, or change the language its fights are played in. */
   startWorld: (language: string) => Promise<void>;
@@ -176,7 +179,8 @@ export const useGame = create<GameStore>()((set, get) => {
       toast(response.notices);
       if (response.open) {
         set({ conversation: undefined });
-        get().showBoard(BOARD_SECTION[response.open]);
+        if (response.open === "shardrun") get().showShardrun();
+        else get().showBoard(BOARD_SECTION[response.open]);
       }
     });
 
@@ -394,6 +398,10 @@ export const useGame = create<GameStore>()((set, get) => {
 
     clearBoardSection: () => {
       set({ boardSection: undefined });
+    },
+
+    showShardrun: () => {
+      set({ screen: "shardrun", notice: undefined });
     },
 
     loadWorld: async () => {

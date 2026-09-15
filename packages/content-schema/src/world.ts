@@ -51,7 +51,7 @@ export const WorldCondition: z.ZodType<WorldCondition> = z.lazy(() =>
 );
 
 /** Screens the client opens from the world. The server never acts on these; it passes them back to the client. */
-export const WORLD_SCREENS = ["guild-board", "chronicle", "practice"] as const;
+export const WORLD_SCREENS = ["guild-board", "chronicle", "practice", "shardrun"] as const;
 export const WorldScreen = z.enum(WORLD_SCREENS);
 export type WorldScreen = z.infer<typeof WorldScreen>;
 

@@ -3,6 +3,7 @@ import { DebriefScreen } from "../screens/DebriefScreen.tsx";
 import { EncounterScreen } from "../screens/EncounterScreen.tsx";
 import { ExpeditionScreen } from "../screens/ExpeditionScreen.tsx";
 import { GuildBoard } from "../screens/GuildBoard.tsx";
+import { ShardrunScreen } from "../screens/ShardrunScreen.tsx";
 import { TitleScreen } from "../screens/TitleScreen.tsx";
 import { WorldScreen } from "../screens/WorldScreen.tsx";
 import { useGame } from "../state/store.ts";
@@ -19,6 +20,7 @@ export function App() {
   const restoreProfile = useGame((s) => s.restoreProfile);
   const showWorld = useGame((s) => s.showWorld);
   const showBoard = useGame((s) => s.showBoard);
+  const showShardrun = useGame((s) => s.showShardrun);
 
   useEffect(() => {
     void restoreProfile();
@@ -49,8 +51,9 @@ export function App() {
   const encounter = screen === "encounter" ? run?.encounter : undefined;
   const expedition = screen === "map" ? run?.expedition : undefined;
   const inWorld = screen === "world";
+  const inShardrun = screen === "shardrun";
 
-  let body = inWorld ? <WorldScreen /> : <GuildBoard />;
+  let body = inWorld ? <WorldScreen /> : inShardrun ? <ShardrunScreen /> : <GuildBoard />;
   if (screen === "debrief" && debrief) body = <DebriefScreen debrief={debrief} />;
   else if (run && encounter) body = <EncounterScreen view={encounter} />;
   else if (run && expedition) body = <ExpeditionScreen run={run} expedition={expedition} />;
@@ -77,6 +80,9 @@ export function App() {
               }}
             >
               Guild Board
+            </button>
+            <button type="button" className="btn" aria-current={inShardrun ? "page" : undefined} onClick={showShardrun}>
+              Shardrun
             </button>
           </nav>
         )}
@@ -121,6 +127,13 @@ export function App() {
               <kbd>E</kbd> talk, read, open · <kbd>1</kbd>-<kbd>9</kbd> answer · <kbd>Esc</kbd> walk away
             </span>
             <span>walk into a monster to fight it</span>
+          </>
+        ) : inShardrun ? (
+          <>
+            <span>
+              <kbd>1</kbd>-<kbd>3</kbd> cast · <kbd>E</kbd> end turn
+            </span>
+            <span>click a shard, then a slot, to move it · or drag it</span>
           </>
         ) : (
           <>

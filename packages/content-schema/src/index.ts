@@ -15,5 +15,6 @@ export * from "./oath.ts";
 export * from "./pack.ts";
 export * from "./primitives.ts";
 export * from "./realm.ts";
+export * from "./shardrun.ts";
 export * from "./skill.ts";
 export * from "./world.ts";

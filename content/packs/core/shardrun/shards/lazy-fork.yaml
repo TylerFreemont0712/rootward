@@ -1,0 +1,37 @@
+id: lazy-fork
+name: Lazy Fork
+rarity: common
+cost: 0
+function: lazy_fork
+summary: "A free Fork, salvaged from broken code. Something about it is off by one. A forge can repair it."
+tags: [loops, off-by-one]
+forge: { into: fork, verb: repair }
+code:
+  python: |
+    def lazy_fork(bolts, battle):
+        split = []
+        for i in range(len(bolts) - 1):
+            split.append({**bolts[i], "power": bolts[i]["power"] * 0.6})
+            split.append({**bolts[i], "power": bolts[i]["power"] * 0.6})
+        return split
+  javascript: |
+    function lazyFork(bolts, battle) {
+      const split = [];
+      for (let i = 0; i < bolts.length - 1; i++) {
+        split.push({ ...bolts[i], power: bolts[i].power * 0.6 });
+        split.push({ ...bolts[i], power: bolts[i].power * 0.6 });
+      }
+      return split;
+    }
+examples:
+  - name: a single bolt is lost entirely
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+    expect: []
+  - name: the last bolt is never copied
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 2.4, element: none, target: front, pierce: false, ward: false }
+      - { power: 2.4, element: none, target: front, pierce: false, ward: false }

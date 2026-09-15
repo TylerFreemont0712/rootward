@@ -184,7 +184,43 @@ language feature took more than a minute to understand.
 - **Consistency from one render.** A diffusion model asked twice for "the same character" draws two slightly different
   people. `sheet_figures` in `scripts/art/generate.py` asks once for a character sheet and cuts it into figures with a
   flood fill, so the front, side, and back views share one design.
-- **Procedural animation.** `walk_strip` turns one standing sprite into a four-frame stride (the body rises a pixel while
-  one foot stays planted), and the client plays it with a CSS `steps(4)` animation over `background-position`
-  (`.w-avatar-strip` in `global.css`).
+- **Pose-guided frames.** A text prompt cannot make a model move a character's legs: asked for "a walk cycle", it draws
+  the same pose again. `scripts/art/poses.py` draws OpenPose stick figures (COCO keypoints, colored limbs on black)
+  for a standing pose and four walk frames per direction, and an OpenPose ControlNet puts the character on each one.
+  All fifteen share one render, so they share one design. Front and back strides had to be exaggerated in the poses
+  before the model drew a visible step.
+- **One scale for every frame.** `post_walk_cycle` fits the largest figure and scales every other figure by the same
+  factor, anchoring each by the middle of its head with its feet on the bottom row. Fitting frames one by one had made
+  the character a different size in every direction. The client skips the standing frame while walking with a
+  `steps(4)` animation between two CSS variables (`.w-avatar-strip` in `global.css`).
+
+## Shardrun (ADR-0012)
+
+- **Composition as gameplay.** A spell is function composition: `reduce` over a list of functions, each taking and
+  returning a list. The harness in `packages/content-tools/src/shardrun.ts` is that loop, in Python and JavaScript.
+- **Namespaces per shard.** Python `exec(source, namespace)` and JavaScript `new Function(source + "return name")`
+  give each shard its own scope, so two shards can define helpers with the same name.
+- **A JSON string is a string literal.** `JSON.stringify(JSON.stringify(data))` is valid source in both languages, so
+  embedding shard code in a generated program needs no hand-written escaping.
+- **Never trust the sandbox's numbers.** Code in a sandbox is contained, but its output is still untrusted input:
+  `normalizeBolts` parses with zod, rounds, clamps, and caps, and `spellCost` charges for work, which is how an
+  infinite-damage loop becomes a legal but bad spell.
+- **Floating point in examples.** `4 * 0.6` is `2.4000000000000004` in both languages (IEEE 754), so shard examples
+  compare power with a tolerance (`validate/shardrun.ts`).
+- **Snapshots versus events.** Classic runs are event-sourced; Shardrun saves a zod-validated snapshot, because its
+  rules are expected to change and old events replayed under new rules would not reproduce old runs.
+- **Pure functions with copies.** `stepShardrun` starts with `structuredClone`, mutates the copy, and throws it away on a
+  refusal, so rules can be written imperatively and still never change their input (tested).
+- **A promise chain as a lock.** `ShardrunService.serialize` queues each profile's commands on one promise, so a cast
+  that awaits the sandbox cannot interleave with another command and lose an update.
+- **Caching by input.** Pipeline runs are cached under the JSON of their exact input, which makes a random shard's
+  preview and cast agree; failures are evicted, since a timeout may be the machine's fault.
+- **Insertion-ordered maps.** A JavaScript `Map` iterates in insertion order, so deleting its first key is a
+  first-in, first-out eviction (`PIPELINE_CACHE_LIMIT`).
+- **Playing back a log.** The server answers with the final state and an ordered log; `usePlayback`
+  (`apps/client/src/shardrun/playback.ts`) schedules one effect per entry with timeouts, and the arena draws bolts and
+  numbers over numbers that already changed. The store keeps the last battle on screen (`afterglow`) while the winning
+  blow plays.
+- **Positions without measuring.** The arena places the Maintainer and foes at fixed percentages, so projectile
+  animations interpolate between CSS variables and never read the DOM during render.
 

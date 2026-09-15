@@ -10,6 +10,7 @@ import { RunServiceRegistry } from "./runs/registry.ts";
 import { RunService } from "./runs/service.ts";
 import { SqliteEventStore } from "./runs/sqlite-event-store.ts";
 import { Sandbox } from "./sandbox.ts";
+import { ShardrunService } from "./shardrun/service.ts";
 import { WorldService } from "./world/service.ts";
 
 async function main(): Promise<void> {
@@ -39,6 +40,7 @@ async function main(): Promise<void> {
     registry,
     world: new WorldService({ db, content, registry }),
     content,
+    shardrun: new ShardrunService({ db, content, sandbox }),
   };
   const app = await buildApp({
     service,

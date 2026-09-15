@@ -87,6 +87,29 @@ export const Balance = z.strictObject({
     major_requires_realm_boss_and_avg_mastery: z.number().min(0).max(5),
     unlocks: z.record(Semver, z.string().regex(/^[a-z][a-z0-9_]*$/)),
   }),
+  /** Shardrun, the roguelite mode (ADR-0012). */
+  shardrun: z.strictObject({
+    integrity_start: PositiveInt,
+    mana_per_turn: PositiveInt,
+    /** Every cast pays this before its shards' own costs. */
+    spell_base_cost: NonNegativeInt,
+    /** One extra mana per this many bolts handed to shards over the whole pipeline. */
+    work_per_mana: PositiveInt,
+    base_bolt_power: PositiveInt,
+    /** Bolts past this many, after the last shard, fizzle. */
+    max_bolts: PositiveInt,
+    /** Inside the pipeline, a shard's output is cut to this many before the next shard sees it. */
+    max_pipeline_bolts: PositiveInt,
+    max_bolt_power: PositiveInt,
+    weak_multiplier: z.number().min(1),
+    resist_multiplier: Ratio,
+    /** A bolt aimed at every foe hits each for this fraction of its power. */
+    scatter_multiplier: Ratio,
+    /** Against a pattern ward, a bolt of the wrong element hits for this fraction. */
+    pattern_off_multiplier: Ratio,
+    rest_heal_fraction: Ratio,
+    reward_choices: PositiveInt,
+  }),
   sandbox_defaults: z.strictObject({
     wall_ms: PositiveInt,
     cpu_ms: PositiveInt,

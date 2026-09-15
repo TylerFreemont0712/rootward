@@ -1,0 +1,23 @@
+id: seeker
+name: Seeker
+rarity: common
+cost: 0
+function: seek_weakest
+summary: "Aims every bolt at the foe with the least HP."
+tags: [lists, dictionaries]
+code:
+  python: |
+    def seek_weakest(bolts, battle):
+        return [{**bolt, "target": "weakest"} for bolt in bolts]
+  javascript: |
+    function seekWeakest(bolts, battle) {
+      return bolts.map((bolt) => ({ ...bolt, target: "weakest" }));
+    }
+examples:
+  - name: aims every bolt
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 3, element: fire, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 4, element: none, target: weakest, pierce: false, ward: false }
+      - { power: 3, element: fire, target: weakest, pierce: false, ward: false }

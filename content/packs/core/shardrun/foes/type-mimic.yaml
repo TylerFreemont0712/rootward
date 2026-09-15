@@ -1,0 +1,11 @@
+id: type-mimic
+name: Type Mimic
+sprite: type-mimic
+hp: 32
+resist: [none]
+trait: { kind: shifting-weakness, cycle: [fire, frost, spark] }
+intents:
+  - { kind: shield, amount: 6 }
+  - { kind: strike, power: 6 }
+  - { kind: strike, power: 5 }
+flavor: Plain bolts bounce off it, and its weakness changes shape every turn.

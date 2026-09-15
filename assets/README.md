@@ -77,7 +77,10 @@ file needs its id added to that catalog** before the client asks for it.
 | `generated/npcs` | Map sprites for the ten NPCs in `content/packs/core/npcs/` (32x48; Lint is a 32x32 floating daemon). | `WorldRenderer` (`sprite` id). |
 | `generated/portraits` | 128x128 dialogue portraits for every NPC and for the Artificer. | `DialogueBox` (`portrait` id). |
 | `generated/creatures` | Map sprites for the six enemies (48x48; the Kiln Warden boss 80x96), standing on world markers. | `WorldRenderer` markers, keyed by enemy template id. |
-| `generated/avatars` | `artificer.png` (32x48, facing the viewer) and three walk strips, `artificer-walk-down.png`, `-up.png`, and `-right.png`: four 32x50 frames each. All three directions are cut from one character-sheet render, so the design matches from every side; the stride is procedural (a one-pixel body rise with alternating planted feet). | `WorldRenderer` plays the strip for the facing direction while walking (left mirrors right); `TileMapRenderer` and the title screen use the static sprite; `@` without either. |
+| `generated/avatars` | `artificer.png` (32x50, standing, facing the viewer) and three walk strips, `artificer-walk-down.png`, `-up.png`, and `-right.png`: five 32x50 frames each (standing, then contact, passing, contact, passing). All fifteen figures come from one pose-guided render (an OpenPose ControlNet over stick figures from `scripts/art/poses.py`), so the design matches from every side and the legs really move; every frame shares one scale and one palette. | `WorldRenderer` shows the standing frame and cycles the four walk frames for the facing direction (left mirrors right); `TileMapRenderer`, the title screen, and the Shardrun arena use the sprites too; `@` without either. |
+| `generated/shardrun` | Shardrun (ADR-0012): `bolt-none`, `-fire`, `-frost`, `-spark`, and `-ward` (24x24 projectiles) and an icon per shard family, `shard-<id>.png` (32x32; `fork-plus` uses `shard-fork`). | The arena's flying bolts and element tags; shard chips, cards, and spell flows (`shardIconUrl`). |
+| `generated/backgrounds/salvage.png` | A 480x274 underground vault of broken machinery and violet crystal shards. | The Shardrun arena stage and the mode's faint full-screen backdrop. |
+| `generated/brand/shardrun.png` | A 64x64 glowing crystal shard emblem. | The Shardrun start screen. |
 | `generated/enemies/kiln-warden.png` | The boss's enemy-card portrait (96x96). | `EnemyCard` (`LeftPane.tsx`). |
 | `generated/backgrounds/title.png` | A 480x274 dusk panorama of the Machine: a mountain of amber circuitry above an abyss, the Bastion on a cliff. | `TitleScreen`, full-bleed behind everything (scaled up with `image-rendering: pixelated`). |
 | `generated/brand` | `emblem.png` (64x64, the Guild's gear crest with a root growing through it), `icon-256.png` (the same emblem scaled 4x with nearest-neighbor, via the manifest's `copies`), and `wanderer.png` (64x96, a hooded Maintainer seen from behind). | `TitleScreen` (emblem over the name, wanderer in the foreground); `icon-256.png` is the desktop launcher's icon (`scripts/rootward-launch.sh`), with `scripts/rootward.svg` as the fallback. |
@@ -110,6 +113,13 @@ $PY scripts/art/generate.py --reprocess --sheet     # redo post-processing only,
 A `walk-sheet` asset renders a whole character sheet instead of one figure: the script cuts it into separate figures
 (connected blobs, top row first), `views` in the manifest names which figure faces down, up, and right, and each gets a
 four-frame walk strip. Look at the contact sheet, then set `views` like `pick`.
+
+A `walk-cycle` asset is pose-guided: its `control` block names an OpenPose ControlNet (`noobai-openpose-sdxl-fp16`, an
+Illustrious-family model matching the character checkpoint, in ComfyUI's `models/controlnet`) and a pose sheet from
+`scripts/art/poses.py` (preview one with `$PY scripts/art/poses.py walk 1280 1024 /tmp/pose.png`). The sheet is uploaded
+to ComfyUI and steers the render; `rows` and `columns` then say how to cut it, and every figure is scaled by one common
+factor so all directions come out the same size. Editing the poses re-renders the asset (the sheet's hash is part of the
+cache key).
 
 Changing only `post` settings (or `pick`) never touches the GPU again. Changing a prompt, seed, or model re-renders
 that asset.

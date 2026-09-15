@@ -4,6 +4,7 @@ import {
   ConcurrencyLimiter,
   type Runner,
   RunnerRegistry,
+  type RunJob,
   type RunLimits,
   type RunResult,
 } from "@rootward/runners";
@@ -48,6 +49,13 @@ export class Sandbox {
     const job = buildIoJob(challenge, language, files, cases, this.limits);
     if (!job) throw new ServiceError(400, "unsupported-challenge", "Only io-form challenges can be played so far.");
     // The generous abort is a backstop; runners enforce their own wall-clock limit first.
+    return this.limiter.run(() => runner.run(job, AbortSignal.timeout(this.limits.wallMs * 3)));
+  }
+
+  /** Run a job built elsewhere (a Shardrun spell, ADR-0012) under the same concurrency cap and limits. */
+  async runJob(job: RunJob): Promise<RunResult> {
+    const runner = await this.registry.pick(job.language, "tests");
+    if (!runner) throw new ServiceError(409, "no-runner", `No sandbox can run ${job.language} on this machine yet.`);
     return this.limiter.run(() => runner.run(job, AbortSignal.timeout(this.limits.wallMs * 3)));
   }
 

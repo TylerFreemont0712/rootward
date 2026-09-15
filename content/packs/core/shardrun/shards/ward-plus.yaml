@@ -1,0 +1,39 @@
+id: ward-plus
+name: Ward+
+rarity: common
+cost: 1
+function: ward_plus
+summary: "Turns the first bolt into block, 5 stronger. Other bolts still fly."
+tags: [lists, slicing]
+draftable: false
+code:
+  python: |
+    def ward_plus(bolts, battle):
+        if not bolts:
+            return bolts
+        # The first bolt turns inward and becomes block; the rest fly on.
+        first = {**bolts[0], "ward": True, "power": bolts[0]["power"] + 5}
+        return [first] + bolts[1:]
+  javascript: |
+    function wardPlus(bolts, battle) {
+      if (bolts.length === 0) return bolts;
+      // The first bolt turns inward and becomes block; the rest fly on.
+      const [first, ...rest] = bolts;
+      return [{ ...first, ward: true, power: first.power + 5 }, ...rest];
+    }
+examples:
+  - name: a lone bolt becomes block
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 9, element: none, target: front, pierce: false, ward: true }
+  - name: only the first bolt turns
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 5, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 9, element: none, target: front, pierce: false, ward: true }
+      - { power: 5, element: none, target: front, pierce: false, ward: false }
+  - name: no bolts, no ward
+    bolts: []
+    expect: []

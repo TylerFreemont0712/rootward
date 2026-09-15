@@ -1,7 +1,7 @@
 import type { Point } from "@rootward/core/map";
 import type { ZoneMarkerView, ZoneNpcView, ZonePropView, ZoneView } from "@rootward/shared";
 import { type CSSProperties, memo, type MouseEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { assetUrl, terrainVariantUrls, WALK_FRAMES, walkStripUrl } from "../assets/AssetRegistry.ts";
+import { assetUrl, terrainVariantUrls, WALK_STRIP_FRAMES, walkStripUrl } from "../assets/AssetRegistry.ts";
 import { useImages } from "./images.ts";
 import { type Facing, labelAt, tileKey, variantIndex, walkStrip } from "./interactions.ts";
 
@@ -230,10 +230,12 @@ function WorldLayers({ zone, avatar, facing, walking, stepMs, revealed, avatarAr
               style={
                 {
                   backgroundImage: `url("${stripImage.src}")`,
-                  width: (stripImage.naturalWidth / WALK_FRAMES) * SCALE,
+                  width: (stripImage.naturalWidth / WALK_STRIP_FRAMES) * SCALE,
                   height: stripImage.naturalHeight * SCALE,
                   backgroundSize: `${stripImage.naturalWidth * SCALE}px ${stripImage.naturalHeight * SCALE}px`,
                   bottom: FOOT_PX,
+                  // The cycle runs from the first walk frame to the end of the strip, never showing the standing pose.
+                  "--strip-start": `${(-stripImage.naturalWidth / WALK_STRIP_FRAMES) * SCALE}px`,
                   "--strip-end": `${-stripImage.naturalWidth * SCALE}px`,
                 } as CSSProperties
               }

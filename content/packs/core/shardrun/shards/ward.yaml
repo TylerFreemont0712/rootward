@@ -1,0 +1,39 @@
+id: ward
+name: Ward
+rarity: common
+cost: 1
+function: ward
+summary: "Turns the first bolt into block, 2 stronger. Other bolts still fly."
+tags: [lists, slicing]
+forge: { into: ward-plus, verb: upgrade }
+code:
+  python: |
+    def ward(bolts, battle):
+        if not bolts:
+            return bolts
+        # The first bolt turns inward and becomes block; the rest fly on.
+        first = {**bolts[0], "ward": True, "power": bolts[0]["power"] + 2}
+        return [first] + bolts[1:]
+  javascript: |
+    function ward(bolts, battle) {
+      if (bolts.length === 0) return bolts;
+      // The first bolt turns inward and becomes block; the rest fly on.
+      const [first, ...rest] = bolts;
+      return [{ ...first, ward: true, power: first.power + 2 }, ...rest];
+    }
+examples:
+  - name: a lone bolt becomes block
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 6, element: none, target: front, pierce: false, ward: true }
+  - name: only the first bolt turns
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 5, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 6, element: none, target: front, pierce: false, ward: true }
+      - { power: 5, element: none, target: front, pierce: false, ward: false }
+  - name: no bolts, no ward
+    bolts: []
+    expect: []

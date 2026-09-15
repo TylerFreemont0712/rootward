@@ -188,8 +188,30 @@ async function main(): Promise<void> {
     await page.getByRole("button", { name: /Back to the Guild Board/ }).click();
     await page.getByText("Maintainer v1.1.0").waitFor();
 
+    // Shardrun (ADR-0012): start a run, walk into the first fight, cast a spell whose shards run in the real sandbox,
+    // end the turn so the foes act, then abandon the run.
+    await page.getByRole("navigation", { name: "Places" }).getByRole("button", { name: "Shardrun" }).click();
+    await page.getByRole("button", { name: "Descend in javascript" }).click();
+    await page.locator(".shr-node.state-open").first().click();
+    const firstSpell = page.locator(".shr-spell").first();
+    await firstSpell.getByRole("button", { name: "Cast" }).waitFor();
+    const predicted = await firstSpell.locator(".shr-predict").innerText();
+    // The number depends on the foe (a Null Wraith swallows the first bolt, so 0 is a correct prediction).
+    if (!/\d+ bolts? \d+ damage/.test(predicted.replace(/\s+/g, " "))) {
+      throw new Error(`expected the first spell to predict bolts and damage, it says: ${predicted}`);
+    }
+    await page.keyboard.press("1");
+    await firstSpell.getByRole("button", { name: "Spent this turn" }).waitFor();
+    await page.getByRole("button", { name: /End turn/ }).click();
+    // The battle log also says "Turn 2.", so wait on the turn counter alone.
+    await page.locator(".shr-self > .meta").getByText(/^Turn 2/).waitFor();
+    await page.screenshot({ path: path.join(resultsDir, "shardrun-battle.png") });
+    await page.getByRole("button", { name: "Abandon", exact: true }).click();
+    await page.getByRole("button", { name: "Abandon this run" }).click();
+    await page.getByRole("heading", { name: "You climbed back out" }).waitFor();
+
     console.log(
-      `E2E passed: a character arrived in the world and took a quest, then an expedition of ${rooms} rooms was completed and debriefed in the browser. Screenshots in ${path.relative(root, resultsDir)}`,
+      `E2E passed: a character arrived in the world and took a quest, then an expedition of ${rooms} rooms was completed and debriefed in the browser, and a Shardrun fight was played. Screenshots in ${path.relative(root, resultsDir)}`,
     );
   } catch (error) {
     console.error(`--- server output ---\n${serverLog.join("")}`);

@@ -1,0 +1,14 @@
+id: kiln-warden
+name: Kiln Warden
+sprite: kiln-warden
+hp: 95
+weak: [frost]
+resist: [fire]
+trait: { kind: thick-hide, threshold: 5 }
+intents:
+  - { kind: strike, power: 8 }
+  - { kind: shield, amount: 10 }
+  - { kind: stoke }
+  - { kind: strike, power: 7 }
+  - { kind: multi, power: 4, times: 3 }
+flavor: Guardian of the Salvage's hottest vault. Bolts under 5 power glance off its brick hide.

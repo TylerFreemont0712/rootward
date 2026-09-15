@@ -1,0 +1,43 @@
+id: fork
+name: Fork
+rarity: common
+cost: 1
+function: fork
+summary: "Splits every bolt into two copies at 60% power. More bolts, a little less power in all."
+tags: [loops, lists]
+forge: { into: fork-plus, verb: upgrade }
+code:
+  python: |
+    def fork(bolts, battle):
+        split = []
+        for bolt in bolts:
+            # Two copies of every bolt, each weaker than the original.
+            split.append({**bolt, "power": bolt["power"] * 0.6})
+            split.append({**bolt, "power": bolt["power"] * 0.6})
+        return split
+  javascript: |
+    function fork(bolts, battle) {
+      const split = [];
+      for (const bolt of bolts) {
+        // Two copies of every bolt, each weaker than the original.
+        split.push({ ...bolt, power: bolt.power * 0.6 });
+        split.push({ ...bolt, power: bolt.power * 0.6 });
+      }
+      return split;
+    }
+examples:
+  - name: one bolt becomes two
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 2.4, element: none, target: front, pierce: false, ward: false }
+      - { power: 2.4, element: none, target: front, pierce: false, ward: false }
+  - name: every bolt splits, keeping its element
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 10, element: fire, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 2.4, element: none, target: front, pierce: false, ward: false }
+      - { power: 2.4, element: none, target: front, pierce: false, ward: false }
+      - { power: 6, element: fire, target: front, pierce: false, ward: false }
+      - { power: 6, element: fire, target: front, pierce: false, ward: false }

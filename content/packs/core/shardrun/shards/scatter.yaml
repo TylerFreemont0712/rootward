@@ -1,0 +1,21 @@
+id: scatter
+name: Scatter
+rarity: uncommon
+cost: 1
+function: scatter
+summary: "Every bolt hits every foe, at half power each."
+tags: [lists]
+code:
+  python: |
+    def scatter(bolts, battle):
+        return [{**bolt, "target": "all"} for bolt in bolts]
+  javascript: |
+    function scatter(bolts, battle) {
+      return bolts.map((bolt) => ({ ...bolt, target: "all" }));
+    }
+examples:
+  - name: aims every bolt at everyone
+    bolts:
+      - { power: 8, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 8, element: none, target: all, pierce: false, ward: false }

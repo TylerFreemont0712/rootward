@@ -1,0 +1,32 @@
+id: amplify
+name: Amplify
+rarity: common
+cost: 1
+function: amplify
+summary: "Adds 3 power to every bolt."
+tags: [lists, comprehension]
+forge: { into: amplify-plus, verb: upgrade }
+code:
+  python: |
+    def amplify(bolts, battle):
+        return [{**bolt, "power": bolt["power"] + 3} for bolt in bolts]
+  javascript: |
+    function amplify(bolts, battle) {
+      return bolts.map((bolt) => ({ ...bolt, power: bolt.power + 3 }));
+    }
+examples:
+  - name: one bolt
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 7, element: none, target: front, pierce: false, ward: false }
+  - name: no bolts, nothing to do
+    bolts: []
+    expect: []
+  - name: each bolt gets its own boost
+    bolts:
+      - { power: 2, element: none, target: front, pierce: false, ward: false }
+      - { power: 6, element: frost, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 5, element: none, target: front, pierce: false, ward: false }
+      - { power: 9, element: frost, target: front, pierce: false, ward: false }

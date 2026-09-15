@@ -1,0 +1,25 @@
+id: ramp
+name: Ramp
+rarity: uncommon
+cost: 1
+function: ramp
+summary: "Each bolt gets 2 more power than the one before it: +0, +2, +4, and so on."
+tags: [enumerate, lists]
+code:
+  python: |
+    def ramp(bolts, battle):
+        return [{**bolt, "power": bolt["power"] + index * 2} for index, bolt in enumerate(bolts)]
+  javascript: |
+    function ramp(bolts, battle) {
+      return bolts.map((bolt, index) => ({ ...bolt, power: bolt.power + index * 2 }));
+    }
+examples:
+  - name: three bolts ramp up
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+      - { power: 8, element: none, target: front, pierce: false, ward: false }

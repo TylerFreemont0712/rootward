@@ -1,0 +1,32 @@
+id: focus
+name: Focus Lens
+rarity: uncommon
+cost: 1
+function: focus
+summary: "Merges every bolt into one, adding up their power. It keeps the first bolt's element and aim."
+tags: [accumulator, lists]
+code:
+  python: |
+    def focus(bolts, battle):
+        if not bolts:
+            return []
+        total = 0
+        for bolt in bolts:
+            total += bolt["power"]
+        return [{**bolts[0], "power": total}]
+  javascript: |
+    function focus(bolts, battle) {
+      if (bolts.length === 0) return [];
+      const total = bolts.reduce((sum, bolt) => sum + bolt.power, 0);
+      return [{ ...bolts[0], power: total }];
+    }
+examples:
+  - name: two bolts become one
+    bolts:
+      - { power: 3, element: none, target: front, pierce: false, ward: false }
+      - { power: 5, element: fire, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 8, element: none, target: front, pierce: false, ward: false }
+  - name: nothing to focus
+    bolts: []
+    expect: []

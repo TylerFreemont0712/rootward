@@ -1,0 +1,35 @@
+id: headcount
+name: Headcount
+rarity: uncommon
+cost: 1
+function: headcount
+summary: "Adds 2 power to every bolt for each foe still standing."
+tags: [len, battle-state]
+code:
+  python: |
+    def headcount(bolts, battle):
+        bonus = 2 * len(battle["foes"])
+        return [{**bolt, "power": bolt["power"] + bonus} for bolt in bolts]
+  javascript: |
+    function headcount(bolts, battle) {
+      const bonus = 2 * battle.foes.length;
+      return bolts.map((bolt) => ({ ...bolt, power: bolt.power + bonus }));
+    }
+examples:
+  - name: one foe
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+  - name: three foes
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+    battle:
+      turn: 1
+      me: { hp: 30, max: 30, block: 0, mana: 6 }
+      foes:
+        - { name: Wisp, hp: 20, max: 20, shield: 0, weak: [], resist: [] }
+        - { name: Wisp, hp: 20, max: 20, shield: 0, weak: [], resist: [] }
+        - { name: Goblin, hp: 20, max: 20, shield: 0, weak: [], resist: [] }
+    expect:
+      - { power: 10, element: none, target: front, pierce: false, ward: false }

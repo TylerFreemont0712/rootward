@@ -48,6 +48,10 @@ export {
 } from "./world/dialogue.ts";
 export { applyEffects, type EffectOutcome, type EffectResult } from "./world/effects.ts";
 
+// Shardrun, the roguelite mode (ADR-0012)
+export * from "./shardrun/engine.ts";
+export * from "./shardrun/types.ts";
+
 // The walkable map laid over a plan
 export { layoutDungeon } from "./map/layout.ts";
 export { findPath, isWalkable, tileAt } from "./map/path.ts";

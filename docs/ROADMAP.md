@@ -125,10 +125,17 @@ Task breakdown:
 - [x] Title screen (2026-09-15, at the player's request): a full-bleed pixel panorama, the Guild emblem, character
       cards with class sprite, version, fights, and whereabouts (`GET /api/profiles` now returns summaries and the
       starting class), last-played first; the emblem doubles as the desktop launcher's icon
-- [x] Walking animations (2026-09-15): four-frame walk strips facing down, up, and right for the Artificer, cut from one
-      character-sheet render so every direction matches (`walk-sheet` in `scripts/art/`)
-- [ ] Decide on scripted combat: brainstorm in `docs/proposals/scripted-combat.md` (duels where your code is the attack,
-      the Spellbook, language features as runes); prototype a first slice once a direction is picked
+- [x] Walking animations (2026-09-15): walk strips facing down, up, and right for the Artificer. The first pass bobbed
+      one sprite; the player asked for real animation and equal sizes, so the strips are now pose-guided renders: an
+      OpenPose ControlNet draws 15 posed figures in one image (a standing pose and a four-frame walk per direction), and
+      `walk-cycle` in `scripts/art/` scales them all by one factor, so every direction is the same size
+- [x] **Shardrun** (ADR-0012), a separate roguelite mode at the player's request (2026-09-15: "find pieces of code and
+      plug and play them into powerful attacks and spells", turn-based, same art): 23 shards that are real Python and
+      JavaScript functions, 6 foes with rule-bending traits, a seven-floor run with fights, elites, rests, forges, and a
+      guardian; spells run in the sandbox with validated, clamped, mana-priced bolts; a pure seeded engine; snapshot
+      persistence; an animated arena, map, workbench, reward, rest, and forge screens; generated shard icons, bolts,
+      backdrop, and emblem. Reached from the top bar and from Nym in the Bastion. Replaces the open "decide on scripted
+      combat" item: `docs/proposals/scripted-combat.md` stays as background
 - [ ] Screens: class and Oath choice at character creation (the Bastion itself is walkable now) and a fuller
       Chronicle (skill map)
 - [ ] Content: `content:new`, `content:stats`, seed content per section 13.4 (Foundry Python + JS, Grove, puzzles,
@@ -168,12 +175,15 @@ Task breakdown:
 ## Next session: start here
 
 State (2026-09-15): M0 is done. M1 has the Python runner, SQLite persistence with resume, planner v1, expeditions
-playable end to end, the learner model with Debrief and Chronicle, characters (ADR-0010), and now a walkable world
-(ADR-0011). A new character arrives in the Bastion, picks the language their fights use, meets Lint, is sworn in by
+playable end to end, the learner model with Debrief and Chronicle, characters (ADR-0010), a walkable world
+(ADR-0011), and Shardrun, a roguelite mode built from found code (ADR-0012). A new character arrives in the Bastion, picks the language their fights use, meets Lint, is sworn in by
 Guildmaster Orin, and walks south to the Foundry, whose eleven fights are real challenges picked for their mastery. The
 Foundry questline (three wins, then the Kiln Warden) and four side quests run on real facts only. The Guild Board is
 behind the Guild Hall's door and in the top bar. Art comes from `scripts/art/generate.py` (ComfyUI on this machine).
 Suggested order:
+0. The player is testing Shardrun and will ask for tweaks or shifts in vision: expect balance changes (shard costs,
+   foe HP and intents, the work rate), more shards and foes, and possibly shards the player can edit. Log what they
+   report in `docs/PLAYTEST_NOTES.md` first.
 1. Playtest a full quest line in the browser and log friction in `docs/PLAYTEST_NOTES.md` (the first pass was from
    screenshots only).
 2. Content: a second and third challenge per node, then comprehensions, exceptions, and functions with arguments;

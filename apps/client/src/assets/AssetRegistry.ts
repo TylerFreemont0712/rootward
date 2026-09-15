@@ -21,13 +21,34 @@ export type AssetCategory =
   | "npcs"
   | "portraits"
   | "creatures"
-  | "brand";
+  | "brand"
+  | "shardrun";
 
 /** Served from apps/client/public/generated, which is assets/generated at the repo root (see that folder's symlink). */
 const BASE_URL = "/generated";
 
 const NPCS = ["guildmaster", "lint", "archivist", "compiler", "quartermaster", "sergeant", "pip", "guard", "innkeeper", "pell"];
 const ENEMIES = ["null-wraith", "off-by-one-goblin", "regex-sphinx", "tally-wisp", "type-mimic", "kiln-warden"];
+const SHARD_ICONS = [
+  "fork",
+  "lazy-fork",
+  "amplify",
+  "kindle",
+  "chill",
+  "arc",
+  "ward",
+  "seeker",
+  "scatter",
+  "pierce",
+  "sieve",
+  "focus",
+  "ramp",
+  "headcount",
+  "adapt",
+  "exploit",
+  "echo",
+  "overclock",
+];
 
 const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
   enemies: new Set(ENEMIES),
@@ -63,7 +84,7 @@ const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
   hud: new Set(["integrity", "focus", "cycles"]),
   /** Full-bleed opaque backdrops (one per realm, eventually); id is the realm id. Only "foundry" exists so far --
    * it's the only realm any seeded content is actually set in. */
-  backgrounds: new Set(["foundry", "title"]),
+  backgrounds: new Set(["foundry", "title", "salvage"]),
   /** Map sprites for the player, keyed by class slug; distinct from the `classes` portrait. */
   avatars: new Set(["artificer"]),
   /** World props (content/packs/<pack>/props.yaml), drawn bottom-aligned on their footprint. */
@@ -111,16 +132,28 @@ const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
   /** Enemy map sprites standing on world markers; id is the enemy template id. */
   creatures: new Set(ENEMIES),
   /** The title screen: the Guild emblem and a Maintainer seen from behind. */
-  brand: new Set(["emblem", "wanderer"]),
+  brand: new Set(["emblem", "wanderer", "shardrun"]),
+  /** Shardrun (ADR-0012): `bolt-<element|ward>` projectiles and `shard-<id>` icons (an upgrade shares its base's icon). */
+  shardrun: new Set([
+    ...["none", "fire", "frost", "spark", "ward"].map((kind) => `bolt-${kind}`),
+    ...SHARD_ICONS.map((id) => `shard-${id}`),
+  ]),
 };
+
+/** A shard's icon, or undefined when it has none. `fork-plus` uses `fork`'s icon. */
+export function shardIconUrl(shardId: string): string | undefined {
+  return assetUrl("shardrun", `shard-${shardId.replace(/-plus$/, "")}`);
+}
 
 /** Ground tile art: each terrain has this many interchangeable variants (`terrain/<id>-<n>.png`) that tile seamlessly. */
 const TERRAIN = new Set(["grass", "dirt", "cobble", "flagstone", "planks", "water", "stone-wall", "ash", "basalt", "lava", "rock"]);
 const TERRAIN_VARIANTS = 4;
 
-/** Classes whose map sprite also has walk strips: `avatars/<id>-walk-<down|up|right>.png`, four frames side by side. */
+/** Classes whose map sprite also has walk strips: `avatars/<id>-walk-<down|up|right>.png`, frames side by side. */
 const WALK_STRIPS = new Set(["artificer"]);
-export const WALK_FRAMES = 4;
+/** Frames in a strip: the standing pose first, then the walk cycle (contact, passing, other contact, other passing). */
+export const WALK_STRIP_FRAMES = 5;
+export const WALK_CYCLE_FRAMES = 4;
 export type WalkDirection = "down" | "up" | "right";
 
 /** A class's walk strip for one direction, or undefined when it has none (the static avatar is used instead). */

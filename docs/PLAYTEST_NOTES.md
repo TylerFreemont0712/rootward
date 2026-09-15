@@ -18,6 +18,23 @@ Taken with a scripted headless browser against a throwaway database, not a hand-
 - **Lamp posts read as thin sticks** at 2x. Polish; a wider lantern prompt next art pass.
 - **The zone title replays after a page reload** (it is remembered per session only). Polish; acceptable.
 
+## 2026-09-15 — walk cycles and Shardrun (screenshots, ADR-0012)
+
+Played from headless-browser screenshots, not by hand: a Shardrun run from the start screen through the first fight
+(two Tally Wisps), its reward, and a workbench move; and the Artificer's new walk strips at 6x.
+
+- **The old walk had no real animation, and the sprite changed size by direction** (reported by the player). Annoying;
+  fixed with pose-guided frames and one shared scale (`walk-cycle` in `scripts/art/`). Front and back steps stayed
+  nearly still until the stick-figure poses were exaggerated; a faint ground shadow under one side frame needed a wider
+  background tolerance.
+- **The first fight felt easy** in the scripted play: two Tally Wisps fell in three turns for 1 Integrity. Unclear;
+  the player's own runs will say more. Levers: foe HP and intents, `mana_per_turn`, starting spells.
+- **The starting spare shard is Kindle (fire), and the first fight can be fire-resistant wisps.** Probably good (it
+  teaches reading weaknesses), but watch for it feeling like a trap.
+- **Shard cards wrap the function signature** under long names on three-column reward rows. Polish.
+- **Both rooms on a floor can hold the same foes** (both fights on floor 2 were goblins). Polish; encounters are drawn
+  per room from the seed and may repeat.
+
 ## Tunables to watch in the first playtests
 
 - **Strike damage.** Failing tests × enemy ATK, capped at 24 per Strike (`enemy_moves.strike_damage_cap`). Casting the
@@ -38,3 +55,9 @@ Taken with a scripted headless browser against a throwaway database, not a hand-
   40x30 town?
 - **Foundry sight.** `sight: 7` in `zones/foundry.yaml`. Does the fog make exploring feel tense, or just slow?
 - **The first quest's bar.** Three wins in the Foundry to open the kiln gate (`quests/the-foundry-cools.yaml`).
+- **Shardrun pacing.** `mana_per_turn: 6` casts all three starting spells every turn. Does a turn ever involve a real
+  choice, or should mana be tighter (5) so one spell waits?
+- **Shardrun work cost.** One extra mana per 8 bolts handed to shards (`work_per_mana`). Fork chains stay cheap until
+  about three forks deep. Too generous?
+- **Guardian difficulty.** The Kiln Warden has 95 HP, ignores bolts under 5 power, resists fire, and hits up to 12 a
+  turn. Beatable with the shards a typical run finds by floor 7?

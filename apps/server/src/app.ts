@@ -19,8 +19,12 @@ import {
   ProfileResponse,
   ResolveMarkerRequest,
   RunResponse,
+  ShardrunCommandRequest,
+  ShardrunResponse,
+  ShardrunStatusResponse,
   StartEncounterRequest,
   StartExpeditionRequest,
+  StartShardrunRequest,
   StartWorldRequest,
   TalkRequest,
   TravelRequest,
@@ -37,6 +41,7 @@ import { profileSummary, startingClass } from "./profiles/summary.ts";
 import type { RunServiceRegistry } from "./runs/registry.ts";
 import { DEFAULT_CLASS_ID, type RunService } from "./runs/service.ts";
 import type { Sandbox } from "./sandbox.ts";
+import type { ShardrunService } from "./shardrun/service.ts";
 import type { WorldService } from "./world/service.ts";
 
 export interface AppDeps {
@@ -47,7 +52,14 @@ export interface AppDeps {
   logger?: boolean;
   /** Characters (ADR-0010): profile-scoped run routes and the world (ADR-0011), mirroring the unscoped routes above
    * without changing them. Optional so every existing caller of `buildApp` keeps compiling untouched. */
-  profiles?: { profileService: ProfileService; registry: RunServiceRegistry; world: WorldService; content: GameContent };
+  profiles?: {
+    profileService: ProfileService;
+    registry: RunServiceRegistry;
+    world: WorldService;
+    content: GameContent;
+    /** Shardrun, the roguelite mode (ADR-0012). */
+    shardrun?: ShardrunService;
+  };
 }
 
 /** HTTP routes. Every request body is parsed with the shared zod contract, and every response is parsed before sending. */
@@ -110,7 +122,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.get("/api/learner", async () => LearnerResponse.parse({ learner: await deps.service.learnerView() }));
 
   if (deps.profiles) {
-    const { profileService, registry, world, content } = deps.profiles;
+    const { profileService, registry, world, content, shardrun } = deps.profiles;
 
     // The title screen's list: every character with a summary of what they have done, and the class new ones start as.
     app.get("/api/profiles", async () => {
@@ -170,6 +182,25 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     app.get<{ Params: { profileId: string } }>("/api/profiles/:profileId/learner", async (request) =>
       LearnerResponse.parse({ learner: await registry.forProfile(request.params.profileId).learnerView() }),
     );
+
+    // Shardrun (ADR-0012): the roguelite mode. One run at a time per character; every change is a command.
+    if (shardrun) {
+      app.get<{ Params: { profileId: string } }>("/api/profiles/:profileId/shardrun", async (request) =>
+        ShardrunStatusResponse.parse({ run: await shardrun.latest(request.params.profileId), languages: await shardrun.languages() }),
+      );
+
+      app.post<{ Params: { profileId: string } }>("/api/profiles/:profileId/shardrun/start", async (request) =>
+        ShardrunResponse.parse({
+          run: await shardrun.start(request.params.profileId, parseBody(StartShardrunRequest, request.body).language),
+        }),
+      );
+
+      app.post<{ Params: { profileId: string } }>("/api/profiles/:profileId/shardrun/command", async (request) =>
+        ShardrunResponse.parse({
+          run: await shardrun.command(request.params.profileId, parseBody(ShardrunCommandRequest, request.body)),
+        }),
+      );
+    }
 
     // The world (ADR-0010, ADR-0011): towns and wilds walked between expeditions, with people, quests, and fights.
     app.get<{ Params: { profileId: string } }>("/api/profiles/:profileId/world", async (request) =>

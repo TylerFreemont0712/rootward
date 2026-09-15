@@ -1,0 +1,29 @@
+id: chill-plus
+name: Chill+
+rarity: common
+cost: 1
+function: chill_plus
+summary: "Frosts every bolt: frost, and 3 more power."
+tags: [lists, dictionaries]
+draftable: false
+code:
+  python: |
+    def chill_plus(bolts, battle):
+        return [{**bolt, "element": "frost", "power": bolt["power"] + 3} for bolt in bolts]
+  javascript: |
+    function chillPlus(bolts, battle) {
+      return bolts.map((bolt) => ({ ...bolt, element: "frost", power: bolt.power + 3 }));
+    }
+examples:
+  - name: one plain bolt
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 7, element: frost, target: front, pierce: false, ward: false }
+  - name: elements are replaced, not stacked
+    bolts:
+      - { power: 4, element: fire, target: front, pierce: false, ward: false }
+      - { power: 1, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 7, element: frost, target: front, pierce: false, ward: false }
+      - { power: 4, element: frost, target: front, pierce: false, ward: false }

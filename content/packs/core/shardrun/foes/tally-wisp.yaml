@@ -1,0 +1,11 @@
+id: tally-wisp
+name: Tally Wisp
+sprite: tally-wisp
+hp: 16
+weak: [frost]
+resist: [fire]
+intents:
+  - { kind: strike, power: 4 }
+  - { kind: strike, power: 3 }
+  - { kind: shield, amount: 4 }
+flavor: A flicker of miscounted light. Fire only feeds it; cold makes it lose its place.

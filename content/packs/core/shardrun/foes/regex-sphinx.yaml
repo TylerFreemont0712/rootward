@@ -1,0 +1,11 @@
+id: regex-sphinx
+name: Regex Sphinx
+sprite: regex-sphinx
+hp: 48
+trait: { kind: pattern-ward, pattern: [fire, frost, spark] }
+intents:
+  - { kind: strike, power: 7 }
+  - { kind: multi, power: 3, times: 3 }
+  - { kind: stoke }
+  - { kind: strike, power: 6 }
+flavor: Only the element that matches this turn's pattern gets through at full strength.

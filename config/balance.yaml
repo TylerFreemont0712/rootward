@@ -65,6 +65,22 @@ character_version:                           # the Maintainer's semver "level" (
   major_requires_realm_boss_and_avg_mastery: 3
   unlocks: { "2.0.0": second_ability_slot, "3.0.0": multiclass, "4.0.0": prestige_classes }
 
+shardrun:                                    # the roguelite mode (ADR-0012)
+  integrity_start: 60
+  mana_per_turn: 6
+  spell_base_cost: 1
+  work_per_mana: 8                           # +1 mana per 8 bolts handed to shards across a pipeline
+  base_bolt_power: 4
+  max_bolts: 16
+  max_pipeline_bolts: 64
+  max_bolt_power: 40
+  weak_multiplier: 1.5
+  resist_multiplier: 0.5
+  scatter_multiplier: 0.5
+  pattern_off_multiplier: 0.25
+  rest_heal_fraction: 0.3
+  reward_choices: 3
+
 sandbox_defaults:
   wall_ms: 10000
   cpu_ms: 5000

@@ -1,0 +1,11 @@
+id: null-wraith
+name: Null Wraith
+sprite: null-wraith
+hp: 18
+weak: [fire]
+trait: { kind: nullify-first }
+intents:
+  - { kind: strike, power: 5 }
+  - { kind: shield, amount: 5 }
+  - { kind: strike, power: 4 }
+flavor: The first thing you throw at it becomes nothing. Throw something cheap first.

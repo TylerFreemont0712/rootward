@@ -11,6 +11,9 @@ import {
   PropsFile,
   Quest,
   RealmsFile,
+  Shard,
+  ShardrunConfig,
+  ShardrunFoe,
   SkillsFile,
   TerrainFile,
   Zone,
@@ -25,6 +28,9 @@ import type {
   Prop,
   Quest as QuestType,
   Realm,
+  Shard as ShardType,
+  ShardrunConfig as ShardrunConfigType,
+  ShardrunFoe as ShardrunFoeType,
   SkillNode,
   Terrain,
   Zone as ZoneType,
@@ -50,6 +56,9 @@ export interface PackContents {
   npcs: Sourced<NpcType>[];
   quests: Sourced<QuestType>[];
   zones: Sourced<ZoneType>[];
+  shards: Sourced<ShardType>[];
+  shardrunFoes: Sourced<ShardrunFoeType>[];
+  shardrun?: Sourced<ShardrunConfigType & { id: "shardrun" }>;
 }
 
 export async function loadPack(ctx: LoadContext, absoluteDir: string): Promise<PackContents | undefined> {
@@ -78,6 +87,8 @@ export async function loadPack(ctx: LoadContext, absoluteDir: string): Promise<P
     npcs: [],
     quests: [],
     zones: [],
+    shards: [],
+    shardrunFoes: [],
   };
   const sourced = <T>(value: T, file: string): Sourced<T> => ({ value, packId, file });
 
@@ -113,6 +124,16 @@ export async function loadPack(ctx: LoadContext, absoluteDir: string): Promise<P
   await eachYaml(ctx, absoluteDir, dir, "zones", Zone, (zone, file, name) => {
     if (checkFileName(ctx, zone.id, name, file)) contents.zones.push(sourced(zone, file));
   });
+
+  // Shardrun (ADR-0012): shards, the foes met in the Salvage, and the run itself.
+  await eachYaml(ctx, absoluteDir, dir, "shardrun/shards", Shard, (shard, file, name) => {
+    if (checkFileName(ctx, shard.id, name, file)) contents.shards.push(sourced(shard, file));
+  });
+  await eachYaml(ctx, absoluteDir, dir, "shardrun/foes", ShardrunFoe, (foe, file, name) => {
+    if (checkFileName(ctx, foe.id, name, file)) contents.shardrunFoes.push(sourced(foe, file));
+  });
+  const run = await readOptionalYaml(ctx, absoluteDir, dir, "shardrun/run.yaml", ShardrunConfig);
+  if (run) contents.shardrun = sourced({ ...run.value, id: "shardrun" as const }, run.file);
 
   for (const classDir of await listDirectories(path.join(absoluteDir, "classes"))) {
     const loaded = await loadClass(ctx, packId, path.join(absoluteDir, "classes", classDir), `${dir}/classes/${classDir}`);

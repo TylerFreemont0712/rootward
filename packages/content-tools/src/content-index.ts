@@ -13,6 +13,9 @@ import type {
   Quest,
   Realm,
   ReviewCard,
+  Shard,
+  ShardrunConfig,
+  ShardrunFoe,
   SkillNode,
   Terrain,
   Zone,
@@ -82,6 +85,11 @@ export interface ContentIndex {
   npcs: Map<string, Sourced<Npc>>;
   quests: Map<string, Sourced<Quest>>;
   zones: Map<string, Sourced<Zone>>;
+  // Shardrun, the roguelite mode (ADR-0012).
+  shards: Map<string, Sourced<Shard>>;
+  shardrunFoes: Map<string, Sourced<ShardrunFoe>>;
+  /** The run definition; at most one pack declares it. */
+  shardrun?: Sourced<ShardrunConfig & { id: "shardrun" }>;
 }
 
 export function emptyContentIndex(): ContentIndex {
@@ -100,5 +108,7 @@ export function emptyContentIndex(): ContentIndex {
     npcs: new Map(),
     quests: new Map(),
     zones: new Map(),
+    shards: new Map(),
+    shardrunFoes: new Map(),
   };
 }

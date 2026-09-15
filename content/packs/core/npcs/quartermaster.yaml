@@ -10,9 +10,15 @@ dialogue:
       text: "Welcome, welcome! Nym, Package Manager to the Guild! Potions, patches, rubber ducks, every one pinned to an exact version!\n\nOnly three transitive dependencies! A bargain!"
       choices:
         - { text: "What are you selling?", goto: wares }
+        - { text: "What is in the crates marked SALVAGE?", goto: salvage }
         - { text: "What is a transitive dependency?", goto: transitive }
         - { text: "Just looking." }
     wares:
       text: "Ah. Well. Everything is still in transit from upstream. The Guild opens my stall once Cycles can travel home with you from an expedition.\n\nUntil then, a tip, free of charge: pin your versions."
     transitive:
       text: "You want a hammer. The hammer needs a handle. The handle needs a tree. The tree needs a forest, and now you are maintaining a forest! That is a transitive dependency. Always read the label."
+    salvage:
+      text: "Shards! Pieces of old programs, dug out of the Salvage under the Bastion. Unpinned, unversioned, gloriously broken.\n\nEvery shard is a little function. Chain a few into a spell and it does something new. Some are cursed. Some are off by one. None of them come with a label."
+      choices:
+        - { text: "Take me down to the Salvage.", effects: [{ open: shardrun }] }
+        - { text: "Maybe later." }

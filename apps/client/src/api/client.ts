@@ -14,8 +14,12 @@ import {
   ProfileResponse,
   type ResolveMarkerRequest,
   RunResponse,
+  type ShardrunCommandRequest,
+  ShardrunResponse,
+  ShardrunStatusResponse,
   type StartEncounterRequest,
   type StartExpeditionRequest,
+  type StartShardrunRequest,
   type StartWorldRequest,
   type TalkRequest,
   type TravelRequest,
@@ -115,4 +119,11 @@ export const api = {
   startMarker: (profileId: string, markerId: string) => request("POST", markerUrl(profileId, markerId, "/start"), RunResponse),
   resolveMarker: (profileId: string, markerId: string, body: ResolveMarkerRequest) =>
     request("POST", markerUrl(profileId, markerId, "/resolve"), WorldResponse, body),
+
+  // Shardrun (ADR-0012): the roguelite mode.
+  shardrun: (profileId: string) => request("GET", profileUrl(profileId, "/shardrun"), ShardrunStatusResponse),
+  startShardrun: (profileId: string, body: StartShardrunRequest) =>
+    request("POST", profileUrl(profileId, "/shardrun/start"), ShardrunResponse, body),
+  shardrunCommand: (profileId: string, body: ShardrunCommandRequest) =>
+    request("POST", profileUrl(profileId, "/shardrun/command"), ShardrunResponse, body),
 };

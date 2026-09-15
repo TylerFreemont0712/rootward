@@ -1,0 +1,24 @@
+id: overclock
+name: Overclock
+rarity: rare
+cost: 0
+function: overclock
+summary: "Triples every bolt's power. Cursed: each cast burns 3 of your Integrity."
+tags: [lists]
+curse: { integrity: 3 }
+code:
+  python: |
+    def overclock(bolts, battle):
+        return [{**bolt, "power": bolt["power"] * 3} for bolt in bolts]
+  javascript: |
+    function overclock(bolts, battle) {
+      return bolts.map((bolt) => ({ ...bolt, power: bolt.power * 3 }));
+    }
+examples:
+  - name: triple power
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 2, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 12, element: none, target: front, pierce: false, ward: false }
+      - { power: 6, element: none, target: front, pierce: false, ward: false }

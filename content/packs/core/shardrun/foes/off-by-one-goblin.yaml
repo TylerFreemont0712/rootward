@@ -1,0 +1,9 @@
+id: off-by-one-goblin
+name: Off-by-One Goblin
+sprite: off-by-one-goblin
+hp: 22
+weak: [spark]
+intents:
+  - { kind: multi, power: 2, times: 3 }
+  - { kind: strike, power: 5 }
+flavor: It always hits one more time than you counted on.

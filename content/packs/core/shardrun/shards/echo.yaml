@@ -1,0 +1,25 @@
+id: echo
+name: Echo
+rarity: rare
+cost: 2
+function: echo
+summary: "Repeats the whole volley: every bolt is fired twice at full power."
+tags: [lists, copying]
+code:
+  python: |
+    def echo(bolts, battle):
+        return bolts + [dict(bolt) for bolt in bolts]
+  javascript: |
+    function echo(bolts, battle) {
+      return [...bolts, ...bolts.map((bolt) => ({ ...bolt }))];
+    }
+examples:
+  - name: the volley doubles
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 3, element: fire, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 3, element: fire, target: front, pierce: false, ward: false }
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 3, element: fire, target: front, pierce: false, ward: false }
