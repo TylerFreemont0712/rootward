@@ -349,3 +349,64 @@ export const HealthResponse = z.strictObject({
   runners: z.array(z.strictObject({ id: z.string(), languages: z.array(z.string()), available: z.boolean() })),
 });
 export type HealthResponse = z.infer<typeof HealthResponse>;
+
+// ---- Characters ("profiles"), ADR-0010 ----
+
+export const ProfileView = z.strictObject({ id: z.string(), name: z.string(), classId: z.string(), createdAt: z.string() });
+export type ProfileView = z.infer<typeof ProfileView>;
+
+export const ProfileListResponse = z.strictObject({ profiles: z.array(ProfileView) });
+export type ProfileListResponse = z.infer<typeof ProfileListResponse>;
+
+export const ProfileResponse = z.strictObject({ profile: ProfileView });
+export type ProfileResponse = z.infer<typeof ProfileResponse>;
+
+export const CreateProfileRequest = z.strictObject({ name: z.string().min(1).max(60) });
+export type CreateProfileRequest = z.infer<typeof CreateProfileRequest>;
+
+// ---- The overworld (ADR-0010): a free-roam zone, alongside the planner-driven expedition above ----
+
+export const OverworldMarkerView = z.strictObject({
+  id: z.string(),
+  kind: z.enum(["encounter", "boss"]),
+  x: z.int(),
+  y: z.int(),
+  state: z.enum(["open", "cleared"]),
+  title: z.string(),
+  enemyName: z.string(),
+  difficulty: z.number(),
+});
+export type OverworldMarkerView = z.infer<typeof OverworldMarkerView>;
+
+export const OverworldView = z.strictObject({
+  realmId: z.string(),
+  realmName: z.string(),
+  language: z.string(),
+  width: z.int(),
+  height: z.int(),
+  /** One string per row of tile codes, the same alphabet as `ExpeditionView.tiles`. */
+  tiles: z.array(z.string()),
+  entry: MapPoint,
+  position: MapPoint,
+  markers: z.array(OverworldMarkerView),
+  bossMarkerId: z.string(),
+});
+export type OverworldView = z.infer<typeof OverworldView>;
+
+export const OverworldResponse = z.strictObject({ overworld: OverworldView });
+export type OverworldResponse = z.infer<typeof OverworldResponse>;
+
+export const OverworldRealmSummary = z.strictObject({ id: z.string(), name: z.string(), available: z.boolean() });
+export type OverworldRealmSummary = z.infer<typeof OverworldRealmSummary>;
+
+export const OverworldRealmsResponse = z.strictObject({ realms: z.array(OverworldRealmSummary) });
+export type OverworldRealmsResponse = z.infer<typeof OverworldRealmsResponse>;
+
+export const EnterOverworldRequest = z.strictObject({ language: z.string().min(1) });
+export type EnterOverworldRequest = z.infer<typeof EnterOverworldRequest>;
+
+export const MoveOverworldRequest = z.strictObject({ x: z.int(), y: z.int() });
+export type MoveOverworldRequest = z.infer<typeof MoveOverworldRequest>;
+
+export const ResolveOverworldEncounterRequest = z.strictObject({ runId: z.string().min(1) });
+export type ResolveOverworldEncounterRequest = z.infer<typeof ResolveOverworldEncounterRequest>;

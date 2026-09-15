@@ -20,10 +20,13 @@ export interface EventStore {
 
 export class InMemoryEventStore implements EventStore {
   private readonly runs = new Map<string, TimedEvent[]>();
+  private readonly owners = new Map<string, string | null>();
   private readonly now: () => string;
+  private readonly profileId: string | null;
 
-  constructor(now: () => string = () => new Date().toISOString()) {
+  constructor(now: () => string = () => new Date().toISOString(), profileId: string | null = null) {
     this.now = now;
+    this.profileId = profileId;
   }
 
   create(runId: string, events: readonly RunEvent[]): Promise<void> {
@@ -33,6 +36,7 @@ export class InMemoryEventStore implements EventStore {
       runId,
       events.map((event) => ({ event, at })),
     );
+    this.owners.set(runId, this.profileId);
     return Promise.resolve();
   }
 
@@ -54,6 +58,10 @@ export class InMemoryEventStore implements EventStore {
 
   loadAll(): Promise<StoredRun[]> {
     // A Map iterates in insertion order, which is creation order here.
-    return Promise.resolve([...this.runs].map(([runId, events]) => ({ runId, events: [...events] })));
+    return Promise.resolve(
+      [...this.runs]
+        .filter(([runId]) => this.profileId === null || this.owners.get(runId) === this.profileId)
+        .map(([runId, events]) => ({ runId, events: [...events] })),
+    );
   }
 }

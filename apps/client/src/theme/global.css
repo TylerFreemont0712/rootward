@@ -55,8 +55,9 @@ main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
 /* HUD */
 .stat { display: grid; grid-template-columns: 78px 1fr 52px; align-items: center; gap: 8px; font-size: 11px; margin: 4px 0; }
-.stat .lbl { color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.stat .lbl { display: flex; align-items: center; gap: 4px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 .stat .val { text-align: right; font-variant-numeric: tabular-nums; }
+.stat-icon { width: 14px; height: 14px; image-rendering: pixelated; flex: none; }
 .bar { height: 8px; background: var(--panel-3); border: 1px solid var(--line); border-radius: 2px; overflow: hidden; }
 .bar i { display: block; height: 100%; transition: width 0.5s ease; }
 .bar.integrity i { background: var(--integrity); }
@@ -68,12 +69,14 @@ main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 /* Enemy card */
 .enemy { border-color: var(--amber-dim); }
 .enemy pre { margin: 0 0 6px; font-family: var(--font-crt); font-size: 16px; line-height: 1; color: var(--amber); text-shadow: 0 0 6px var(--amber-glow); white-space: pre; overflow: hidden; }
+.enemy .portrait { display: block; width: 96px; height: 96px; margin: 0 auto 6px; image-rendering: pixelated; filter: drop-shadow(0 0 6px var(--amber-glow)); }
 .enemy .name { font-family: var(--font-crt); font-size: 22px; margin: 0; }
 .enemy .tier { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
 .enemy .move { font-size: 11px; color: var(--warn); margin-top: 6px; }
 .enemy .taunt { font-family: var(--font-crt); font-size: 17px; color: var(--muted); margin: 6px 0 0; min-height: 20px; }
 .enemy.dead { border-color: var(--line); opacity: 0.65; }
 .enemy.dead pre { color: var(--faint); text-shadow: none; }
+.enemy.dead .portrait { filter: grayscale(1); opacity: 0.65; }
 .shake { animation: shake 0.35s; }
 @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 
@@ -109,6 +112,14 @@ main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .btn.danger:hover:not(:disabled) { border-color: var(--fail); color: var(--fail); }
 .btn small { color: var(--muted); font-size: 10px; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.link { color: var(--amber); text-decoration: underline; font-size: inherit; padding: 0; }
+.link:hover:not(:disabled) { color: var(--text); }
+
+.text-input {
+  font: inherit; padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--panel-2); color: var(--text);
+}
+.text-input:focus-visible { outline: 2px solid var(--teal); outline-offset: 1px; }
 
 /* Hints, outcome panels, notices */
 .hint { border-left: 2px solid var(--amber-dim); padding: 6px 10px; margin: 6px 0; background: var(--panel); font-size: 12px; }
@@ -158,25 +169,47 @@ main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 /* Expedition map (ADR-0008). Glyph colors carry mood only; kinds and states also differ by letter or label. */
 .mapwrap { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 1px; background: var(--line-soft); flex: 1; min-height: 0; }
 @media (max-width: 1000px) { .mapwrap { grid-template-columns: 1fr; } }
-.map-main { background: var(--ground); display: flex; min-height: 0; }
+.map-main {
+  background-color: var(--ground);
+  background-image: linear-gradient(rgba(10, 8, 6, 0.42), rgba(10, 8, 6, 0.42)), url("/generated/backgrounds/foundry.png");
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  min-height: 0;
+}
 .map-scroll { position: relative; flex: 1; overflow: auto; padding: 16px; text-align: center; max-height: calc(100vh - 92px); }
 .map-side { gap: 12px; }
-.ascii-map { display: inline-block; margin: 0; padding: 0; text-align: left; white-space: pre; font-family: var(--font-crt); font-size: 30px; line-height: 24px; color: var(--faint); cursor: pointer; user-select: none; }
-.ascii-map.compact { font-size: 10px; line-height: 8px; }
-.ascii-map.static { cursor: default; }
-.ascii-map .wall { color: var(--amber-dim); }
-.ascii-map .floor { color: var(--line); }
-.ascii-map .corridor { color: var(--faint); }
-.ascii-map .door { color: var(--muted); }
-.ascii-map .door.open { color: var(--amber); text-shadow: 0 0 6px var(--amber-glow); }
-.ascii-map .door.locked { color: var(--fail); opacity: 0.7; }
-.ascii-map .prop { color: var(--amber-dim); }
-.ascii-map .rubble { color: var(--teal-dim); }
-.ascii-map .avatar { color: var(--amber); text-shadow: 0 0 8px var(--amber); }
-.ascii-map .mark { color: var(--faint); }
-.ascii-map .mark.open, .ascii-map .mark.current { color: var(--amber); text-shadow: 0 0 6px var(--amber-glow); }
-.ascii-map .mark.cleared { color: var(--pass); }
-.ascii-map .mark.sealed { color: var(--line); }
+/* Tile MapRenderer: grid.ts's shared computation, drawn as generated images. --tile-size sets the fixed cell
+   size so the grid's natural width overflows .map-scroll, matching a monospace-grid scroll behavior. */
+.tile-map { display: inline-grid; --tile-size: 32px; cursor: pointer; user-select: none; }
+.tile-map.compact { --tile-size: 16px; }
+.tile-map.static { cursor: default; }
+.tile-cell { position: relative; width: var(--tile-size); height: var(--tile-size); background: var(--ground); }
+.tile-cell img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
+/* "tile-overlay", not "overlay" -- that name collides with the unrelated Kernel Panic modal's ".overlay" class,
+   whose background/position/z-index would otherwise cascade onto these <img> elements too (a bare class selector
+   applies regardless of element type) and paint a near-black backdrop through every transparent pixel. */
+.tile-cell img.tile-overlay { filter: drop-shadow(0 0 4px var(--amber-glow)); }
+.tile-cell img.avatar-token { filter: drop-shadow(0 0 6px var(--amber-glow)); z-index: 2; }
+.tile-cell.mark.open img.tile-overlay, .tile-cell.mark.current img.tile-overlay { filter: drop-shadow(0 0 6px var(--amber-glow)); }
+.tile-cell.mark.cleared img.tile-overlay { filter: drop-shadow(0 0 4px var(--pass)); }
+.tile-cell.mark.ahead img.tile-overlay { opacity: 0.55; }
+.tile-cell.mark.sealed img.tile-overlay { opacity: 0.35; filter: grayscale(1); }
+.tile-cell.door.open img.tile-overlay { filter: drop-shadow(0 0 6px var(--amber-glow)); }
+.tile-cell.door.locked img.tile-overlay { filter: drop-shadow(0 0 4px var(--fail)) grayscale(0.4); }
+.avatar-glyph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-crt);
+  font-size: calc(var(--tile-size) * 0.7);
+  color: var(--amber);
+  text-shadow: 0 0 8px var(--amber);
+  pointer-events: none;
+}
+
 /* Flex centering lets a map wider than the pane overflow evenly on both sides before it is clipped. */
 .minimap { display: flex; justify-content: center; overflow: hidden; margin: 2px 0 6px; }
 .doors { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -189,12 +222,6 @@ main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .room-chip.open, .room-chip.current { border-color: var(--amber); color: var(--amber); }
 .room-chip.cleared { border-color: var(--pass); color: var(--pass); }
 .room-chip.sealed { opacity: 0.55; text-decoration: line-through; }
-.legend ul { list-style: none; margin: 0; padding: 0; font-size: 11px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
-.legend b { font-family: var(--font-crt); font-size: 17px; font-weight: normal; color: var(--text); }
-.legend .avatar, .legend .door.open { color: var(--amber); }
-.legend .door.locked { color: var(--fail); }
-.legend .rubble { color: var(--teal-dim); }
-.legend .prop { color: var(--amber-dim); }
 .rationale summary { cursor: pointer; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .rationale ul { margin: 8px 0 0; padding-left: 18px; font-size: 11px; color: var(--muted); }
 

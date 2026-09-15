@@ -1,10 +1,18 @@
 import {
   type ActionRequest,
   ChallengeListResponse,
+  type CreateProfileRequest,
   DebriefResponse,
+  type EnterOverworldRequest,
   type EnterRoomRequest,
   ErrorResponse,
   LearnerResponse,
+  type MoveOverworldRequest,
+  OverworldRealmsResponse,
+  OverworldResponse,
+  ProfileListResponse,
+  ProfileResponse,
+  type ResolveOverworldEncounterRequest,
   RunResponse,
   type StartEncounterRequest,
   type StartExpeditionRequest,
@@ -63,15 +71,41 @@ async function request<T extends z.ZodType>(
   return parsed.data;
 }
 
-const runUrl = (runId: string, suffix = "") => `/api/runs/${encodeURIComponent(runId)}${suffix}`;
+/** Every route below is scoped to one character (ADR-0010): each has its own runs and mastery. */
+const profileUrl = (profileId: string, suffix = "") => `/api/profiles/${encodeURIComponent(profileId)}${suffix}`;
+const profileRunUrl = (profileId: string, runId: string, suffix = "") =>
+  `${profileUrl(profileId)}/runs/${encodeURIComponent(runId)}${suffix}`;
+const overworldUrl = (profileId: string, realmId: string, suffix = "") =>
+  `${profileUrl(profileId)}/overworld/${encodeURIComponent(realmId)}${suffix}`;
 
 export const api = {
+  // Global content, not player data: not scoped to a character.
   challenges: () => request("GET", "/api/challenges", ChallengeListResponse),
-  startEncounter: (body: StartEncounterRequest) => request("POST", "/api/encounters", RunResponse, body),
-  startExpedition: (body: StartExpeditionRequest) => request("POST", "/api/expeditions", RunResponse, body),
-  getRun: (runId: string) => request("GET", runUrl(runId), RunResponse),
-  enterRoom: (runId: string, body: EnterRoomRequest) => request("POST", runUrl(runId, "/rooms"), RunResponse, body),
-  act: (runId: string, action: ActionRequest) => request("POST", runUrl(runId, "/actions"), RunResponse, action),
-  debrief: (runId: string) => request("GET", runUrl(runId, "/debrief"), DebriefResponse),
-  learner: () => request("GET", "/api/learner", LearnerResponse),
+
+  profiles: () => request("GET", "/api/profiles", ProfileListResponse),
+  createProfile: (body: CreateProfileRequest) => request("POST", "/api/profiles", ProfileResponse, body),
+
+  startEncounter: (profileId: string, body: StartEncounterRequest) =>
+    request("POST", profileUrl(profileId, "/encounters"), RunResponse, body),
+  startExpedition: (profileId: string, body: StartExpeditionRequest) =>
+    request("POST", profileUrl(profileId, "/expeditions"), RunResponse, body),
+  getRun: (profileId: string, runId: string) => request("GET", profileRunUrl(profileId, runId), RunResponse),
+  enterRoom: (profileId: string, runId: string, body: EnterRoomRequest) =>
+    request("POST", profileRunUrl(profileId, runId, "/rooms"), RunResponse, body),
+  act: (profileId: string, runId: string, action: ActionRequest) =>
+    request("POST", profileRunUrl(profileId, runId, "/actions"), RunResponse, action),
+  debrief: (profileId: string, runId: string) => request("GET", profileRunUrl(profileId, runId, "/debrief"), DebriefResponse),
+  learner: (profileId: string) => request("GET", profileUrl(profileId, "/learner"), LearnerResponse),
+
+  // The overworld (ADR-0010): a free-roam zone alongside the expedition above.
+  overworldRealms: (profileId: string) => request("GET", profileUrl(profileId, "/overworld"), OverworldRealmsResponse),
+  enterOverworld: (profileId: string, realmId: string, body: EnterOverworldRequest) =>
+    request("POST", overworldUrl(profileId, realmId, "/enter"), OverworldResponse, body),
+  getOverworld: (profileId: string, realmId: string) => request("GET", overworldUrl(profileId, realmId), OverworldResponse),
+  moveOverworld: (profileId: string, realmId: string, body: MoveOverworldRequest) =>
+    request("POST", overworldUrl(profileId, realmId, "/move"), OverworldResponse, body),
+  startMarkerEncounter: (profileId: string, realmId: string, markerId: string) =>
+    request("POST", overworldUrl(profileId, realmId, `/markers/${encodeURIComponent(markerId)}/start`), RunResponse),
+  resolveMarkerEncounter: (profileId: string, realmId: string, markerId: string, body: ResolveOverworldEncounterRequest) =>
+    request("POST", overworldUrl(profileId, realmId, `/markers/${encodeURIComponent(markerId)}/resolve`), OverworldResponse, body),
 };

@@ -1,4 +1,5 @@
 import type { EncounterView, ExpeditionView } from "@rootward/shared";
+import { assetUrl, slugify } from "../assets/AssetRegistry.ts";
 import { Minimap } from "../map/Minimap.tsx";
 import { ROOM_NAMES } from "../map/rooms.ts";
 import { useGame } from "../state/store.ts";
@@ -23,7 +24,7 @@ function ExpeditionBlock({ expedition, view }: { expedition: ExpeditionView; vie
       <h3>
         Expedition · floor {(room?.floor ?? 0) + 1} of {expedition.floorCount}
       </h3>
-      <Minimap expedition={expedition} />
+      <Minimap expedition={expedition} playerClassName={view.player.className} />
       {room && (
         <p className="meta">
           {ROOM_NAMES[room.kind]} · {room.purpose}
@@ -36,13 +37,18 @@ function ExpeditionBlock({ expedition, view }: { expedition: ExpeditionView; vie
 
 function PracticeBlock({ view }: { view: EncounterView }) {
   const leave = useGame((s) => s.leave);
+  const finishOverworldEncounter = useGame((s) => s.finishOverworldEncounter);
+  const inOverworld = useGame((s) => s.overworldMarkerId !== undefined);
   const active = view.status === "active";
   const onLeave = () => {
-    if (!active || window.confirm("Leave this practice fight? It stays unfinished.")) leave();
+    if (!active || window.confirm(inOverworld ? "Retreat from this fight? It stays unfinished." : "Leave this practice fight? It stays unfinished.")) {
+      if (inOverworld) void finishOverworldEncounter();
+      else leave();
+    }
   };
   return (
     <section className="block">
-      <h3>Practice fight</h3>
+      <h3>{inOverworld ? "Overworld encounter" : "Practice fight"}</h3>
       <ul className="floors">
         <li className="here">
           <span className="g" aria-hidden="true">
@@ -53,7 +59,7 @@ function PracticeBlock({ view }: { view: EncounterView }) {
       </ul>
       <div className="actions">
         <button type="button" className="btn" onClick={onLeave}>
-          {active ? "Leave practice" : "Back to the Guild Board"}
+          {!active ? (inOverworld ? "Back to the map" : "Back to the Guild Board") : inOverworld ? "Retreat to the map" : "Leave practice"}
         </button>
       </div>
     </section>
@@ -66,14 +72,20 @@ function Hud({ view }: { view: EncounterView }) {
     <section className="block" aria-label="Maintainer status">
       <h3>Maintainer · {player.className}</h3>
       <div className="stat">
-        <span className="lbl">Integrity</span>
+        <span className="lbl">
+          <StatIcon id="integrity" />
+          Integrity
+        </span>
         <span className="bar integrity">
           <i style={{ width: percent(player.integrity, player.integrityMax) }} />
         </span>
         <span className="val">{player.integrity}</span>
       </div>
       <div className="stat">
-        <span className="lbl">Focus</span>
+        <span className="lbl">
+          <StatIcon id="focus" />
+          Focus
+        </span>
         <span className="pips" aria-hidden="true">
           {Array.from({ length: player.focusMax }, (_, index) => (
             <span key={index} className={index < player.focus ? "on" : ""} />
@@ -84,7 +96,10 @@ function Hud({ view }: { view: EncounterView }) {
         </span>
       </div>
       <div className="stat">
-        <span className="lbl">Cycles</span>
+        <span className="lbl">
+          <StatIcon id="cycles" />
+          Cycles
+        </span>
         <span />
         <span className="val">{player.cycles}</span>
       </div>
@@ -92,14 +107,24 @@ function Hud({ view }: { view: EncounterView }) {
   );
 }
 
+function StatIcon({ id }: { id: "integrity" | "focus" | "cycles" }) {
+  const src = assetUrl("hud", id);
+  return src ? <img className="stat-icon" src={src} alt="" /> : null;
+}
+
 function EnemyCard({ view }: { view: EncounterView }) {
   const { enemy } = view;
   const defeated = view.status === "won";
   const classes = ["block", "enemy", defeated ? "dead" : "", view.casts > 0 ? "shake" : ""].filter(Boolean).join(" ");
+  const portrait = assetUrl("enemies", slugify(enemy.name));
   return (
     // Keying on HP remounts the card when HP changes, which replays the shake animation.
     <section key={enemy.hp} className={classes} aria-label={`Enemy: ${enemy.name}`}>
-      {enemy.art !== undefined && <pre aria-hidden="true">{enemy.art}</pre>}
+      {portrait ? (
+        <img className="portrait" src={portrait} alt="" />
+      ) : (
+        enemy.art !== undefined && <pre aria-hidden="true">{enemy.art}</pre>
+      )}
       <p className="name">{enemy.name}</p>
       <div className="tier">
         Tier {enemy.tier} · {view.challenge.realm}

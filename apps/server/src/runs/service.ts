@@ -44,7 +44,7 @@ import type { EventStore } from "./store.ts";
 import { buildDebriefView, buildEncounterView, buildLearnerView, buildRunView, type RoomDetails } from "./views.ts";
 
 /** One playable class and one Oath until the Bastion (M1) makes them a choice. */
-const DEFAULT_CLASS_ID = "artificer";
+export const DEFAULT_CLASS_ID = "artificer";
 const DEFAULT_OATH_ID = "oath-of-the-foundry";
 /** The room id of a practice fight, which has no dungeon around it. */
 const PRACTICE_ROOM_ID = "room-1";

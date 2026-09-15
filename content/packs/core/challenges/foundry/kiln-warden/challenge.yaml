@@ -1,0 +1,30 @@
+id: foundry.py.kiln-warden
+title: The Kiln Warden
+version: 1
+realm: foundry
+kind: code
+concepts: [py.functions.define, py.collections.dict]
+tags: [functions, dict, counting, print-vs-return]
+difficulty: 4
+tier: 1
+languages: [python, javascript]
+estimated_minutes: 8
+enemy: { template: kiln-warden, hp_override: null }
+constraints:
+  max_lines: 25
+  banned_tokens: []
+targets:
+  time_ms: 250
+  complexity: "O(n)"
+retreatable: true
+scoring: { crit: true, efficiency: true, elegance: true }
+tests:
+  form: io
+  visible: 3
+  hidden: 4
+  entry: { python: "main.py", javascript: "main.js" }
+flavor:
+  intro: "The Kiln Warden calls a verdict for every ingot that leaves the forge's kiln — temper when a batch holds, crack when it fails — and keeps score long after the count should have moved on."
+  defeat: "The tally holds at last. The Warden banks its kiln and lets the batch through."
+author: core
+generated: null

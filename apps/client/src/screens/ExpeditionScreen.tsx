@@ -1,14 +1,14 @@
 import { findPath, type Point } from "@rootward/core/map";
 import type { ExpeditionView, MapRoomView, RunView } from "@rootward/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AsciiMapRenderer } from "../map/AsciiMapRenderer.tsx";
 import { doorwayAt, passability, restingPoint, revealedTiles, travelTarget } from "../map/fog.ts";
-import type { MapRenderer } from "../map/MapRenderer.ts";
 import { ROOM_GLYPHS, ROOM_NAMES, ROOM_STATE_LABELS } from "../map/rooms.ts";
+import { TileMapRenderer } from "../map/TileMapRenderer.tsx";
 import { useGame } from "../state/store.ts";
 
-/** The renderer in use; a tileset renderer would be swapped in here. */
-const Renderer: MapRenderer = AsciiMapRenderer;
+/** The renderer in use. */
+const Renderer = TileMapRenderer;
+
 /** Milliseconds per tile when traveling by click. */
 const STEP_MS = 40;
 
@@ -126,6 +126,7 @@ function ExpeditionMap({ run, expedition }: { run: RunView; expedition: Expediti
             expedition={expedition}
             revealed={revealed}
             avatar={walker.avatar}
+            playerClassName={run.player.className}
             onTileClick={active ? travelTo : undefined}
             label={`Dungeon map with ${expedition.floorCount} floors. Use the door list to travel without the map.`}
           />
@@ -177,7 +178,6 @@ function ExpeditionMap({ run, expedition }: { run: RunView; expedition: Expediti
             <span className="val">{run.player.cycles}</span>
           </div>
         </section>
-        <Legend />
         {expedition.rationale.length > 0 && (
           <details className="block rationale">
             <summary>Why this dungeon</summary>
@@ -256,28 +256,6 @@ function Route({ expedition }: { expedition: ExpeditionView }) {
           </li>
         ))}
       </ol>
-    </section>
-  );
-}
-
-function Legend() {
-  return (
-    <section className="block legend" aria-label="Map legend">
-      <h3>Legend</h3>
-      <ul>
-        <li>
-          <b className="avatar">@</b> you · <b className="door open">+</b> open door · <b className="door locked">=</b> sealed
-        </li>
-        <li>
-          <b>x</b> encounter · <b>X</b> elite · <b>B</b> boss
-        </li>
-        <li>
-          <b>S</b> shrine · <b>?</b> puzzle · <b>r</b> rest
-        </li>
-        <li>
-          <b className="rubble">~</b> Bit Rot · <b className="prop">&amp;</b> anvil
-        </li>
-      </ul>
     </section>
   );
 }

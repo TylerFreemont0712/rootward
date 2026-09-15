@@ -3,32 +3,34 @@ import { DebriefScreen } from "../screens/DebriefScreen.tsx";
 import { EncounterScreen } from "../screens/EncounterScreen.tsx";
 import { ExpeditionScreen } from "../screens/ExpeditionScreen.tsx";
 import { GuildBoard } from "../screens/GuildBoard.tsx";
+import { OverworldScreen } from "../screens/OverworldScreen.tsx";
+import { ProfileSelectScreen } from "../screens/ProfileSelectScreen.tsx";
 import { useGame } from "../state/store.ts";
 
 export function App() {
+  const activeProfile = useGame((s) => s.activeProfile);
   const run = useGame((s) => s.run);
   const debrief = useGame((s) => s.debrief);
+  const overworld = useGame((s) => s.overworld);
   const screen = useGame((s) => s.screen);
   const error = useGame((s) => s.error);
   const notice = useGame((s) => s.notice);
   const dismiss = useGame((s) => s.dismiss);
-  const loadChallenges = useGame((s) => s.loadChallenges);
-  const loadLearner = useGame((s) => s.loadLearner);
-  const resumeSavedRun = useGame((s) => s.resumeSavedRun);
+  const restoreProfile = useGame((s) => s.restoreProfile);
 
   useEffect(() => {
-    void resumeSavedRun();
-    void loadChallenges();
-    void loadLearner();
-  }, [loadChallenges, loadLearner, resumeSavedRun]);
+    void restoreProfile();
+  }, [restoreProfile]);
 
   const encounter = screen === "encounter" ? run?.encounter : undefined;
   const expedition = screen === "map" ? run?.expedition : undefined;
+  const exploring = screen === "overworld" ? overworld : undefined;
 
-  let body = <GuildBoard />;
+  let body = activeProfile ? <GuildBoard /> : <ProfileSelectScreen />;
   if (screen === "debrief" && debrief) body = <DebriefScreen debrief={debrief} />;
   else if (run && encounter) body = <EncounterScreen view={encounter} />;
   else if (run && expedition) body = <ExpeditionScreen run={run} expedition={expedition} />;
+  else if (exploring) body = <OverworldScreen overworld={exploring} />;
 
   return (
     <>
@@ -75,6 +77,10 @@ export function App() {
               <kbd>Enter</kbd> step through a lit door
             </span>
           </>
+        ) : exploring ? (
+          <span>
+            <kbd>←↑↓→</kbd> <kbd>hjkl</kbd> <kbd>WASD</kbd> walk · click to travel · walk onto a marker to fight
+          </span>
         ) : (
           <>
             <span>

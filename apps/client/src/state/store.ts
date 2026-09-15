@@ -1,11 +1,14 @@
-import type {
-  ActionRequest,
-  ChallengeSummary,
-  DebriefView,
-  FileMap,
-  LearnerView,
-  RunView,
-  SessionLength,
+import {
+  type ActionRequest,
+  type ChallengeSummary,
+  type DebriefView,
+  type FileMap,
+  type LearnerView,
+  type OverworldRealmSummary,
+  type OverworldView,
+  ProfileView,
+  type RunView,
+  type SessionLength,
 } from "@rootward/shared";
 import { create } from "zustand";
 import { api, ApiError } from "../api/client.ts";
@@ -13,25 +16,42 @@ import { api, ApiError } from "../api/client.ts";
 // One store for the client. Game rules never run here: every change of game state comes back from the server as a
 // fresh RunView. The store holds what the player is typing, which screen is up, and which request is in flight.
 
-const RUN_KEY = "rootward:run";
+const PROFILE_KEY = "rootward:profile";
+const runKey = (profileId: string) => `rootward:run:${profileId}`;
+const overworldRunKey = (profileId: string) => `rootward:run:overworld:${profileId}`;
 const draftKey = (runId: string, roomId: string) => `rootward:draft:${runId}:${roomId}`;
 
 export type Busy = "loading" | "start" | "enter" | "probe" | "cast" | "hint" | "retreat" | "abandon" | "debrief";
 export type CenterTab = "task" | "editor";
-/** The Guild Board (no run), the expedition map, a fight, or a finished run's debrief. */
-export type Screen = "board" | "map" | "encounter" | "debrief";
+/** Character select, the Guild Board (no run), the expedition map, the overworld, a fight, or a finished run's
+ * debrief. */
+export type Screen = "profiles" | "board" | "map" | "overworld" | "encounter" | "debrief";
 
 export interface GameStore {
+  profiles: ProfileView[];
+  activeProfile: ProfileView | undefined;
   challenges: ChallengeSummary[];
   learner: LearnerView | undefined;
   run: RunView | undefined;
   debrief: DebriefView | undefined;
+  overworldRealms: OverworldRealmSummary[];
+  overworld: OverworldView | undefined;
+  /** Set while a run started from an overworld marker is in progress, so ending it resolves the marker and returns
+   * to the zone instead of the Guild Board. */
+  overworldRealmId: string | undefined;
+  overworldMarkerId: string | undefined;
   screen: Screen;
   files: FileMap;
   busy: Busy | undefined;
   tab: CenterTab;
   error: string | undefined;
   notice: string | undefined;
+  /** Restore the last-played character (if any) and everything that follows from it; called once at startup. */
+  restoreProfile: () => Promise<void>;
+  createProfile: (name: string) => Promise<void>;
+  selectProfile: (profile: ProfileView) => void;
+  /** Leave the current character for the select screen; its run and overworld progress are left as they are. */
+  switchProfile: () => void;
   loadChallenges: () => Promise<void>;
   loadLearner: () => Promise<void>;
   resumeSavedRun: () => Promise<void>;
@@ -45,6 +65,14 @@ export interface GameStore {
   /** Back to the Guild Board. */
   leave: () => void;
   abandon: () => Promise<void>;
+  loadOverworldRealms: () => Promise<void>;
+  enterOverworld: (realmId: string, language: string) => Promise<void>;
+  /** Persist a new position; the server re-checks walkability. */
+  moveOverworld: (x: number, y: number) => Promise<void>;
+  startOverworldEncounter: (markerId: string) => Promise<void>;
+  /** Resolve the marker behind the just-finished fight and return to the zone. */
+  finishOverworldEncounter: () => Promise<void>;
+  leaveOverworld: () => void;
   setTab: (tab: CenterTab) => void;
   editFile: (path: string, contents: string) => void;
   resetToStarter: () => void;
@@ -63,9 +91,10 @@ function screenFor(run: RunView): Screen {
 export const useGame = create<GameStore>()((set, get) => {
   /** Show a server run, restoring an unsent draft for its current fight if one was saved. */
   const showRun = (run: RunView, screen: Screen, preferDraft: boolean) => {
+    const profile = get().activeProfile;
     const encounter = run.encounter;
     const draft = preferDraft && encounter ? readDraft(draftKey(run.runId, encounter.roomId)) : undefined;
-    writeStorage(RUN_KEY, run.runId);
+    if (profile) writeStorage(runKey(profile.id), run.runId);
     set({ run, screen, files: draft ?? encounter?.editorFiles ?? {} });
   };
 
@@ -84,23 +113,88 @@ export const useGame = create<GameStore>()((set, get) => {
 
   const act = (busy: "probe" | "cast" | "hint" | "retreat" | "abandon", action: ActionRequest) =>
     request(busy, async () => {
-      const { run } = get();
-      if (!run) return;
-      const response = await api.act(run.runId, action);
+      const { run, activeProfile } = get();
+      if (!run || !activeProfile) return;
+      const response = await api.act(activeProfile.id, run.runId, action);
       set({ run: response.run, notice: response.refused?.message });
     });
 
   return {
+    profiles: [],
+    activeProfile: undefined,
     challenges: [],
     learner: undefined,
     run: undefined,
     debrief: undefined,
-    screen: "board",
+    overworldRealms: [],
+    overworld: undefined,
+    overworldRealmId: undefined,
+    overworldMarkerId: undefined,
+    screen: "profiles",
     files: {},
     busy: undefined,
     tab: "task",
     error: undefined,
     notice: undefined,
+
+    restoreProfile: async () => {
+      set({ busy: "loading" });
+      let candidateId: string | undefined;
+      const raw = readStorage(PROFILE_KEY);
+      if (raw !== undefined) {
+        try {
+          const parsed = ProfileView.safeParse(JSON.parse(raw));
+          if (parsed.success) candidateId = parsed.data.id;
+          else removeStorage(PROFILE_KEY);
+        } catch {
+          removeStorage(PROFILE_KEY);
+        }
+      }
+      try {
+        const { profiles } = await api.profiles();
+        set({ profiles, busy: undefined });
+        const match = candidateId !== undefined ? profiles.find((p) => p.id === candidateId) : undefined;
+        if (match) get().selectProfile(match);
+        else {
+          removeStorage(PROFILE_KEY);
+          set({ screen: "profiles" });
+        }
+      } catch (error) {
+        set({ error: describe(error), busy: undefined, screen: "profiles" });
+      }
+    },
+
+    createProfile: (name) =>
+      request("start", async () => {
+        const { profile } = await api.createProfile({ name });
+        set({ profiles: [...get().profiles, profile] });
+        get().selectProfile(profile);
+      }),
+
+    selectProfile: (profile) => {
+      writeStorage(PROFILE_KEY, JSON.stringify(profile));
+      set({ activeProfile: profile, screen: "board" });
+      void get().loadChallenges();
+      void get().loadLearner();
+      void get().resumeSavedRun();
+      void get().loadOverworldRealms();
+    },
+
+    switchProfile: () => {
+      removeStorage(PROFILE_KEY);
+      set({
+        activeProfile: undefined,
+        run: undefined,
+        debrief: undefined,
+        overworld: undefined,
+        overworldRealmId: undefined,
+        overworldMarkerId: undefined,
+        screen: "profiles",
+        files: {},
+        notice: undefined,
+        error: undefined,
+      });
+    },
 
     loadChallenges: async () => {
       set({ busy: "loading", error: undefined });
@@ -114,44 +208,53 @@ export const useGame = create<GameStore>()((set, get) => {
     },
 
     loadLearner: async () => {
+      const profile = get().activeProfile;
+      if (!profile) return;
       try {
-        set({ learner: (await api.learner()).learner });
+        set({ learner: (await api.learner(profile.id)).learner });
       } catch (error) {
         set({ error: describe(error) });
       }
     },
 
     resumeSavedRun: async () => {
-      const runId = readStorage(RUN_KEY);
+      const profile = get().activeProfile;
+      if (!profile) return;
+      const runId = readStorage(runKey(profile.id));
       if (runId === undefined) return;
       try {
-        const { run } = await api.getRun(runId);
+        const { run } = await api.getRun(profile.id, runId);
+        const sidecar = readOverworldSidecar(profile.id);
+        if (sidecar) set({ overworldRealmId: sidecar.realmId, overworldMarkerId: sidecar.markerId });
         showRun(run, screenFor(run), true);
       } catch (error) {
-        // The run may be gone (for example the server uses a different data directory now). Forget it quietly.
-        if (error instanceof ApiError && error.status === 404) removeStorage(RUN_KEY);
+        if (error instanceof ApiError && error.status === 404) removeStorage(runKey(profile.id));
         else set({ error: describe(error) });
       }
     },
 
     startPractice: (challengeId, language) =>
       request("start", async () => {
-        const { run } = await api.startEncounter({ challengeId, language });
+        const profile = get().activeProfile;
+        if (!profile) return;
+        const { run } = await api.startEncounter(profile.id, { challengeId, language });
         showRun(run, "encounter", false);
         set({ tab: "task" });
       }),
 
     startExpedition: (language, length) =>
       request("start", async () => {
-        const { run } = await api.startExpedition({ language, length });
+        const profile = get().activeProfile;
+        if (!profile) return;
+        const { run } = await api.startExpedition(profile.id, { language, length });
         showRun(run, "map", false);
       }),
 
     enterRoom: (roomId) =>
       request("enter", async () => {
-        const { run } = get();
-        if (!run) return;
-        const response = await api.enterRoom(run.runId, { roomId });
+        const { run, activeProfile } = get();
+        if (!run || !activeProfile) return;
+        const response = await api.enterRoom(activeProfile.id, run.runId, { roomId });
         if (response.refused) {
           set({ run: response.run, notice: response.refused.message });
           return;
@@ -166,14 +269,15 @@ export const useGame = create<GameStore>()((set, get) => {
 
     showDebrief: () =>
       request("debrief", async () => {
-        const { run } = get();
-        if (!run) return;
-        const { debrief } = await api.debrief(run.runId);
+        const { run, activeProfile } = get();
+        if (!run || !activeProfile) return;
+        const { debrief } = await api.debrief(activeProfile.id, run.runId);
         set({ debrief, screen: "debrief" });
       }),
 
     leave: () => {
-      removeStorage(RUN_KEY);
+      const profile = get().activeProfile;
+      if (profile) removeStorage(runKey(profile.id));
       set({ run: undefined, debrief: undefined, screen: "board", files: {}, notice: undefined, error: undefined });
       void get().loadChallenges();
       void get().loadLearner();
@@ -182,6 +286,71 @@ export const useGame = create<GameStore>()((set, get) => {
     abandon: async () => {
       await act("abandon", { type: "abandon" });
       if (get().error === undefined) get().leave();
+    },
+
+    loadOverworldRealms: async () => {
+      const profile = get().activeProfile;
+      if (!profile) return;
+      try {
+        set({ overworldRealms: (await api.overworldRealms(profile.id)).realms });
+      } catch (error) {
+        set({ error: describe(error) });
+      }
+    },
+
+    enterOverworld: (realmId, language) =>
+      request("start", async () => {
+        const profile = get().activeProfile;
+        if (!profile) return;
+        const { overworld } = await api.enterOverworld(profile.id, realmId, { language });
+        set({ overworld, screen: "overworld" });
+      }),
+
+    moveOverworld: async (x, y) => {
+      const { activeProfile, overworld } = get();
+      if (!activeProfile || !overworld) return;
+      try {
+        const response = await api.moveOverworld(activeProfile.id, overworld.realmId, { x, y });
+        set({ overworld: response.overworld });
+      } catch (error) {
+        set({ error: describe(error) });
+      }
+    },
+
+    startOverworldEncounter: (markerId) =>
+      request("start", async () => {
+        const { activeProfile, overworld } = get();
+        if (!activeProfile || !overworld) return;
+        const { run } = await api.startMarkerEncounter(activeProfile.id, overworld.realmId, markerId);
+        writeOverworldSidecar(activeProfile.id, { realmId: overworld.realmId, markerId });
+        set({ overworldRealmId: overworld.realmId, overworldMarkerId: markerId });
+        showRun(run, "encounter", false);
+        set({ tab: "task" });
+      }),
+
+    finishOverworldEncounter: () =>
+      request("enter", async () => {
+        const { activeProfile, run, overworldRealmId, overworldMarkerId } = get();
+        if (!activeProfile || !run || !overworldRealmId || !overworldMarkerId) return;
+        const { overworld } = await api.resolveMarkerEncounter(activeProfile.id, overworldRealmId, overworldMarkerId, {
+          runId: run.runId,
+        });
+        clearOverworldSidecar(activeProfile.id);
+        removeStorage(runKey(activeProfile.id));
+        set({
+          overworld,
+          overworldRealmId: undefined,
+          overworldMarkerId: undefined,
+          run: undefined,
+          screen: "overworld",
+          files: {},
+          notice: undefined,
+          error: undefined,
+        });
+      }),
+
+    leaveOverworld: () => {
+      set({ screen: "board" });
     },
 
     setTab: (tab) => {
@@ -228,6 +397,40 @@ function readDraft(key: string): FileMap | undefined {
     removeStorage(key);
     return undefined;
   }
+}
+
+interface OverworldSidecar {
+  realmId: string;
+  markerId: string;
+}
+
+/** Which marker's fight is in progress, so it survives closing the app mid-fight (readDraft's tolerant style). */
+function readOverworldSidecar(profileId: string): OverworldSidecar | undefined {
+  const saved = readStorage(overworldRunKey(profileId));
+  if (saved === undefined) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(saved);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      typeof (parsed as Record<string, unknown>).realmId === "string" &&
+      typeof (parsed as Record<string, unknown>).markerId === "string"
+    ) {
+      return parsed as OverworldSidecar;
+    }
+    return undefined;
+  } catch {
+    removeStorage(overworldRunKey(profileId));
+    return undefined;
+  }
+}
+
+function writeOverworldSidecar(profileId: string, sidecar: OverworldSidecar): void {
+  writeStorage(overworldRunKey(profileId), JSON.stringify(sidecar));
+}
+
+function clearOverworldSidecar(profileId: string): void {
+  removeStorage(overworldRunKey(profileId));
 }
 
 // Browser storage can be unavailable (private windows, blocked site data). Drafts and resume are conveniences, so

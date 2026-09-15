@@ -4,7 +4,10 @@ import { buildApp } from "./app.ts";
 import { ContentLoadError, loadGameContent } from "./content.ts";
 import { openDatabase } from "./db/database.ts";
 import { defaultRootDir, loadDotEnv, readEnv } from "./env.ts";
+import { OverworldService } from "./overworld/service.ts";
+import { ProfileService } from "./profiles/service.ts";
 import { SqliteAttemptStore } from "./runs/attempts.ts";
+import { RunServiceRegistry } from "./runs/registry.ts";
 import { RunService } from "./runs/service.ts";
 import { SqliteEventStore } from "./runs/sqlite-event-store.ts";
 import { Sandbox } from "./sandbox.ts";
@@ -28,7 +31,21 @@ async function main(): Promise<void> {
     store: new SqliteEventStore(db),
     attempts: new SqliteAttemptStore(db),
   });
-  const app = await buildApp({ service, sandbox, clientDir: path.join(env.rootDir, "apps/client/dist"), logger: true });
+  // Characters (ADR-0010): profile-scoped run routes and the overworld, alongside the unscoped `service` above,
+  // which stays exactly as it was before profiles existed.
+  const registry = new RunServiceRegistry({ content, sandbox, db });
+  const profiles = {
+    profileService: new ProfileService({ db }),
+    registry,
+    overworld: new OverworldService({ db, content, registry }),
+  };
+  const app = await buildApp({
+    service,
+    sandbox,
+    clientDir: path.join(env.rootDir, "apps/client/dist"),
+    logger: true,
+    profiles,
+  });
   app.log.info(`runs are saved in ${databaseFile}`);
 
   const shutdown = (signal: string): void => {

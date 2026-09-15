@@ -1,0 +1,30 @@
+# Backend-only. The player sees hidden tests by category and pass/fail, never by content.
+form: io
+cases:
+  - id: h1
+    name: empty input prints nothing
+    category: empty-input
+    stdin: ""
+    expected_stdout: ""
+  - id: h2
+    name: a metal named only once
+    category: boundary
+    stdin: "mythril crack\n"
+    expected_stdout: "mythril: -1\n"
+  - id: h3
+    name: a metal that returns to zero still prints
+    category: boundary
+    stdin: "iron temper\niron crack\n"
+    expected_stdout: "iron: 0\n"
+  - id: h4
+    name: large input within the efficiency band
+    category: large-input
+    generator: { repeat: "iron temper\nsteel crack\n", times: 20000 }
+    expected_stdout: "iron: 20000\nsteel: -20000\n"
+  # Reserve cases join the fight only when an enemy's Edge Case move reveals one of their category.
+  - id: r1
+    name: blank lines between verdicts
+    category: empty-input
+    reserve: true
+    stdin: "iron temper\n\n  \nsteel crack\n"
+    expected_stdout: "iron: 1\nsteel: -1\n"

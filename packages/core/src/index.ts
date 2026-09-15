@@ -18,6 +18,7 @@ export * from "./run/types.ts";
 // Planner v1 (docs/PLANNER.md, ADR-0007)
 export { challengeRating, expectedSuccess, type RatingOutcome, updateRating } from "./planner/elo.ts";
 export { planDungeon, type PlanResult } from "./planner/plan.ts";
+export { type ChallengePick, type ChallengeQuery, familiarConcepts, rankChallenges } from "./planner/select.ts";
 export { isLanguageNode, LANGUAGE_TRACKS, trackOf, type TrackView, viewForLanguage } from "./planner/tracks.ts";
 export * from "./planner/types.ts";
 

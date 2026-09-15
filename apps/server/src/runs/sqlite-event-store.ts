@@ -16,10 +16,14 @@ const CountRow = z.object({ count: z.number() });
 export class SqliteEventStore implements EventStore {
   private readonly db: DatabaseSync;
   private readonly now: () => string;
+  /** When set, every run this instance creates carries this profile, and loadAll() only sees that profile's runs
+   * (ADR-0010). Left null, behavior is identical to before profiles existed. */
+  private readonly profileId: string | null;
 
-  constructor(db: DatabaseSync, now: () => string = () => new Date().toISOString()) {
+  constructor(db: DatabaseSync, now: () => string = () => new Date().toISOString(), profileId: string | null = null) {
     this.db = db;
     this.now = now;
+    this.profileId = profileId;
   }
 
   create(runId: string, events: readonly RunEvent[]): Promise<void> {
@@ -28,7 +32,9 @@ export class SqliteEventStore implements EventStore {
         this.db,
         () => {
           const at = this.now();
-          this.db.prepare("INSERT INTO runs (id, created_at, updated_at) VALUES (?, ?, ?)").run(runId, at, at);
+          this.db
+            .prepare("INSERT INTO runs (id, profile_id, created_at, updated_at) VALUES (?, ?, ?, ?)")
+            .run(runId, this.profileId, at, at);
           this.insert(runId, 0, events, at);
         },
         `creating run ${runId}`,
@@ -70,13 +76,23 @@ export class SqliteEventStore implements EventStore {
 
   loadAll(): Promise<StoredRun[]> {
     return settle(() => {
-      const rows = this.db
-        .prepare(
-          `SELECT e.run_id AS runId, e.seq, e.version, e.payload, e.created_at AS at
-             FROM run_events e JOIN runs r ON r.id = e.run_id
-            ORDER BY r.created_at, e.run_id, e.seq`,
-        )
-        .all();
+      const rows =
+        this.profileId === null
+          ? this.db
+              .prepare(
+                `SELECT e.run_id AS runId, e.seq, e.version, e.payload, e.created_at AS at
+                   FROM run_events e JOIN runs r ON r.id = e.run_id
+                  ORDER BY r.created_at, e.run_id, e.seq`,
+              )
+              .all()
+          : this.db
+              .prepare(
+                `SELECT e.run_id AS runId, e.seq, e.version, e.payload, e.created_at AS at
+                   FROM run_events e JOIN runs r ON r.id = e.run_id
+                  WHERE r.profile_id = ?
+                  ORDER BY r.created_at, e.run_id, e.seq`,
+              )
+              .all(this.profileId);
       const runs = new Map<string, TimedEvent[]>();
       for (const raw of rows) {
         const row = TimedEventRow.parse(raw);

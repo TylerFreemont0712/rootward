@@ -1,0 +1,15 @@
+form: io
+normalize: { trailing_whitespace: true, newlines: true }
+cases:
+  - id: v1
+    name: a single metal, both verdicts
+    stdin: "iron temper\niron crack\niron temper\n"
+    expected_stdout: "iron: 1\n"
+  - id: v2
+    name: two metals, first-seen order
+    stdin: "steel crack\niron temper\nsteel crack\niron temper\n"
+    expected_stdout: "steel: -2\niron: 2\n"
+  - id: v3
+    name: three metals, mixed verdicts
+    stdin: "iron temper\nsteel crack\niron temper\nsteel crack\nmythril temper\n"
+    expected_stdout: "iron: 2\nsteel: -2\nmythril: 1\n"
