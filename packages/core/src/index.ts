@@ -36,6 +36,18 @@ export {
 } from "./learner/model.ts";
 export type * from "./learner/types.ts";
 
+// The walkable world: zones, dialogue, and quests (ADR-0011)
+export { type Footprint, isAdjacent, zoneCollision } from "./world/collision.ts";
+export * from "./world/conditions.ts";
+export {
+  type ConditionCheck,
+  type OfferedChoice,
+  offeredChoices,
+  openingNode,
+  questsOffered,
+} from "./world/dialogue.ts";
+export { applyEffects, type EffectOutcome, type EffectResult } from "./world/effects.ts";
+
 // The walkable map laid over a plan
 export { layoutDungeon } from "./map/layout.ts";
 export { findPath, isWalkable, tileAt } from "./map/path.ts";

@@ -1,0 +1,9 @@
+id: hammer-and-test
+name: Hammer and Test
+giver: compiler
+summary: "Brannoc the Compiler tests people before he trusts them. Win the fight in the Foundry's function hall: return the value, do not print it."
+objectives:
+  - { text: "Win the fight in the function hall", cleared: foundry/foundry-functions }
+rewards:
+  flags: [compiler-trusts-you]
+  text: "Brannoc nodded, which for the Compiler is a speech. Small functions, one job each, and a test for every one."

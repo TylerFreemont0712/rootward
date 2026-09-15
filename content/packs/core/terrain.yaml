@@ -1,0 +1,16 @@
+# Ground that zones are painted with (ADR-0011). Tile art lives in assets/generated/terrain/<id>-<n>.png; without it,
+# the client fills each tile with `color`, so a new terrain works before anyone draws it.
+terrain:
+  # The Bastion
+  - { id: grass, name: Grass, walkable: true, color: "#4a5e32" }
+  - { id: dirt, name: Dirt path, walkable: true, color: "#7a5f3e" }
+  - { id: cobble, name: Cobblestone road, walkable: true, color: "#6b6660" }
+  - { id: flagstone, name: Plaza flagstones, walkable: true, color: "#9c8a68" }
+  - { id: planks, name: Wooden planks, walkable: true, color: "#6e4e2e" }
+  - { id: water, name: River, walkable: false, color: "#2d4f6e" }
+  - { id: stone-wall, name: Town wall, walkable: false, color: "#4a4644" }
+  # The Foundry
+  - { id: ash, name: Ash, walkable: true, color: "#3b3633" }
+  - { id: basalt, name: Basalt floor, walkable: true, color: "#2e2a28" }
+  - { id: lava, name: Molten channel, walkable: false, color: "#d8641c" }
+  - { id: rock, name: Volcanic rock, walkable: false, color: "#231f1d" }

@@ -5,7 +5,7 @@ task list, what is done, what is next, and decisions made in conversation. Updat
 (`AGENT.md` section 7).
 
 - **Current milestone:** M1 — Vertical slice (in progress). M0 is done.
-- **Last updated:** 2026-09-14
+- **Last updated:** 2026-09-15
 
 ## Kickoff decisions (2026-09-13)
 
@@ -113,7 +113,17 @@ Task breakdown:
       as a boss-tier fight); enable lessons, puzzles, and due cards in `apps/server/src/planning.ts` as each lands
 - [x] Screens: Debrief (rooms, Version, Commits, mastery and rating before and after, weak spots, what comes next) and
       Chronicle basics on the Guild Board
-- [ ] Screens: Bastion (character creation, Artificer, Oath of the Foundry) and a fuller Chronicle (skill map)
+- [x] Characters (ADR-0010): profiles scope runs and mastery per character; a character select screen
+- [x] **The world** (ADR-0011), pulled forward from M6's "make the Bastion walkable" at the player's request on
+      2026-09-15 ("the map is too bare; think of an actual RPG, with fights still in code"): zones, props, terrain,
+      NPCs with dialogue, and quests as validated content; pure world rules in `@rootward/core`; `WorldService` with
+      server-side checks; the Bastion (ten people, eight buildings, the Guild Board behind the Guild Hall door) and a
+      rebuilt Foundry (eleven fights, Pell's camp, a kiln gate that opens with the first quest line); seven quests; a
+      canvas-and-sprites world renderer with dialogue portraits, a journal, fog, and ambience
+- [x] Art pipeline (`scripts/art/`): ComfyUI renders plus pixel-art post-processing; terrain, props, NPC sprites,
+      portraits, and creature sprites generated for the world (`assets/README.md`)
+- [ ] Screens: class and Oath choice at character creation (the Bastion itself is walkable now) and a fuller
+      Chronicle (skill map)
 - [ ] Content: `content:new`, `content:stats`, seed content per section 13.4 (Foundry Python + JS, Grove, puzzles,
       cards, 15 enemies, 12 items, Warden class data). Progress: 16 Foundry challenges in Python and JavaScript
       (values, variables, strings, splitting, conditionals, loops, functions, lists, dictionaries, edge cases) and 5
@@ -130,8 +140,9 @@ Task breakdown:
     editor; a `cpp.*` skill track stub with `transfers_to` links into the shared concept nodes; a handful of C++
     Foundry challenges. There is no zero-setup WASM path for C++ (in-process clang toolchains are very large), so
     C++ requires Docker or the opt-in `process` runner; revisit if that changes.
-- **M4 — Forge and Adversary.** **M5 — More classes.** **M6 — Progression depth and polish** (candidate: make the
-  Bastion walkable with the M1 map engine). **M7 — Packaging.**
+- **M4 — Forge and Adversary.** **M5 — More classes.** **M6 — Progression depth and polish** (the walkable Bastion
+  already landed in M1 through ADR-0011; still open: an economy for the Package Manager and the Compiler's Spells).
+   **M7 — Packaging.**
 
 ## Your Turn (optional tasks for the user; nothing is blocked on these)
 
@@ -141,22 +152,32 @@ Task breakdown:
   a fixed-seed unit test. The registry and the `strike` move are the worked examples.
 - **Your Turn (hard):** Add an `order_insensitive` comparison mode for io test cases (schema flag, comparator,
   unit tests, and one content case that uses it).
+- **Your Turn (easy):** Add a person to the Bastion: `content/packs/core/npcs/<id>.yaml` with a two-node conversation,
+  a placement in `zones/bastion.yaml`, then `pnpm content:validate`. Without art they show as a letter; that is fine.
+- **Your Turn (medium):** Add a `talked_to: <npc id>` world condition (schema, `holds` in
+  `packages/core/src/world/conditions.ts`, a flag set by `WorldService.talk`, a core test), then make Pip mention it
+  if you have not met Lint yet.
 
 ## Next session: start here
 
-State (2026-09-14): M0 is done. M1 has the Python runner, SQLite persistence with resume, planner v1, and expeditions
-playable end to end: Guild Board, walkable ASCII map with fog of war, fights room by room, and a boss that ends the run
-(ADR-0008). Nine Foundry challenges exist, so a brand-new Python player's long expedition has nine rooms across values,
-variables, strings, and conditionals (JavaScript: seven rooms, because the shared concept graph reaches strings later).
-The learner model is live (ADR-0009): mastery, ratings, Commits, weak spots, and Version are folded from run events,
-the planner plans from them, and the Debrief and the Chronicle on the Guild Board show them. Sixteen Foundry challenges
-reach from values to dictionaries, so the first three expeditions each introduce new concepts; after that, expeditions
-run shorter than the chosen length until more content exists. Suggested order for the rest of M1:
-1. Content: a second and third challenge per node (so floors branch and later runs stay full length), then
-   comprehensions, exceptions, and functions with arguments.
-2. Rest rooms with FSRS review cards (ts-fsrs), which also bring Bit Rot; then Shrine and Puzzle rooms.
-3. The Bastion (character creation, class and Oath choice) and a fuller Chronicle.
-4. `db:export` / `db:import`, the learner simulation script, and the JavaScript track nodes.
+State (2026-09-15): M0 is done. M1 has the Python runner, SQLite persistence with resume, planner v1, expeditions
+playable end to end, the learner model with Debrief and Chronicle, characters (ADR-0010), and now a walkable world
+(ADR-0011). A new character arrives in the Bastion, picks the language their fights use, meets Lint, is sworn in by
+Guildmaster Orin, and walks south to the Foundry, whose eleven fights are real challenges picked for their mastery. The
+Foundry questline (three wins, then the Kiln Warden) and four side quests run on real facts only. The Guild Board is
+behind the Guild Hall's door and in the top bar. Art comes from `scripts/art/generate.py` (ComfyUI on this machine).
+Suggested order:
+1. Playtest a full quest line in the browser and log friction in `docs/PLAYTEST_NOTES.md` (the first pass was from
+   screenshots only).
+2. Content: a second and third challenge per node, then comprehensions, exceptions, and functions with arguments;
+   give new nodes Foundry markers too.
+3. Rest rooms with FSRS review cards (ts-fsrs), which also bring Bit Rot; then Shrine and Puzzle rooms. The Warm Cache
+   inn is the natural home for reviews in the world.
+4. An economy ADR (Cycles that persist, the Package Manager's stall, the Compiler's Spells), then the class and Oath
+   choice at character creation.
+5. `db:export` / `db:import`, the learner simulation script, and the JavaScript track nodes.
+6. Polish: port expedition maps onto the world renderer's canvas-and-sprites approach; regenerate the first-pass enemy
+   portraits with the new pipeline so the enemy card matches the world's creature sprites.
 
 Housekeeping: the folder is still named `ProgramMe`. Rename it to `Rootward` between sessions, not during one (moving
 the working directory breaks a running session), then run `scripts/rootward-launch.sh --install` so the desktop

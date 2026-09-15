@@ -148,3 +148,36 @@ language feature took more than a minute to understand.
   time), and `learnerSnapshot` receives `now` as an argument, so tests use fixed dates.
 - **Before and after from one fold.** `LearnerService.forRun` (`apps/server/src/learner.ts`) builds the model from the
   evidence before a run and again with the run's evidence added; the Debrief is the difference.
+
+## The world (ADR-0011)
+
+- **A recursive schema.** `WorldCondition` in `packages/content-schema/src/world.ts` contains itself (`all`, `any`,
+  `not`). Its TypeScript type is written by hand and the schema uses `z.lazy`, because inference cannot follow a type
+  that refers to itself.
+- **`in` as a type guard.** `holds` in `packages/core/src/world/conditions.ts` tells the condition kinds apart with
+  `"flag" in condition`; inside each branch TypeScript knows exactly which member of the union it has.
+- **Derive, don't store.** A quest's `ready` status is recomputed from won fights, mastery, and flags every time
+  (`questStatus`), so it can never disagree with the facts. Only `active` and `done` are saved (`world_state`).
+- **Reusing a representation.** `zoneCollision` (`packages/core/src/world/collision.ts`) writes walkability as the
+  dungeon's own tile codes, so the same `findPath` and `isWalkable` serve expeditions, zones, the server, and the client.
+- **Trust, but verify.** The client walks locally, but `WorldService.move` re-checks that the new spot is reachable from
+  the last saved one, and `resolveMarkerEncounter` checks the run was that marker's own challenge
+  (`apps/server/src/world/service.ts`).
+- **Flood fill as a content check.** `validateWorld` (`packages/content-tools/src/validate/world.ts`) floods from each
+  zone's entry to prove every person, fight, and exit can be reached, with gates that open later treated as open.
+- **Painter's algorithm with z-index.** `WorldRenderer.tsx` gives each sprite a z-index from the row it stands on, so
+  whatever is lower on screen is drawn in front, and a tall roof overlaps the tiles behind it.
+- **Canvas for many, DOM for few.** The ground (over a thousand tiles) is painted once onto a canvas at art resolution
+  and scaled with `image-rendering: pixelated`; the few dozen things that animate are DOM elements. The fog canvas is
+  one pixel per tile, stretched *with* smoothing, which is what gives it soft edges.
+- **Hash finalizers.** `variantIndex` in `apps/client/src/world/interactions.ts` first used a plain multiply-and-XOR
+  hash, whose low bits cancelled on diagonals (a unit test caught every tile picking variant 0). Two shift-and-multiply
+  rounds fold the high bits into the low ones.
+- **Refs for long-lived listeners.** `WorldScreen.tsx` sets up its key listeners and walking interval once per mount
+  and reads the latest callbacks through refs, instead of tearing listeners down on every render.
+- **A key as a reset button, again.** The dialogue box is keyed by the line it shows, so every new line starts on its
+  first page with no effect that resets state.
+- **Premultiplied alpha.** `resize_premultiplied` in `scripts/art/generate.py` weights color by opacity before
+  averaging, so shrinking a sprite does not mix the removed white background into its edges.
+- **Seamless variants.** `post_tiles` rolls one crop by half its size so its seams move to the middle, then blends every
+  variant toward that rolled copy at the edges: all variants share identical borders and tile in any order.

@@ -6,11 +6,16 @@ import type {
   IoTestFile,
   Item,
   Language,
+  Npc,
   Oath,
   PackManifest,
+  Prop,
+  Quest,
   Realm,
   ReviewCard,
   SkillNode,
+  Terrain,
+  Zone,
 } from "@rootward/content-schema";
 
 /** Relative path -> file contents. Runners receive these, never host paths. */
@@ -71,6 +76,12 @@ export interface ContentIndex {
   /** Keyed by `<node>#<card id>`. */
   cards: Map<string, Sourced<CardRecord>>;
   challenges: Map<string, LoadedChallenge>;
+  // The walkable world (ADR-0011).
+  terrain: Map<string, Sourced<Terrain>>;
+  props: Map<string, Sourced<Prop>>;
+  npcs: Map<string, Sourced<Npc>>;
+  quests: Map<string, Sourced<Quest>>;
+  zones: Map<string, Sourced<Zone>>;
 }
 
 export function emptyContentIndex(): ContentIndex {
@@ -84,5 +95,10 @@ export function emptyContentIndex(): ContentIndex {
     items: new Map(),
     cards: new Map(),
     challenges: new Map(),
+    terrain: new Map(),
+    props: new Map(),
+    npcs: new Map(),
+    quests: new Map(),
+    zones: new Map(),
   };
 }

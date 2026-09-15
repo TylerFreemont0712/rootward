@@ -1,0 +1,31 @@
+id: pell
+name: Journeyman Pell
+title: Lost Maintainer
+dialogue:
+  start:
+    - { if: { quest: pells-notes, status: ready }, goto: turn-in }
+    - { if: { quest: pells-notes, status: active }, goto: waiting }
+    - { if: { flag: pell-rescued }, goto: home }
+    - { goto: hello }
+  nodes:
+    hello:
+      text: "Oh, thank the Machine. Another Maintainer. I'm Pell. I came down to map the halls and the bugs took my notes.\n\nOne lives in the edge-case hall and only bites when the page is empty. The other counts words in the dictionary hall and keeps losing track."
+      choices:
+        - { text: "I'll get your notes back.", if: { quest: pells-notes, status: not-started }, effects: [{ start_quest: pells-notes }], goto: thanks }
+        - { text: "Marta says your room is paid for.", goto: marta }
+        - { text: "Stay safe." }
+    marta:
+      text: "She said that? I can't go back without my notes. Two fights. I just can't win them with this arm."
+      choices:
+        - { text: "I'll get your notes back.", if: { quest: pells-notes, status: not-started }, effects: [{ start_quest: pells-notes }], goto: thanks }
+        - { text: "Hang in there." }
+    thanks:
+      text: "You're a lifesaver. The edge-case hall first, if you ask me. Always check what happens when there is nothing at all."
+    waiting:
+      text: "The edge-case hall and the dictionary hall. I'll keep the fire going."
+    turn-in:
+      text: "My notes! Both halls, won! I'm going home. Tell Marta I want the stew."
+      choices:
+        - { text: "Go. I'll tell her.", effects: [{ complete_quest: pells-notes }] }
+    home:
+      text: "Back at the Warm Cache, finally. My notes say you won two halls I couldn't. I wrote your name in them."

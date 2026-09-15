@@ -1,0 +1,28 @@
+id: pip
+name: Pip
+title: Duck Counter
+dialogue:
+  start:
+    - { if: { quest: counting-lessons, status: ready }, goto: turn-in }
+    - { if: { quest: counting-lessons, status: active }, goto: waiting }
+    - { if: { quest: counting-lessons, status: done }, goto: after }
+    - { goto: hello }
+  nodes:
+    hello:
+      text: "I'm counting the ducks in the river! One, two, three, four... that's three ducks.\n\nWait. Why does it always come out one short?"
+      choices:
+        - { text: "Where do you stop counting?", goto: explain }
+        - { text: "Good luck with the ducks." }
+    explain:
+      text: "Before the last duck! Something in the Foundry's loop hall told everyone that stopping early is how counting works.\n\nCan you make it stop saying that?"
+      choices:
+        - { text: "I'll win the loop hall.", if: { quest: counting-lessons, status: not-started }, effects: [{ start_quest: counting-lessons }] }
+        - { text: "Maybe later, Pip." }
+    waiting:
+      text: "It lives in the loop hall, down in the Foundry. It says range stops early on purpose. Is that true?"
+    turn-in:
+      text: "You beat it? So range stops before the end number, on purpose, and I just have to know that? One, two, three, four, FIVE ducks!"
+      choices:
+        - { text: "Five ducks. Well counted.", effects: [{ complete_quest: counting-lessons }], goto: after }
+    after:
+      text: "Five ducks! I counted them twice. Both times five!"

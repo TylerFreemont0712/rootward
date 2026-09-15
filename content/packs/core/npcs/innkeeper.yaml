@@ -1,0 +1,17 @@
+id: innkeeper
+name: Marta
+title: Keeper of the Warm Cache
+dialogue:
+  start:
+    - { if: { flag: pell-rescued }, goto: pell-back }
+    - { goto: hello }
+  nodes:
+    hello:
+      text: "Welcome to the Warm Cache! Best stew in the Bastion, served fast because I always keep a pot ready. That's the whole secret of a cache, love.\n\nThe trick is knowing when the stew's gone stale."
+      choices:
+        - { text: "Any news?", goto: news }
+        - { text: "Smells wonderful." }
+    news:
+      text: "A journeyman named Pell went down to the Foundry a week ago and hasn't come back. He camps near the Foundry road, if he's still there. If you see him, tell him his room is paid for."
+    pell-back:
+      text: "You found Pell! He's upstairs, asleep, and he ate three bowls. Thank you, love. The stew's on the house."

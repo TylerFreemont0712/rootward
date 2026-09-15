@@ -1,0 +1,18 @@
+id: sergeant
+name: Sergeant Assert
+title: Testing Grounds
+dialogue:
+  start:
+    - { goto: hello }
+  nodes:
+    hello:
+      text: "Maintainer! These are the Testing Grounds. Any job, any time, no expedition required. Losing here costs nothing but pride.\n\nAssert early. Assert often."
+      choices:
+        - { text: "I want to drill.", effects: [{ open: practice }] }
+        - { text: "Why assert early?", goto: why }
+        - { text: "At ease, Sergeant." }
+    why:
+      text: "Because a check that fails the moment something goes wrong tells you where it went wrong. A check that fails ten functions later only tells you that it did. Now. Drill?"
+      choices:
+        - { text: "Drill.", effects: [{ open: practice }] }
+        - { text: "Later." }

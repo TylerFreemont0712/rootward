@@ -1,6 +1,8 @@
-// Browser smoke test: start the real server (which serves the built client), open it in headless Chromium, and play a
-// whole expedition in JavaScript through the UI. It walks the map with the keyboard, travels to each open door, beats
-// the fight behind it with the reference solution, and returns to the map until the boss falls.
+// Browser smoke test: start the real server (which serves the built client), open it in headless Chromium, and play
+// through the UI. It creates a character, arrives in the Bastion, walks up to Lint and takes the first quest in
+// conversation (ADR-0011), then opens the Guild Board and plays a whole expedition in JavaScript: it walks the map with
+// the keyboard, travels to each open door, beats the fight behind it with the reference solution, and returns to the
+// map until the boss falls.
 //
 // Run with `pnpm test:e2e` (builds the client first). playwright-core is pinned to the version whose Chromium build
 // is cached locally (revision 1217); if no browser is cached, install one with `pnpm exec playwright-core install
@@ -71,7 +73,7 @@ function javascriptSolutions(): Map<string, string> {
 }
 
 async function avatarBox(page: Page): Promise<{ x: number; y: number }> {
-  const box = await page.locator(".ascii-map .avatar").first().boundingBox();
+  const box = await page.locator(".tile-map .avatar").first().boundingBox();
   if (!box) throw new Error("the avatar is not on the map");
   return { x: box.x, y: box.y };
 }
@@ -98,6 +100,32 @@ async function main(): Promise<void> {
     await page.goto(baseUrl);
     mkdirSync(resultsDir, { recursive: true });
 
+    // A fresh data directory has no characters: make one. A new character first arrives in the Bastion.
+    const nameInput = page.getByPlaceholder("Character name");
+    await nameInput.fill("Smoke");
+    await nameInput.press("Enter");
+    await page.getByRole("button", { name: "Arrive with javascript" }).click();
+    await page.locator(".w-viewport").waitFor();
+
+    // One step east puts the Maintainer beside Lint; E starts the conversation. E also finishes typing and turns
+    // pages, so keep pressing it until the choice that starts the first quest is on screen.
+    await page.keyboard.press("d");
+    await page.keyboard.press("e");
+    const dialogue = page.getByRole("dialog", { name: /Lint speaks/ });
+    await dialogue.waitFor();
+    const startQuest = dialogue.getByRole("button", { name: /Where do I start\?/ });
+    for (let presses = 0; presses < 12 && !(await startQuest.isVisible()); presses++) {
+      await page.keyboard.press("e");
+      await page.waitForTimeout(150);
+    }
+    await page.screenshot({ path: path.join(resultsDir, "world-dialogue.png") });
+    await startQuest.click();
+    await page.getByText("Quest started: Report to the Guild").waitFor();
+    await page.keyboard.press("Escape");
+    await page.locator(".journal").getByText("Report to the Guild").waitFor();
+    await page.screenshot({ path: path.join(resultsDir, "world.png") });
+
+    await page.getByRole("navigation", { name: "Places" }).getByRole("button", { name: "Guild Board" }).click();
     await page.getByRole("button", { name: "short", exact: true }).click();
     await page.getByRole("button", { name: "Descend in javascript" }).click();
     const map = page.getByRole("img", { name: /Dungeon map/ });
@@ -160,7 +188,9 @@ async function main(): Promise<void> {
     await page.getByRole("button", { name: /Back to the Guild Board/ }).click();
     await page.getByText("Maintainer v1.1.0").waitFor();
 
-    console.log(`E2E passed: an expedition of ${rooms} rooms was completed and debriefed in the browser. Screenshots in ${path.relative(root, resultsDir)}`);
+    console.log(
+      `E2E passed: a character arrived in the world and took a quest, then an expedition of ${rooms} rooms was completed and debriefed in the browser. Screenshots in ${path.relative(root, resultsDir)}`,
+    );
   } catch (error) {
     console.error(`--- server output ---\n${serverLog.join("")}`);
     throw error;

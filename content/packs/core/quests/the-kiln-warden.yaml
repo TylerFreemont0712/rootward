@@ -1,0 +1,9 @@
+id: the-kiln-warden
+name: The Kiln Warden
+giver: guildmaster
+summary: "Behind the unsealed kiln gate, something has kept a wrong count for a very long time. Defeat it and tell Orin."
+objectives:
+  - { text: "Defeat the Kiln Warden", cleared: foundry/foundry-kiln-warden }
+rewards:
+  flags: [foundry-cooled]
+  text: "The Kiln Warden's count has moved on. The Foundry, first layer of the Machine, runs cool."

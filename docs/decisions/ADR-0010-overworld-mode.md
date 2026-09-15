@@ -1,6 +1,7 @@
 # ADR-0010: A free-roam overworld alongside expeditions, and characters to carry it
 
-- **Status:** accepted
+- **Status:** accepted; the hand-authored TypeScript zone and the `/overworld` routes are superseded by ADR-0011 (the
+  world as content). Profiles, per-character scoping, and marker fights as practice encounters still stand.
 - **Date:** 2026-09-15
 - **Related:** ADR-0006 (persistence), ADR-0007 (planner and map), ADR-0008 (expedition run flow), ADR-0009 (learner
   model)

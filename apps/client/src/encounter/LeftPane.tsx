@@ -37,18 +37,18 @@ function ExpeditionBlock({ expedition, view }: { expedition: ExpeditionView; vie
 
 function PracticeBlock({ view }: { view: EncounterView }) {
   const leave = useGame((s) => s.leave);
-  const finishOverworldEncounter = useGame((s) => s.finishOverworldEncounter);
-  const inOverworld = useGame((s) => s.overworldMarkerId !== undefined);
+  const finishWorldEncounter = useGame((s) => s.finishWorldEncounter);
+  const inWorld = useGame((s) => s.worldMarkerId !== undefined);
   const active = view.status === "active";
   const onLeave = () => {
-    if (!active || window.confirm(inOverworld ? "Retreat from this fight? It stays unfinished." : "Leave this practice fight? It stays unfinished.")) {
-      if (inOverworld) void finishOverworldEncounter();
+    if (!active || window.confirm(inWorld ? "Walk away from this fight? It stays unfinished." : "Leave this practice fight? It stays unfinished.")) {
+      if (inWorld) void finishWorldEncounter();
       else leave();
     }
   };
   return (
     <section className="block">
-      <h3>{inOverworld ? "Overworld encounter" : "Practice fight"}</h3>
+      <h3>{inWorld ? "A fight in the world" : "Practice fight"}</h3>
       <ul className="floors">
         <li className="here">
           <span className="g" aria-hidden="true">
@@ -59,7 +59,7 @@ function PracticeBlock({ view }: { view: EncounterView }) {
       </ul>
       <div className="actions">
         <button type="button" className="btn" onClick={onLeave}>
-          {!active ? (inOverworld ? "Back to the map" : "Back to the Guild Board") : inOverworld ? "Retreat to the map" : "Leave practice"}
+          {!active ? (inWorld ? "Back to the world" : "Back to the Guild Board") : inWorld ? "Walk away" : "Leave practice"}
         </button>
       </div>
     </section>

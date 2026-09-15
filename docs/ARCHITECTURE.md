@@ -2,7 +2,8 @@
 
 How Rootward is put together, as of M1 in progress. Decisions behind it live in `docs/decisions/` (ADR-0001 stack,
 ADR-0002 content format, ADR-0003 JavaScript sandbox, ADR-0004 encounter rules, ADR-0005 Python sandbox, ADR-0006
-persistence, ADR-0007 planner and map, ADR-0008 expedition run flow). The build spec is `PROMPT.md`.
+persistence, ADR-0007 planner and map, ADR-0008 expedition run flow, ADR-0009 learner model, ADR-0010 characters,
+ADR-0011 the world as content). The build spec is `PROMPT.md`.
 
 ## The big picture
 
@@ -11,12 +12,13 @@ persistence, ADR-0007 planner and map, ADR-0008 expedition run flow). The build 
 ┌──────────────┐  HTTP/JSON  ┌────────────────────────────────────────────┐   ┌───────────────────┐
 │ apps/client  │ ──────────▶ │ apps/server                                │   │ QuickJS (WASM)    │
 │ React +      │ ◀────────── │  routes ─▶ RunService ─▶ core.decide()     │   │ one job per worker│
-│ CodeMirror   │  zod both   │              │   ▲          │             │   └─────────▲─────────┘
-└──────────────┘  directions │              │   │     events + evolve()  │             │
-                             │              ▼   │          ▼             │    RunJob / results
-                             │           Sandbox ──── runners ───────────┼─────────────┘
+│ CodeMirror   │  zod both   │     │        │   ▲          │             │   └─────────▲─────────┘
+│ world canvas │  directions │     │        │   │     events + evolve()  │             │
+└──────────────┘             │     │        ▼   │          ▼             │    RunJob / results
+                             │     │     Sandbox ──── runners ───────────┼─────────────┘
+                             │     └─▶ WorldService ─▶ core world rules  │
                              │           ContentIndex (content-tools)    │
-                             │           EventStore + attempts (SQLite)  │
+                             │           SQLite: runs, attempts, world   │
                              └────────────────────────────────────────────┘
 ```
 
@@ -25,12 +27,12 @@ persistence, ADR-0007 planner and map, ADR-0008 expedition run flow). The build 
 | Package | Job | May depend on | Must not |
 |---|---|---|---|
 | `packages/content-schema` | zod schemas for every content and config file; the schema output *is* the file shape | zod | touch the filesystem |
-| `packages/content-tools` | load packs with file:line diagnostics, validate, build runner jobs, `content:validate` CLI | content-schema, runners | know game rules |
+| `packages/content-tools` | load packs with file:line diagnostics, validate (references, graphs, zone reachability), build runner jobs, `content:validate` CLI | content-schema, runners | know game rules |
 | `packages/runners` | `Runner` contract, registry, limiter, io comparator, sentinel protocol, `wasm-js` runner (QuickJS in a worker thread), `wasm-python` runner (Pyodide in a permission-restricted child process), static code scanner | zod, QuickJS, Pyodide | import game code; `./static` must stay browser-safe |
-| `packages/core` | pure engine: seeded RNG, run events, `decide`/`evolve` for fights and rooms, moves, rewards, planner, learner model, map layout and pathfinding (`./map` is browser-safe) | content-schema (types), zod | do I/O, read clocks, or call `Math.random` |
+| `packages/core` | pure engine: seeded RNG, run events, `decide`/`evolve` for fights and rooms, moves, rewards, planner, learner model, map layout and pathfinding (`./map` is browser-safe), world rules (conditions, quests, effects, dialogue, zone collision) | content-schema (types), zod | do I/O, read clocks, or call `Math.random` |
 | `packages/shared` | HTTP contract as zod schemas | zod | import Node modules (the browser loads it) |
-| `apps/server` | Fastify host: content at startup, planner catalog, run service, sandbox, views | everything above | send hidden test data, the run seed, or keys to the client |
-| `apps/client` | React UI: Guild Board, walkable expedition map, three-pane encounter | shared, runners/static, core/map | run game rules (it renders server views; walking and fog of war are presentation) |
+| `apps/server` | Fastify host: content at startup, planner catalog, run service, world service, sandbox, views | everything above | send hidden test data, the run seed, or keys to the client |
+| `apps/client` | React UI: the walkable world (canvas ground, sprites, dialogue, journal), Guild Board, walkable expedition map, three-pane encounter | shared, runners/static, core/map | run game rules (it renders server views; walking, fog, and the camera are presentation) |
 | `e2e` | browser smoke test | playwright-core | run in `pnpm test` |
 
 There is no build step for packages or the server: Node 26 runs the TypeScript sources directly (ADR-0001). Vite
@@ -65,6 +67,32 @@ builds the client; Vitest compiles tests.
 4. Probes and Casts work as above. When the fight ends, `RoomCleared` follows, and in the boss room `RunEnded`.
 5. Back on the map, the doors below the cleared room are open.
 
+## The world
+
+Towns and wilds are content (ADR-0011): `zones/`, `npcs/`, `quests/`, `terrain.yaml`, and `props.yaml` in a pack. Every
+route is under `/api/profiles/:profileId/world`, and `WorldService` (`apps/server/src/world/service.ts`) is the only
+thing that changes world state.
+
+1. **Arriving.** `POST .../world/start` creates the character's `world_state` row in the zone marked `start: true` (the
+   Bastion), with the language their fights use.
+2. **The view.** Every request reads a snapshot: the zone from content, `world_state` (zone, flags, quests),
+   `zone_progress` (position and won markers per zone), and the learner model's mastery. From it the service builds a
+   `WorldView`: tile rows and a legend, a collision grid in dungeon tile codes (terrain, blocking props, and people
+   who are present), each marker's best-fit challenge ranked by the planner's `rankChallenges`, a "!" or "?" over
+   people (`questsOffered`, `questStatus`), and the journal (`objectiveProgress`). Anything with an `if` in content is
+   present, open, or unsealed only while its condition `holds`.
+3. **Walking.** The client walks locally (`apps/client/src/screens/WorldScreen.tsx`) and posts `.../world/move` when
+   walking stops. The server accepts the spot only if it is walkable and reachable from the last saved one.
+4. **Talking.** `.../world/talk` needs the Maintainer beside the person and returns a `ConversationView` for the first
+   opening whose condition holds. `.../world/choose` re-checks that the choice is offered right now, runs
+   `applyEffects` (start or hand in a quest, set a flag), saves, and returns the next line. `.../world/inspect` does
+   the same for signs and doors. An `open` effect tells the client to show the Guild Board, the Chronicle, or the
+   Testing Grounds.
+5. **Fighting.** Walking onto an open marker posts `.../world/markers/:id/start`, which starts an ordinary practice
+   encounter (ADR-0010). When it ends, `.../resolve` records a win in `zone_progress`, but only for a run of one of
+   that marker's own challenges. A quest counting wins becomes `ready` by itself; readiness is never stored.
+6. **Travelling.** Walking onto a portal posts `.../world/travel`; a locked portal answers with its locked line.
+
 ## State: events, state, artifacts
 
 - **Events** (`RunEvent`) are the source of truth for game state. They record facts including resulting numbers, so
@@ -76,6 +104,8 @@ builds the client; Vitest compiles tests.
 - Both live in SQLite (`apps/server/src/db/`, ADR-0006): `run_events` holds events as zod-validated JSON, and
   `attempts` holds every accepted Probe and Cast. After a restart, state is refolded from events and artifacts are
   rebuilt by replaying attempts (`applyAttempt`), so a fight resumes with its editor contents and test results.
+- **World state** is plain rows, not events (ADR-0011): `world_state` (one per character) and `zone_progress` (one per
+  character per zone). Quest progress is derived from them and the learner model on every read.
 - The database is `$ROOTWARD_DATA_DIR/rootward.db` (default `~/.local/share/rootward`). Migrations are numbered
   `.sql` files tracked in `PRAGMA user_version`, with a backup written before an existing database is upgraded.
 - Tests use `InMemoryEventStore` / `InMemoryAttemptStore` or a temporary database; `apps/server/test/resume.test.ts`
@@ -100,9 +130,12 @@ Mastery is never stored, so changing a rule and refolding rebuilds the whole his
 ## Content
 
 `loadContent` reads `content/packs/*` and returns a `ContentIndex` (maps of realms, skills, oaths, classes, enemies,
-items, cards, challenges) plus diagnostics. The server refuses to start if content has errors. `pnpm
-content:validate` adds reference checks, prerequisite-cycle detection, per-challenge rules, and execution of every
-reference solution. See `docs/CONTENT_AUTHORING.md`.
+items, cards, challenges, terrain, props, NPCs, quests, zones) plus diagnostics. The server refuses to start if content
+has errors. `pnpm content:validate` adds reference checks, prerequisite-cycle detection, per-challenge rules, world
+checks (`packages/content-tools/src/validate/world.ts`: dialogue that leads somewhere, nothing placed on a blocked
+tile, every marker, portal, and person reachable from the zone's entry), and execution of every reference solution.
+See `docs/CONTENT_AUTHORING.md`. Optional generated art is described in `assets/README.md` and made with
+`scripts/art/generate.py`.
 
 ## Invariants and where they are enforced
 
@@ -116,6 +149,9 @@ reference solution. See `docs/CONTENT_AUTHORING.md`.
 | Rooms are entered only along the plan's edges | `packages/core/src/run/decide.ts` (`enterRoom`) | `packages/core/test/expedition.test.ts`, `apps/server/test/expedition.test.ts` |
 | The run seed (which predicts enemy moves) stays on the server | `apps/server/src/runs/views.ts` | `apps/server/test/expedition.test.ts` |
 | Mastery changes only through evidence | `packages/core/src/learner/model.ts` (`applyEvidence`) | `packages/core/test/learner.test.ts`, `apps/server/test/learner.test.ts` |
+| Quests progress only from real facts (won fights, mastery, flags) | `packages/core/src/world/conditions.ts` (readiness derived, never stored) | `packages/core/test/world.test.ts`, `apps/server/test/world.test.ts` |
+| A saved world position is walkable and reachable; nobody talks from across the map | `WorldService.move`, `requireNear` | `apps/server/test/world.test.ts` |
+| A marker is cleared only by a win of its own challenge | `WorldService.resolveMarkerEncounter` | `apps/server/test/world.test.ts` |
 | The reference solution satisfies its own constraints and passes its tests | `packages/content-tools/src/validate/` | `pnpm content:validate` |
 | The server is not reachable from the network | `ROOTWARD_HOST` defaults to `127.0.0.1` | manual |
 
@@ -124,5 +160,6 @@ reference solution. See `docs/CONTENT_AUTHORING.md`.
 - `pnpm test`: Vitest across every workspace package (unit tests, the sandbox safety suite, API tests via Fastify's
   `inject`). Hermetic: no network, no browser.
 - `pnpm content:validate`: the content pipeline, including real execution.
-- `pnpm test:e2e`: builds the client, starts the real server, and plays a whole expedition in headless Chromium
-  (keyboard movement, travel to each open door, every fight, the boss).
+- `pnpm test:e2e`: builds the client, starts the real server, and plays in headless Chromium: a new character arrives
+  in the Bastion and takes a quest from Lint by keyboard, then plays a whole expedition (keyboard movement, travel to
+  each open door, every fight, the boss).

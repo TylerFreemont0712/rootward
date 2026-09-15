@@ -1,0 +1,34 @@
+# Lint, the Familiar (ideas/game-content/lore-and-narrative.md): terse, fussy, secretly warm. Insults bugs, never you.
+id: lint
+name: Lint
+title: Your Familiar
+dialogue:
+  start:
+    - { if: { quest: report-to-the-guild, status: active }, goto: go-north }
+    - { if: { not: { flag: sworn-in } }, goto: first-meeting }
+    - { if: { quest: the-kiln-warden, status: active }, goto: warden-advice }
+    - { if: { quest: the-foundry-cools, status: active }, goto: foundry-advice }
+    - { goto: idle }
+  nodes:
+    first-meeting:
+      text: "Finally. Awake. I am Lint, your Familiar. The Guild assigned me to you. I did not volunteer.\n\nYou are a Maintainer now. Bit Rot is eating the Machine and someone has to fix it. Apparently that someone is you."
+      choices:
+        - { text: "What is a Familiar?", goto: what-familiar }
+        - { text: "Where do I start?", if: { quest: report-to-the-guild, status: not-started }, effects: [{ start_quest: report-to-the-guild }], goto: go-north }
+    what-familiar:
+      text: "A daemon. Small, fussy, always running. I read your code and point at the line that is wrong. I do not write it for you. Nobody learns that way."
+      choices:
+        - { text: "Fair enough. Where do I start?", if: { quest: report-to-the-guild, status: not-started }, effects: [{ start_quest: report-to-the-guild }], goto: go-north }
+    go-north:
+      text: "The Guild Hall. North up the road: big doors, banners with a gear. The Guildmaster swears you in.\n\nWalk with the arrow keys or WASD. Press E when you stand beside someone. Your journal is on the right."
+    foundry-advice:
+      text: "The Foundry is through the south gate. Every fight there is real code against real tests.\n\nProbe first. It is free. Cast when the visible tests pass. Then think about empty input."
+    warden-advice:
+      text: "The Kiln Warden keeps score. Dictionaries. Counting. Functions that return instead of print.\n\nEmpty input. Always empty input."
+    idle:
+      text: "That line. Look again.\n\n...Not you. I was thinking about the Goblin."
+      choices:
+        - { text: "Any advice?", goto: advice }
+        - { text: "Carry on, Lint." }
+    advice:
+      text: "Retreat is not defeat. It is a checkpoint. You see the solution explained, the concept comes back for review, and next time you win it properly."

@@ -3,6 +3,7 @@ import type { Diagnostics } from "../diagnostics.ts";
 import { validateChallenge } from "./challenges.ts";
 import { type ExecutionOptions, type ExecutionReport, validateExecution } from "./execute.ts";
 import { type EngineRegistries, validateReferences } from "./references.ts";
+import { validateWorld } from "./world.ts";
 
 export type { EngineRegistries } from "./references.ts";
 export type { ExecutionOptions, ExecutionReport } from "./execute.ts";
@@ -23,6 +24,7 @@ export async function validateContent(
   options: ValidateOptions = {},
 ): Promise<ExecutionReport> {
   validateReferences(index, diagnostics, options.engine);
+  validateWorld(index, diagnostics);
 
   const challenges: LoadedChallenge[] = [...index.challenges.values()].filter(
     (challenge) => options.packId === undefined || challenge.packId === options.packId,

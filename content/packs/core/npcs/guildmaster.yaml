@@ -1,0 +1,82 @@
+# Guildmaster Orin: calm, speaks of careers as journeys. Swears the Maintainer in and runs the Foundry storyline.
+id: guildmaster
+name: Guildmaster Orin
+title: Guildmaster
+dialogue:
+  start:
+    - { if: { not: { flag: sworn-in } }, goto: welcome }
+    - { if: { quest: the-kiln-warden, status: ready }, goto: warden-done }
+    - { if: { quest: the-foundry-cools, status: ready }, goto: cools-done }
+    - { if: { quest: the-kiln-warden, status: active }, goto: warden-progress }
+    - { if: { all: [{ quest: the-foundry-cools, status: done }, { quest: the-kiln-warden, status: not-started }] }, goto: warden-offer }
+    - { if: { quest: the-foundry-cools, status: active }, goto: cools-progress }
+    - { if: { quest: the-foundry-cools, status: not-started }, goto: first-task }
+    - { goto: steady }
+  nodes:
+    welcome:
+      text: "A new Maintainer. Welcome to the Bastion. I am Orin, and I keep the Guild's ledger of everyone who has sworn to repair the Machine.\n\nThe work is simple to describe. Below us, forgotten fixes are rotting into monsters. You will find them, read them, and fix them with code that passes their tests. No tricks. The tests decide."
+      choices:
+        - text: "I swear to maintain the Machine."
+          if: { quest: report-to-the-guild, status: active }
+          effects: [{ set_flag: sworn-in }, { complete_quest: report-to-the-guild }]
+          goto: sworn
+        - text: "I swear to maintain the Machine."
+          if: { quest: report-to-the-guild, status: not-started }
+          effects: [{ set_flag: sworn-in }]
+          goto: sworn
+        - { text: "What is Bit Rot?", goto: bit-rot }
+    bit-rot:
+      text: "Decay. A fix nobody remembers the reason for. A count that was right until the data changed. Left alone, it takes shape: goblins that miscount, wraiths made of missing values.\n\nIt is sad, but it is fixable. That is the whole of the Guild's creed."
+      choices:
+        - { text: "I understand.", goto: welcome }
+    sworn:
+      text: "Then it is written. The Guild Board inside plans expeditions around what you already know. When you would rather choose your own fights, the Foundry lies beyond the south gate.\n\nThe guard will let you pass now."
+      choices:
+        - { text: "Show me the Guild Board.", effects: [{ open: guild-board }] }
+        - { text: "Is there work in the Foundry?", goto: first-task }
+        - { text: "Thank you, Guildmaster." }
+    first-task:
+      text: "There is. The Foundry runs hot: small bugs, many of them, spilling out of the casting halls. Clear three of their fights and the kiln masters can cool the vents. Then we open the kiln gate and deal with what lives behind it."
+      choices:
+        - text: "I will clear three fights."
+          if: { quest: the-foundry-cools, status: not-started }
+          effects: [{ start_quest: the-foundry-cools }]
+          goto: go-well
+        - { text: "Not yet." }
+    go-well:
+      text: "Take the south gate. Your journal keeps the count. Come back when it is done."
+    cools-progress:
+      text: "The Foundry still runs hot. Three fights cleared, and the vents can cool. Your journal keeps the count."
+      choices:
+        - { text: "Show me the Guild Board.", effects: [{ open: guild-board }] }
+        - { text: "On my way." }
+    cools-done:
+      text: "The vents are cooling. I can hear it from here. Good work.\n\nThe kiln masters have unsealed the gate at the bottom of the Foundry."
+      choices:
+        - { text: "What is behind the gate?", effects: [{ complete_quest: the-foundry-cools }], goto: warden-offer }
+    warden-offer:
+      text: "Something that has kept score in the kiln for a very long time. We call it the Kiln Warden. It judges every ingot, and its count is wrong."
+      choices:
+        - text: "Then I will face the Warden."
+          if: { quest: the-kiln-warden, status: not-started }
+          effects: [{ start_quest: the-kiln-warden }]
+          goto: warden-brief
+        - { text: "I need to prepare first." }
+    warden-brief:
+      text: "It counts words, and it counts them wrong unless you are careful. Bring dictionaries, and functions that return what they compute. Lint will say empty input. Listen to Lint."
+    warden-progress:
+      text: "The Warden still burns at the heart of the Foundry. The gate is open."
+      choices:
+        - { text: "Show me the Guild Board.", effects: [{ open: guild-board }] }
+        - { text: "I am going." }
+    warden-done:
+      text: "The kiln is quiet. The Warden's count has finally moved on.\n\nThe Foundry is the first layer of the Machine, and it runs cooler for your work. The Guild will remember it."
+      choices:
+        - { text: "What comes next?", effects: [{ complete_quest: the-kiln-warden }], goto: next }
+    next:
+      text: "Keep what you learned from rotting: the Guild Board plans expeditions around what you have not mastered yet. The roads to the other realms are still being cleared. When one opens, you will hear it here first."
+    steady:
+      text: "The Guild Board is inside whenever you want an expedition planned for you."
+      choices:
+        - { text: "Show me the Guild Board.", effects: [{ open: guild-board }] }
+        - { text: "Just passing through." }

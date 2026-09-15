@@ -1,0 +1,33 @@
+# The Archivist speaks for the Changelog (the Loremaster): archival and grand, and never explains code.
+id: archivist
+name: Archivist Vell
+title: Keeper of the Changelog
+dialogue:
+  start:
+    - { if: { quest: the-archivists-ledger, status: ready }, goto: turn-in }
+    - { if: { quest: the-archivists-ledger, status: active }, goto: waiting }
+    - { goto: hello }
+  nodes:
+    hello:
+      text: "Welcome to the Library. I keep the Changelog: the record of everything every Maintainer has ever fixed.\n\nYours is shorter than most. That is not a criticism. Every Changelog begins with an initial commit."
+      choices:
+        - { text: "Show me my Chronicle.", effects: [{ open: chronicle }] }
+        - { text: "Can I help with the archive?", if: { quest: the-archivists-ledger, status: not-started }, goto: offer }
+        - { text: "What is recorded here?", goto: recorded }
+        - { text: "Goodbye." }
+    recorded:
+      text: "Every fight you finish becomes evidence. Not how long you stared at the problem: what you proved. Mastery here is earned, never declared, and it fades if you never return to it."
+      choices:
+        - { text: "Show me my Chronicle.", effects: [{ open: chronicle }] }
+        - { text: "Thank you." }
+    offer:
+      text: "The Foundry's string halls are shredding our catalogue: titles in the wrong case, words split on the wrong spaces. Win the string hall and the splitting hall, and the ledger can be mended."
+      choices:
+        - { text: "I will mend the ledger.", effects: [{ start_quest: the-archivists-ledger }] }
+        - { text: "Another time." }
+    waiting:
+      text: "The string hall and the splitting hall, both in the Foundry. The ledger waits. Patiently. It is a ledger."
+    turn-in:
+      text: "The titles are in order again. The Changelog records it: the Maintainer mended the ledger. The ledger took note."
+      choices:
+        - { text: "Glad to help.", effects: [{ complete_quest: the-archivists-ledger }], goto: hello }

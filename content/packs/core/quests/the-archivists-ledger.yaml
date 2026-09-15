@@ -1,0 +1,10 @@
+id: the-archivists-ledger
+name: The Archivist's Ledger
+giver: archivist
+summary: "The Foundry's string halls are shredding the Library's catalogue. Clear the string hall and the splitting hall for Archivist Vell."
+objectives:
+  - { text: "Win the fight in the string hall", cleared: foundry/foundry-strings }
+  - { text: "Win the fight in the splitting hall", cleared: foundry/foundry-splitting }
+rewards:
+  flags: [ledger-mended]
+  text: "The Changelog notes it: the Maintainer mended the ledger. The ledger took note."

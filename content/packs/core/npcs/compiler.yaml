@@ -1,0 +1,35 @@
+# The Compiler (Forge smith): gruff, exacting, respects tests.
+id: compiler
+name: Brannoc
+title: The Compiler
+dialogue:
+  start:
+    - { if: { quest: hammer-and-test, status: ready }, goto: turn-in }
+    - { if: { quest: hammer-and-test, status: active }, goto: waiting }
+    - { if: { quest: hammer-and-test, status: done }, goto: after }
+    - { goto: hello }
+  nodes:
+    hello:
+      text: "Hmph. Another Maintainer. I am the Compiler. I forge Spells: functions you wrote once, proved with tests, and never write again.\n\nBring me the function. And its tests. No tests, no spell."
+      choices:
+        - { text: "How do I earn your trust?", goto: offer }
+        - { text: "What is a Spell, exactly?", goto: spells }
+        - { text: "Later, smith." }
+    spells:
+      text: "A tool you trust because you proved it. Your own standard library, built one fight at a time. The Guild has not lit my spell-forge for new Maintainers yet. Until it does, I test people instead."
+      choices:
+        - { text: "Test me.", goto: offer }
+        - { text: "Later." }
+    offer:
+      text: "In the Foundry there is a function hall where a bug turns temperatures into nonsense. It prints when it should return. Beat it. Return the value. Then we talk."
+      choices:
+        - { text: "I will beat it.", if: { quest: hammer-and-test, status: not-started }, effects: [{ start_quest: hammer-and-test }] }
+        - { text: "Not today." }
+    waiting:
+      text: "The function hall. Return, not print. Go."
+    turn-in:
+      text: "You returned the value. Not printed it. Returned it. Good. That is the difference between a trick and a tool."
+      choices:
+        - { text: "Does that earn a Spell?", effects: [{ complete_quest: hammer-and-test }], goto: after }
+    after:
+      text: "When the spell-forge is lit, you are first in line. Until then: small functions, one job each, and a test for every one."

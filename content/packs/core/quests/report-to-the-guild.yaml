@@ -1,0 +1,8 @@
+id: report-to-the-guild
+name: Report to the Guild
+giver: guildmaster
+summary: "Lint insists: find Guildmaster Orin in the Guild Hall, north up the main road, and be sworn in."
+objectives:
+  - { text: "Be sworn in by Guildmaster Orin", flag: sworn-in }
+rewards:
+  text: "Sworn in as a Maintainer of the Machine. The south gate is open to you."

@@ -3,25 +3,27 @@ import { fileURLToPath } from "node:url";
 import { WasmJsRunner } from "@rootward/runners";
 import {
   LearnerResponse,
-  OverworldRealmsResponse,
-  OverworldResponse,
+  MoveWorldResponse,
   ProfileListResponse,
   ProfileResponse,
   RunResponse,
+  WorldActionResponse,
+  WorldResponse,
+  WorldStatusResponse,
 } from "@rootward/shared";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.ts";
 import { type GameContent, loadGameContent } from "../src/content.ts";
 import { MEMORY, openDatabase } from "../src/db/database.ts";
-import { OverworldService } from "../src/overworld/service.ts";
 import { ProfileService } from "../src/profiles/service.ts";
 import { RunServiceRegistry } from "../src/runs/registry.ts";
 import { RunService } from "../src/runs/service.ts";
 import { InMemoryEventStore } from "../src/runs/store.ts";
 import { Sandbox } from "../src/sandbox.ts";
+import { WorldService } from "../src/world/service.ts";
 
-// Profile-scoped routes and the overworld (ADR-0010), through the same HTTP surface expedition.test.ts and
+// Profile-scoped routes and the world (ADR-0010, ADR-0011), through the same HTTP surface expedition.test.ts and
 // api.test.ts exercise for the unscoped routes -- those are untouched; this proves the mirrored, per-character path.
 const rootDir = path.resolve(fileURLToPath(import.meta.url), "../../../..");
 const SLOW = { timeout: 60_000 };
@@ -38,7 +40,7 @@ beforeAll(async () => {
   app = await buildApp({
     service: new RunService({ content, sandbox, store: new InMemoryEventStore() }),
     sandbox,
-    profiles: { profileService: new ProfileService({ db }), registry, overworld: new OverworldService({ db, content, registry }) },
+    profiles: { profileService: new ProfileService({ db }), registry, world: new WorldService({ db, content, registry }) },
   });
 });
 
@@ -122,45 +124,39 @@ describe("profile-scoped routes", () => {
     expect(debrief.statusCode, debrief.body).toBe(200);
   });
 
-  it("walks the overworld end to end through the HTTP API", SLOW, async () => {
-    const ada = await createProfile("Ada-overworld");
+  it("arrives in the world, walks, and talks through the HTTP API", async () => {
+    const ada = await createProfile("Ada-world");
+    const url = (suffix: string) => `/api/profiles/${ada}/world${suffix}`;
 
-    const realms = OverworldRealmsResponse.parse((await app.inject({ method: "GET", url: `/api/profiles/${ada}/overworld` })).json());
-    expect(realms.realms.find((r) => r.id === "foundry")).toMatchObject({ available: true });
+    const before = WorldStatusResponse.parse((await app.inject({ method: "GET", url: url("") })).json());
+    expect(before.world).toBeNull();
 
-    const entered = await app.inject({
-      method: "POST",
-      url: `/api/profiles/${ada}/overworld/foundry/enter`,
-      payload: { language: "javascript" },
-    });
-    expect(entered.statusCode, entered.body).toBe(200);
-    const view = OverworldResponse.parse(entered.json()).overworld;
-    expect(view.position).toEqual(view.entry);
+    const started = await app.inject({ method: "POST", url: url("/start"), payload: { language: "javascript" } });
+    expect(started.statusCode, started.body).toBe(200);
+    expect(WorldResponse.parse(started.json()).world.zone.id).toBe("bastion");
 
-    const moved = await app.inject({ method: "POST", url: `/api/profiles/${ada}/overworld/foundry/move`, payload: { x: 14, y: 4 } });
+    const moved = await app.inject({ method: "POST", url: url("/move"), payload: { x: 20, y: 17 } });
     expect(moved.statusCode, moved.body).toBe(200);
-    expect(OverworldResponse.parse(moved.json()).overworld.position).toEqual({ x: 14, y: 4 });
+    expect(MoveWorldResponse.parse(moved.json()).position).toEqual({ x: 20, y: 17 });
 
-    const startedFight = await app.inject({
-      method: "POST",
-      url: `/api/profiles/${ada}/overworld/foundry/markers/foundry-loops/start`,
-    });
-    expect(startedFight.statusCode, startedFight.body).toBe(200);
-    const { run } = RunResponse.parse(startedFight.json());
+    const wall = await app.inject({ method: "POST", url: url("/move"), payload: { x: 0, y: 0 } });
+    expect(wall.statusCode).toBe(400);
 
-    await app.inject({
-      method: "POST",
-      url: `/api/profiles/${ada}/runs/${run.runId}/actions`,
-      payload: { type: "cast", files: solutionFor(run.encounter?.challenge.id) },
-    });
+    const talked = await app.inject({ method: "POST", url: url("/talk"), payload: { npcId: "lint" } });
+    expect(talked.statusCode, talked.body).toBe(200);
+    const conversation = WorldActionResponse.parse(talked.json()).conversation;
+    const start = conversation?.choices.find((choice) => choice.text === "Where do I start?");
+    if (!conversation?.nodeId || !start) throw new Error("Lint did not offer to start");
 
-    const resolved = await app.inject({
+    const chosen = await app.inject({
       method: "POST",
-      url: `/api/profiles/${ada}/overworld/foundry/markers/foundry-loops/resolve`,
-      payload: { runId: run.runId },
+      url: url("/choose"),
+      payload: { npcId: "lint", nodeId: conversation.nodeId, choice: start.index },
     });
-    expect(resolved.statusCode, resolved.body).toBe(200);
-    const resolvedView = OverworldResponse.parse(resolved.json()).overworld;
-    expect(resolvedView.markers.find((marker) => marker.id === "foundry-loops")?.state).toBe("cleared");
+    expect(chosen.statusCode, chosen.body).toBe(200);
+    expect(WorldActionResponse.parse(chosen.json()).world.quests.map((quest) => quest.id)).toEqual(["report-to-the-guild"]);
+
+    const after = WorldStatusResponse.parse((await app.inject({ method: "GET", url: url("") })).json());
+    expect(after.world?.position).toEqual({ x: 20, y: 17 });
   });
 });

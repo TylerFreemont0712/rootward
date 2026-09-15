@@ -1,31 +1,47 @@
 import {
   type ActionRequest,
   type ChallengeSummary,
+  type ConversationView,
   type DebriefView,
   type FileMap,
   type LearnerView,
-  type OverworldRealmSummary,
-  type OverworldView,
   ProfileView,
   type RunView,
   type SessionLength,
+  type WorldActionResponse,
+  type WorldScreenId,
+  type WorldView,
 } from "@rootward/shared";
 import { create } from "zustand";
 import { api, ApiError } from "../api/client.ts";
 
 // One store for the client. Game rules never run here: every change of game state comes back from the server as a
-// fresh RunView. The store holds what the player is typing, which screen is up, and which request is in flight.
+// fresh RunView or WorldView. The store holds what the player is typing, which screen is up, and which request is in
+// flight.
 
 const PROFILE_KEY = "rootward:profile";
 const runKey = (profileId: string) => `rootward:run:${profileId}`;
-const overworldRunKey = (profileId: string) => `rootward:run:overworld:${profileId}`;
+/** Which world marker the saved run was started from, so closing the app mid-fight still returns to the world. */
+const worldFightKey = (profileId: string) => `rootward:run:world:${profileId}`;
 const draftKey = (runId: string, roomId: string) => `rootward:draft:${runId}:${roomId}`;
 
-export type Busy = "loading" | "start" | "enter" | "probe" | "cast" | "hint" | "retreat" | "abandon" | "debrief";
+export type Busy = "loading" | "start" | "enter" | "probe" | "cast" | "hint" | "retreat" | "abandon" | "debrief" | "world";
 export type CenterTab = "task" | "editor";
-/** Character select, the Guild Board (no run), the expedition map, the overworld, a fight, or a finished run's
- * debrief. */
-export type Screen = "profiles" | "board" | "map" | "overworld" | "encounter" | "debrief";
+/** Character select, the walkable world, the Guild Board, the expedition map, a fight, or a finished run's debrief. */
+export type Screen = "profiles" | "world" | "board" | "map" | "encounter" | "debrief";
+/** A part of the Guild Board the world can send the player straight to. */
+export type BoardSection = "descend" | "chronicle" | "practice";
+
+export interface Toast {
+  id: number;
+  text: string;
+}
+
+const BOARD_SECTION: Readonly<Record<WorldScreenId, BoardSection>> = {
+  "guild-board": "descend",
+  chronicle: "chronicle",
+  practice: "practice",
+};
 
 export interface GameStore {
   profiles: ProfileView[];
@@ -34,12 +50,18 @@ export interface GameStore {
   learner: LearnerView | undefined;
   run: RunView | undefined;
   debrief: DebriefView | undefined;
-  overworldRealms: OverworldRealmSummary[];
-  overworld: OverworldView | undefined;
-  /** Set while a run started from an overworld marker is in progress, so ending it resolves the marker and returns
-   * to the zone instead of the Guild Board. */
-  overworldRealmId: string | undefined;
-  overworldMarkerId: string | undefined;
+  /** The character's world, or undefined before they arrive in it. */
+  world: WorldView | undefined;
+  /** False until the first world request for this character answers: "not arrived yet" versus "still asking". */
+  worldLoaded: boolean;
+  /** Bumped whenever the world is re-read from the server, so the world screen drops any local walking state. */
+  worldEpoch: number;
+  conversation: ConversationView | undefined;
+  /** Set while a run started from a world marker is in progress, so ending it resolves the marker and returns to the
+   * world instead of the Guild Board. */
+  worldMarkerId: string | undefined;
+  toasts: Toast[];
+  boardSection: BoardSection | undefined;
   screen: Screen;
   files: FileMap;
   busy: Busy | undefined;
@@ -50,7 +72,7 @@ export interface GameStore {
   restoreProfile: () => Promise<void>;
   createProfile: (name: string) => Promise<void>;
   selectProfile: (profile: ProfileView) => void;
-  /** Leave the current character for the select screen; its run and overworld progress are left as they are. */
+  /** Leave the current character for the select screen; its run and world progress are left as they are. */
   switchProfile: () => void;
   loadChallenges: () => Promise<void>;
   loadLearner: () => Promise<void>;
@@ -65,14 +87,24 @@ export interface GameStore {
   /** Back to the Guild Board. */
   leave: () => void;
   abandon: () => Promise<void>;
-  loadOverworldRealms: () => Promise<void>;
-  enterOverworld: (realmId: string, language: string) => Promise<void>;
-  /** Persist a new position; the server re-checks walkability. */
-  moveOverworld: (x: number, y: number) => Promise<void>;
-  startOverworldEncounter: (markerId: string) => Promise<void>;
-  /** Resolve the marker behind the just-finished fight and return to the zone. */
-  finishOverworldEncounter: () => Promise<void>;
-  leaveOverworld: () => void;
+  showWorld: () => void;
+  showBoard: (section?: BoardSection) => void;
+  clearBoardSection: () => void;
+  loadWorld: () => Promise<void>;
+  /** Arrive in the world, or change the language its fights are played in. */
+  startWorld: (language: string) => Promise<void>;
+  /** Save where the Maintainer stopped walking; the server re-checks the spot. */
+  moveWorld: (x: number, y: number) => Promise<void>;
+  travel: (portalId: string) => Promise<void>;
+  talk: (npcId: string) => Promise<void>;
+  /** Pick a choice (by its index in the conversation) in the open conversation. */
+  choose: (index: number) => Promise<void>;
+  inspect: (featureId: string) => Promise<void>;
+  closeConversation: () => void;
+  startWorldEncounter: (markerId: string) => Promise<void>;
+  /** Resolve the marker behind the just-finished fight and return to the world. */
+  finishWorldEncounter: () => Promise<void>;
+  dismissToast: (id: number) => void;
   setTab: (tab: CenterTab) => void;
   editFile: (path: string, contents: string) => void;
   resetToStarter: () => void;
@@ -89,6 +121,8 @@ function screenFor(run: RunView): Screen {
 }
 
 export const useGame = create<GameStore>()((set, get) => {
+  let nextToastId = 0;
+
   /** Show a server run, restoring an unsent draft for its current fight if one was saved. */
   const showRun = (run: RunView, screen: Screen, preferDraft: boolean) => {
     const profile = get().activeProfile;
@@ -119,6 +153,30 @@ export const useGame = create<GameStore>()((set, get) => {
       set({ run: response.run, notice: response.refused?.message });
     });
 
+  const toast = (texts: readonly string[]) => {
+    if (texts.length > 0) set({ toasts: [...get().toasts, ...texts.map((text) => ({ id: ++nextToastId, text }))] });
+  };
+
+  const worldRequest = (work: (profileId: string) => Promise<WorldActionResponse>) =>
+    request("world", async () => {
+      const profile = get().activeProfile;
+      if (!profile) return;
+      const response = await work(profile.id);
+      set({ world: response.world, conversation: response.conversation });
+      toast(response.notices);
+      if (response.open) {
+        set({ conversation: undefined });
+        get().showBoard(BOARD_SECTION[response.open]);
+      }
+    });
+
+  /** A fight started outside the world must not be resolved as a world marker's fight later. */
+  const forgetWorldFight = () => {
+    const profile = get().activeProfile;
+    if (profile) removeStorage(worldFightKey(profile.id));
+    set({ worldMarkerId: undefined });
+  };
+
   return {
     profiles: [],
     activeProfile: undefined,
@@ -126,10 +184,13 @@ export const useGame = create<GameStore>()((set, get) => {
     learner: undefined,
     run: undefined,
     debrief: undefined,
-    overworldRealms: [],
-    overworld: undefined,
-    overworldRealmId: undefined,
-    overworldMarkerId: undefined,
+    world: undefined,
+    worldLoaded: false,
+    worldEpoch: 0,
+    conversation: undefined,
+    worldMarkerId: undefined,
+    toasts: [],
+    boardSection: undefined,
     screen: "profiles",
     files: {},
     busy: undefined,
@@ -173,11 +234,11 @@ export const useGame = create<GameStore>()((set, get) => {
 
     selectProfile: (profile) => {
       writeStorage(PROFILE_KEY, JSON.stringify(profile));
-      set({ activeProfile: profile, screen: "board" });
+      set({ activeProfile: profile, screen: "world", world: undefined, worldLoaded: false, conversation: undefined });
       void get().loadChallenges();
       void get().loadLearner();
+      void get().loadWorld();
       void get().resumeSavedRun();
-      void get().loadOverworldRealms();
     },
 
     switchProfile: () => {
@@ -186,9 +247,10 @@ export const useGame = create<GameStore>()((set, get) => {
         activeProfile: undefined,
         run: undefined,
         debrief: undefined,
-        overworld: undefined,
-        overworldRealmId: undefined,
-        overworldMarkerId: undefined,
+        world: undefined,
+        worldLoaded: false,
+        conversation: undefined,
+        worldMarkerId: undefined,
         screen: "profiles",
         files: {},
         notice: undefined,
@@ -224,8 +286,7 @@ export const useGame = create<GameStore>()((set, get) => {
       if (runId === undefined) return;
       try {
         const { run } = await api.getRun(profile.id, runId);
-        const sidecar = readOverworldSidecar(profile.id);
-        if (sidecar) set({ overworldRealmId: sidecar.realmId, overworldMarkerId: sidecar.markerId });
+        set({ worldMarkerId: readStorage(worldFightKey(profile.id)) });
         showRun(run, screenFor(run), true);
       } catch (error) {
         if (error instanceof ApiError && error.status === 404) removeStorage(runKey(profile.id));
@@ -238,6 +299,7 @@ export const useGame = create<GameStore>()((set, get) => {
         const profile = get().activeProfile;
         if (!profile) return;
         const { run } = await api.startEncounter(profile.id, { challengeId, language });
+        forgetWorldFight();
         showRun(run, "encounter", false);
         set({ tab: "task" });
       }),
@@ -247,6 +309,7 @@ export const useGame = create<GameStore>()((set, get) => {
         const profile = get().activeProfile;
         if (!profile) return;
         const { run } = await api.startExpedition(profile.id, { language, length });
+        forgetWorldFight();
         showRun(run, "map", false);
       }),
 
@@ -288,69 +351,103 @@ export const useGame = create<GameStore>()((set, get) => {
       if (get().error === undefined) get().leave();
     },
 
-    loadOverworldRealms: async () => {
+    showWorld: () => {
+      set({ screen: "world", notice: undefined });
+      if (!get().worldLoaded) void get().loadWorld();
+    },
+
+    showBoard: (section) => {
+      set({ screen: "board", boardSection: section, notice: undefined });
+      void get().loadLearner();
+    },
+
+    clearBoardSection: () => {
+      set({ boardSection: undefined });
+    },
+
+    loadWorld: async () => {
       const profile = get().activeProfile;
       if (!profile) return;
       try {
-        set({ overworldRealms: (await api.overworldRealms(profile.id)).realms });
+        const { world } = await api.world(profile.id);
+        if (get().activeProfile?.id !== profile.id) return;
+        set({ world: world ?? undefined, worldLoaded: true, worldEpoch: get().worldEpoch + 1 });
       } catch (error) {
-        set({ error: describe(error) });
+        set({ error: describe(error), worldLoaded: true });
       }
     },
 
-    enterOverworld: (realmId, language) =>
+    startWorld: (language) =>
       request("start", async () => {
         const profile = get().activeProfile;
         if (!profile) return;
-        const { overworld } = await api.enterOverworld(profile.id, realmId, { language });
-        set({ overworld, screen: "overworld" });
+        const { world } = await api.startWorld(profile.id, { language });
+        set({ world, worldLoaded: true, screen: "world" });
       }),
 
-    moveOverworld: async (x, y) => {
-      const { activeProfile, overworld } = get();
-      if (!activeProfile || !overworld) return;
+    moveWorld: async (x, y) => {
+      const profile = get().activeProfile;
+      if (!profile || !get().world) return;
       try {
-        const response = await api.moveOverworld(activeProfile.id, overworld.realmId, { x, y });
-        set({ overworld: response.overworld });
+        const { position } = await api.moveWorld(profile.id, { x, y });
+        const current = get().world;
+        if (current && get().activeProfile?.id === profile.id) set({ world: { ...current, position } });
       } catch (error) {
+        // The server refused the spot, so the walker on screen is out of step with it: take the server's world again.
         set({ error: describe(error) });
+        await get().loadWorld();
       }
     },
 
-    startOverworldEncounter: (markerId) =>
+    travel: (portalId) => worldRequest((profileId) => api.travel(profileId, { portalId })),
+    talk: (npcId) => worldRequest((profileId) => api.talk(profileId, { npcId })),
+    inspect: (featureId) => worldRequest((profileId) => api.inspect(profileId, { featureId })),
+
+    choose: async (index) => {
+      const conversation = get().conversation;
+      if (conversation?.npcId === undefined || conversation.nodeId === undefined) {
+        set({ conversation: undefined });
+        return;
+      }
+      const { npcId, nodeId } = conversation;
+      await worldRequest((profileId) => api.choose(profileId, { npcId, nodeId, choice: index }));
+    },
+
+    closeConversation: () => {
+      set({ conversation: undefined });
+    },
+
+    startWorldEncounter: (markerId) =>
       request("start", async () => {
-        const { activeProfile, overworld } = get();
-        if (!activeProfile || !overworld) return;
-        const { run } = await api.startMarkerEncounter(activeProfile.id, overworld.realmId, markerId);
-        writeOverworldSidecar(activeProfile.id, { realmId: overworld.realmId, markerId });
-        set({ overworldRealmId: overworld.realmId, overworldMarkerId: markerId });
+        const profile = get().activeProfile;
+        if (!profile) return;
+        const { run } = await api.startMarker(profile.id, markerId);
+        writeStorage(worldFightKey(profile.id), markerId);
+        set({ worldMarkerId: markerId, conversation: undefined });
         showRun(run, "encounter", false);
         set({ tab: "task" });
       }),
 
-    finishOverworldEncounter: () =>
+    finishWorldEncounter: () =>
       request("enter", async () => {
-        const { activeProfile, run, overworldRealmId, overworldMarkerId } = get();
-        if (!activeProfile || !run || !overworldRealmId || !overworldMarkerId) return;
-        const { overworld } = await api.resolveMarkerEncounter(activeProfile.id, overworldRealmId, overworldMarkerId, {
-          runId: run.runId,
-        });
-        clearOverworldSidecar(activeProfile.id);
+        const { activeProfile, run, worldMarkerId, world: before } = get();
+        if (!activeProfile || !run || !worldMarkerId) return;
+        const { world } = await api.resolveMarker(activeProfile.id, worldMarkerId, { runId: run.runId });
+        removeStorage(worldFightKey(activeProfile.id));
         removeStorage(runKey(activeProfile.id));
-        set({
-          overworld,
-          overworldRealmId: undefined,
-          overworldMarkerId: undefined,
-          run: undefined,
-          screen: "overworld",
-          files: {},
-          notice: undefined,
-          error: undefined,
-        });
+        set({ world, worldMarkerId: undefined, run: undefined, screen: "world", files: {}, notice: undefined, error: undefined });
+        // A win can finish a quest's objectives; say so, since the journal is not what the player is looking at.
+        const wasReady = new Set(before?.quests.filter((quest) => quest.status === "ready").map((quest) => quest.id));
+        toast(
+          world.quests
+            .filter((quest) => quest.status === "ready" && !wasReady.has(quest.id))
+            .map((quest) => `${quest.name}: return to ${quest.giverName}`),
+        );
+        void get().loadLearner();
       }),
 
-    leaveOverworld: () => {
-      set({ screen: "board" });
+    dismissToast: (id) => {
+      set({ toasts: get().toasts.filter((candidate) => candidate.id !== id) });
     },
 
     setTab: (tab) => {
@@ -397,40 +494,6 @@ function readDraft(key: string): FileMap | undefined {
     removeStorage(key);
     return undefined;
   }
-}
-
-interface OverworldSidecar {
-  realmId: string;
-  markerId: string;
-}
-
-/** Which marker's fight is in progress, so it survives closing the app mid-fight (readDraft's tolerant style). */
-function readOverworldSidecar(profileId: string): OverworldSidecar | undefined {
-  const saved = readStorage(overworldRunKey(profileId));
-  if (saved === undefined) return undefined;
-  try {
-    const parsed: unknown = JSON.parse(saved);
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      typeof (parsed as Record<string, unknown>).realmId === "string" &&
-      typeof (parsed as Record<string, unknown>).markerId === "string"
-    ) {
-      return parsed as OverworldSidecar;
-    }
-    return undefined;
-  } catch {
-    removeStorage(overworldRunKey(profileId));
-    return undefined;
-  }
-}
-
-function writeOverworldSidecar(profileId: string, sidecar: OverworldSidecar): void {
-  writeStorage(overworldRunKey(profileId), JSON.stringify(sidecar));
-}
-
-function clearOverworldSidecar(profileId: string): void {
-  removeStorage(overworldRunKey(profileId));
 }
 
 // Browser storage can be unavailable (private windows, blocked site data). Drafts and resume are conveniences, so

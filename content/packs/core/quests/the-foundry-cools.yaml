@@ -1,0 +1,9 @@
+id: the-foundry-cools
+name: The Foundry Cools
+giver: guildmaster
+summary: "The Foundry is running hot with small bugs. Clear three of its fights, then report back to Guildmaster Orin."
+objectives:
+  - { text: "Clear fights in the Foundry", cleared_in: foundry, at_least: 3 }
+rewards:
+  flags: [kiln-gate-open]
+  text: "The vents are cooling, and the kiln gate at the bottom of the Foundry has been unsealed."

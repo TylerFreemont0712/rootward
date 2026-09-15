@@ -1,0 +1,15 @@
+id: guard
+name: Guard Hollis
+title: South Gate
+dialogue:
+  start:
+    - { if: { not: { flag: sworn-in } }, goto: halt }
+    - { if: { flag: foundry-cooled }, goto: cooled }
+    - { goto: open }
+  nodes:
+    halt:
+      text: "Halt. The Foundry road is for sworn Maintainers. The Guildmaster is in the Guild Hall, north up the road. Get sworn in, then come back."
+    open:
+      text: "Road's open, Maintainer. Mind the heat down there. Lose a fight and you can walk right back out and try again. The bugs don't go anywhere."
+    cooled:
+      text: "They say the Kiln Warden fell. First time the south wind's been cool in years. Thank you."

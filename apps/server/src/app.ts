@@ -5,31 +5,37 @@ import { ENGINE_VERSION } from "@rootward/content-schema";
 import {
   ActionRequest,
   ChallengeListResponse,
+  ChooseRequest,
   CreateProfileRequest,
   DebriefResponse,
-  EnterOverworldRequest,
   EnterRoomRequest,
   ErrorResponse,
   HealthResponse,
+  InspectRequest,
   LearnerResponse,
-  MoveOverworldRequest,
-  OverworldRealmsResponse,
-  OverworldResponse,
+  MoveWorldRequest,
+  MoveWorldResponse,
   ProfileListResponse,
   ProfileResponse,
-  ResolveOverworldEncounterRequest,
+  ResolveMarkerRequest,
   RunResponse,
   StartEncounterRequest,
   StartExpeditionRequest,
+  StartWorldRequest,
+  TalkRequest,
+  TravelRequest,
+  WorldActionResponse,
+  WorldResponse,
+  WorldStatusResponse,
 } from "@rootward/shared";
 import Fastify, { type FastifyInstance, type FastifyReply } from "fastify";
 import { z } from "zod";
 import { ServiceError } from "./errors.ts";
-import type { OverworldService } from "./overworld/service.ts";
 import type { ProfileService } from "./profiles/service.ts";
 import type { RunServiceRegistry } from "./runs/registry.ts";
 import { DEFAULT_CLASS_ID, type RunService } from "./runs/service.ts";
 import type { Sandbox } from "./sandbox.ts";
+import type { WorldService } from "./world/service.ts";
 
 export interface AppDeps {
   service: RunService;
@@ -37,9 +43,9 @@ export interface AppDeps {
   /** Built client (apps/client/dist). Served when it exists, so `pnpm start` is one process. */
   clientDir?: string;
   logger?: boolean;
-  /** Characters (ADR-0010): profile-scoped run routes and the overworld, mirroring the unscoped routes above
+  /** Characters (ADR-0010): profile-scoped run routes and the world (ADR-0011), mirroring the unscoped routes above
    * without changing them. Optional so every existing caller of `buildApp` keeps compiling untouched. */
-  profiles?: { profileService: ProfileService; registry: RunServiceRegistry; overworld: OverworldService };
+  profiles?: { profileService: ProfileService; registry: RunServiceRegistry; world: WorldService };
 }
 
 /** HTTP routes. Every request body is parsed with the shared zod contract, and every response is parsed before sending. */
@@ -102,7 +108,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.get("/api/learner", async () => LearnerResponse.parse({ learner: await deps.service.learnerView() }));
 
   if (deps.profiles) {
-    const { profileService, registry, overworld } = deps.profiles;
+    const { profileService, registry, world } = deps.profiles;
 
     app.get("/api/profiles", async () => ProfileListResponse.parse({ profiles: await profileService.list() }));
 
@@ -151,57 +157,49 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       LearnerResponse.parse({ learner: await registry.forProfile(request.params.profileId).learnerView() }),
     );
 
-    // The overworld (ADR-0010): a free-roam zone alongside the expedition above.
-    app.get("/api/profiles/:profileId/overworld", () => OverworldRealmsResponse.parse({ realms: overworld.realms() }));
-
-    app.post<{ Params: { profileId: string; realmId: string } }>(
-      "/api/profiles/:profileId/overworld/:realmId/enter",
-      async (request) => {
-        const body = parseBody(EnterOverworldRequest, request.body);
-        const view = await overworld.enter(request.params.profileId, request.params.realmId, body.language);
-        return OverworldResponse.parse({ overworld: view });
-      },
+    // The world (ADR-0010, ADR-0011): towns and wilds walked between expeditions, with people, quests, and fights.
+    app.get<{ Params: { profileId: string } }>("/api/profiles/:profileId/world", async (request) =>
+      WorldStatusResponse.parse({ world: (await world.world(request.params.profileId)) ?? null }),
     );
 
-    app.get<{ Params: { profileId: string; realmId: string } }>(
-      "/api/profiles/:profileId/overworld/:realmId",
-      async (request) => {
-        const view = await overworld.view(request.params.profileId, request.params.realmId);
-        if (!view) throw new ServiceError(404, "overworld-not-entered", `Enter ${request.params.realmId} before viewing it.`);
-        return OverworldResponse.parse({ overworld: view });
-      },
+    app.post<{ Params: { profileId: string } }>("/api/profiles/:profileId/world/start", async (request) =>
+      WorldResponse.parse({
+        world: await world.start(request.params.profileId, parseBody(StartWorldRequest, request.body).language),
+      }),
     );
 
-    app.post<{ Params: { profileId: string; realmId: string } }>(
-      "/api/profiles/:profileId/overworld/:realmId/move",
-      async (request) => {
-        const body = parseBody(MoveOverworldRequest, request.body);
-        await overworld.move(request.params.profileId, request.params.realmId, body.x, body.y);
-        const view = await overworld.view(request.params.profileId, request.params.realmId);
-        if (!view) throw new ServiceError(404, "overworld-not-entered", `Enter ${request.params.realmId} before moving in it.`);
-        return OverworldResponse.parse({ overworld: view });
-      },
+    app.post<{ Params: { profileId: string } }>("/api/profiles/:profileId/world/move", async (request) =>
+      MoveWorldResponse.parse({ position: await world.move(request.params.profileId, parseBody(MoveWorldRequest, request.body)) }),
     );
 
-    app.post<{ Params: { profileId: string; realmId: string; markerId: string } }>(
-      "/api/profiles/:profileId/overworld/:realmId/markers/:markerId/start",
-      async (request) =>
-        RunResponse.parse(
-          await overworld.startMarkerEncounter(request.params.profileId, request.params.realmId, request.params.markerId),
-        ),
+    app.post<{ Params: { profileId: string } }>("/api/profiles/:profileId/world/travel", async (request) =>
+      WorldActionResponse.parse(await world.travel(request.params.profileId, parseBody(TravelRequest, request.body).portalId)),
     );
 
-    app.post<{ Params: { profileId: string; realmId: string; markerId: string } }>(
-      "/api/profiles/:profileId/overworld/:realmId/markers/:markerId/resolve",
+    app.post<{ Params: { profileId: string } }>("/api/profiles/:profileId/world/talk", async (request) =>
+      WorldActionResponse.parse(await world.talk(request.params.profileId, parseBody(TalkRequest, request.body).npcId)),
+    );
+
+    app.post<{ Params: { profileId: string } }>("/api/profiles/:profileId/world/choose", async (request) =>
+      WorldActionResponse.parse(await world.choose(request.params.profileId, parseBody(ChooseRequest, request.body))),
+    );
+
+    app.post<{ Params: { profileId: string } }>("/api/profiles/:profileId/world/inspect", async (request) =>
+      WorldActionResponse.parse(await world.inspect(request.params.profileId, parseBody(InspectRequest, request.body).featureId)),
+    );
+
+    app.post<{ Params: { profileId: string; markerId: string } }>(
+      "/api/profiles/:profileId/world/markers/:markerId/start",
+      async (request) => RunResponse.parse(await world.startMarkerEncounter(request.params.profileId, request.params.markerId)),
+    );
+
+    app.post<{ Params: { profileId: string; markerId: string } }>(
+      "/api/profiles/:profileId/world/markers/:markerId/resolve",
       async (request) => {
-        const body = parseBody(ResolveOverworldEncounterRequest, request.body);
-        const view = await overworld.resolveMarkerEncounter(
-          request.params.profileId,
-          request.params.realmId,
-          request.params.markerId,
-          body.runId,
-        );
-        return OverworldResponse.parse({ overworld: view });
+        const { runId } = parseBody(ResolveMarkerRequest, request.body);
+        return WorldResponse.parse({
+          world: await world.resolveMarkerEncounter(request.params.profileId, request.params.markerId, runId),
+        });
       },
     );
   }

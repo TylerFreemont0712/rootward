@@ -1,0 +1,107 @@
+# The Foundry: the first layer of the Machine, walked freely (ADR-0010, ADR-0011). Marker ids are stable because
+# characters' cleared fights are stored by them; rename one and its progress is lost.
+id: foundry
+name: The Foundry
+kind: wild
+realm: foundry
+sight: 7
+ambience: embers
+arrival: "Molten glyphs drip from the ceiling. Somewhere, something is miscounting."
+legend:
+  "#": rock
+  ".": ash
+  ",": basalt
+  "~": lava
+tiles: |
+  ############################################
+  ####........####.....,,.................####
+  ####........####.....,,.................####
+  ####.................,,.................####
+  ####.................,,.................####
+  ####.................,,.................####
+  ####.................,,..........##........#
+  #...............###..,,..........##........#
+  #...............###..,,..........##........#
+  #...............###..,,..........##........#
+  #....................,,....................#
+  #.........,,,,,,,,,,,,,,,,,,,,,,,..........#
+  #.........,,,,,,,,,,,,,,,,,,,,,,,..........#
+  #~~~~~~~~~,,~~~~~~~~~~~~~~~~~~~,,~~~~~~~~~~#
+  #~~~~~~~~~,,~~~~~~~~~~~~~~~~~~~,,~~~~~~~~~~#
+  #####.....,,,,,,,,,,,,,,,,,,,,,,,..........#
+  #####.....,,,,,,,,,,,,,,,,,,,,,,,..........#
+  #....................,,....................#
+  #....................,,..................###
+  #....................,,..................###
+  ###..................,,..................###
+  ###............#####,,,######............###
+  ###............#~~........~~#............###
+  ###............#..........~~#............###
+  ###............#............#.........######
+  ###............#............#.........######
+  ###............#............#.........######
+  ###.....####...#............#.........######
+  ###.....####...##############.........######
+  ############################################
+entry: { x: 21, y: 2 }
+props:
+  - { prop: portal, x: 21, y: 1 }
+  - { prop: tent, x: 25, y: 3 }
+  - { prop: campfire, x: 26, y: 5 }
+  - { prop: glyph-pillar, x: 19, y: 3 }
+  - { prop: glyph-pillar, x: 24, y: 3 }
+  - { prop: furnace, x: 38, y: 2 }
+  - { prop: furnace, x: 4, y: 25 }
+  - { prop: furnace, x: 23, y: 23 }
+  - { prop: furnace, x: 18, y: 23 }
+  - { prop: anvil, x: 9, y: 7 }
+  - { prop: anvil, x: 35, y: 11 }
+  - { prop: anvil, x: 7, y: 22 }
+  - { prop: crucible, x: 14, y: 8 }
+  - { prop: crucible, x: 29, y: 18 }
+  - { prop: crucible, x: 13, y: 20 }
+  - { prop: gears, x: 5, y: 17 }
+  - { prop: gears, x: 38, y: 16 }
+  - { prop: gears, x: 27, y: 9 }
+  - { prop: ore-rocks, x: 8, y: 2 }
+  - { prop: ore-rocks, x: 36, y: 20 }
+  - { prop: ore-rocks, x: 24, y: 17 }
+  - { prop: boulder, x: 6, y: 8 }
+  - { prop: boulder, x: 30, y: 3 }
+  - { prop: boulder, x: 39, y: 11 }
+  - { prop: boulder, x: 3, y: 11 }
+  - { prop: boulder, x: 13, y: 27 }
+  - { prop: boulder, x: 31, y: 28 }
+  - { prop: boulder, x: 36, y: 26 }
+  - { prop: glyph-pillar, x: 20, y: 25 }
+  - { prop: glyph-pillar, x: 24, y: 25 }
+  - { prop: kiln-gate, x: 20, y: 21, if: { not: { flag: kiln-gate-open } } }
+  - { prop: kiln-arch, x: 20, y: 21, if: { flag: kiln-gate-open } }
+  - { prop: glyph-pillar, x: 24, y: 20 }
+npcs:
+  - { npc: pell, x: 27, y: 5, if: { not: { flag: pell-rescued } } }
+markers:
+  - { id: foundry-variables, kind: encounter, x: 6, y: 5, node: py.basics.variables, challenges: [foundry.py.running-total, foundry.py.unbound-name] }
+  - { id: foundry-values, kind: encounter, x: 11, y: 4, node: py.basics.values, challenges: [foundry.py.floor-division, foundry.py.change-counter] }
+  - { id: foundry-strings, kind: encounter, x: 32, y: 4, node: py.strings.basics, challenges: [foundry.py.mirror-gate, foundry.py.title-case] }
+  - { id: foundry-loops, kind: encounter, x: 27, y: 8, node: py.control.loops, challenges: [foundry.py.longest-streak, foundry.py.staircase] }
+  - { id: foundry-conditionals, kind: encounter, x: 37, y: 8, node: py.control.conditionals, challenges: [foundry.py.grade-ladder, foundry.py.leap-year] }
+  - { id: foundry-splitting, kind: encounter, x: 6, y: 10, node: py.strings.split, challenges: [foundry.py.reverse-words, foundry.py.parse-duration] }
+  - { id: foundry-lists, kind: encounter, x: 8, y: 18, node: py.collections.list, challenges: [foundry.py.rotate-list] }
+  - { id: foundry-dicts, kind: encounter, x: 34, y: 18, node: py.collections.dict, challenges: [foundry.py.dict-word-count] }
+  - { id: foundry-functions, kind: encounter, x: 12, y: 24, node: py.functions.define, challenges: [foundry.py.temperature] }
+  - { id: foundry-edge-cases, kind: encounter, x: 32, y: 24, node: concept.edge-cases, challenges: [foundry.edge.page-range] }
+  - { id: foundry-kiln-warden, kind: boss, x: 22, y: 26, node: py.collections.dict, challenges: [foundry.py.kiln-warden], if: { flag: kiln-gate-open } }
+features:
+  - id: kiln-inscription
+    x: 24
+    y: 20
+    label: "Inscription"
+    text: "THE KILN KEEPS COUNT. Beyond this gate the Warden judges every ingot, and it has never once been asked to show its work."
+portals:
+  - id: to-bastion
+    x: 21
+    y: 1
+    label: "Waystone to the Bastion"
+    to: { zone: bastion, portal: to-foundry }
+    arrive: { x: 21, y: 2 }

@@ -364,49 +364,168 @@ export type ProfileResponse = z.infer<typeof ProfileResponse>;
 export const CreateProfileRequest = z.strictObject({ name: z.string().min(1).max(60) });
 export type CreateProfileRequest = z.infer<typeof CreateProfileRequest>;
 
-// ---- The overworld (ADR-0010): a free-roam zone, alongside the planner-driven expedition above ----
+// ---- The world (ADR-0010, ADR-0011): towns and wilds walked freely, with people, quests, and fights ----
 
-export const OverworldMarkerView = z.strictObject({
+/** Screens the world can send the player to. */
+export const WorldScreenId = z.enum(["guild-board", "chronicle", "practice"]);
+export type WorldScreenId = z.infer<typeof WorldScreenId>;
+
+export const ZonePropView = z.strictObject({
+  propId: z.string(),
+  name: z.string(),
+  /** Top-left tile of the footprint; the art is drawn bottom-aligned on it and may rise above it. */
+  x: z.int(),
+  y: z.int(),
+  w: z.int(),
+  h: z.int(),
+});
+export type ZonePropView = z.infer<typeof ZonePropView>;
+
+export const ZoneNpcView = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+  title: z.string().optional(),
+  /** Art id for the map sprite. */
+  sprite: z.string(),
+  x: z.int(),
+  y: z.int(),
+  /** `offer`: talking can start a quest. `turn-in`: one of their quests is ready to hand in. */
+  indicator: z.enum(["offer", "turn-in"]).optional(),
+});
+export type ZoneNpcView = z.infer<typeof ZoneNpcView>;
+
+export const ZoneFeatureView = z.strictObject({ id: z.string(), x: z.int(), y: z.int(), label: z.string() });
+export type ZoneFeatureView = z.infer<typeof ZoneFeatureView>;
+
+export const ZonePortalView = z.strictObject({
+  id: z.string(),
+  x: z.int(),
+  y: z.int(),
+  label: z.string(),
+  locked: z.boolean(),
+});
+export type ZonePortalView = z.infer<typeof ZonePortalView>;
+
+export const ZoneMarkerView = z.strictObject({
   id: z.string(),
   kind: z.enum(["encounter", "boss"]),
   x: z.int(),
   y: z.int(),
-  state: z.enum(["open", "cleared"]),
+  /** `sealed` markers cannot be fought until their condition holds (a gate that opens after a quest). */
+  state: z.enum(["open", "cleared", "sealed"]),
   title: z.string(),
+  enemyId: z.string(),
   enemyName: z.string(),
   difficulty: z.number(),
 });
-export type OverworldMarkerView = z.infer<typeof OverworldMarkerView>;
+export type ZoneMarkerView = z.infer<typeof ZoneMarkerView>;
 
-export const OverworldView = z.strictObject({
-  realmId: z.string(),
-  realmName: z.string(),
-  language: z.string(),
+export const ZoneView = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+  kind: z.enum(["town", "wild"]),
+  realmId: z.string().optional(),
+  /** Tiles lit around the Maintainer; absent means the whole zone is visible. */
+  sight: z.int().optional(),
+  ambience: z.string(),
+  arrival: z.string(),
   width: z.int(),
   height: z.int(),
-  /** One string per row of tile codes, the same alphabet as `ExpeditionView.tiles`. */
+  /** One string per row of legend characters. */
   tiles: z.array(z.string()),
-  entry: MapPoint,
-  position: MapPoint,
-  markers: z.array(OverworldMarkerView),
-  bossMarkerId: z.string(),
+  legend: z.record(z.string(), z.strictObject({ terrain: z.string(), color: z.string(), walkable: z.boolean() })),
+  /** Where movement is possible right now, as rows of dungeon tile codes ("." walkable, "#" blocked), so the client's
+   * pathfinding is the same `findPath` an expedition uses. */
+  collision: z.array(z.string()),
+  props: z.array(ZonePropView),
+  npcs: z.array(ZoneNpcView),
+  features: z.array(ZoneFeatureView),
+  portals: z.array(ZonePortalView),
+  markers: z.array(ZoneMarkerView),
 });
-export type OverworldView = z.infer<typeof OverworldView>;
+export type ZoneView = z.infer<typeof ZoneView>;
 
-export const OverworldResponse = z.strictObject({ overworld: OverworldView });
-export type OverworldResponse = z.infer<typeof OverworldResponse>;
+export const QuestObjectiveView = z.strictObject({
+  text: z.string(),
+  done: z.boolean(),
+  current: z.int(),
+  target: z.int(),
+});
+export type QuestObjectiveView = z.infer<typeof QuestObjectiveView>;
 
-export const OverworldRealmSummary = z.strictObject({ id: z.string(), name: z.string(), available: z.boolean() });
-export type OverworldRealmSummary = z.infer<typeof OverworldRealmSummary>;
+export const QuestView = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+  giverName: z.string(),
+  summary: z.string(),
+  status: z.enum(["active", "ready", "done"]),
+  objectives: z.array(QuestObjectiveView),
+  rewardText: z.string().optional(),
+});
+export type QuestView = z.infer<typeof QuestView>;
 
-export const OverworldRealmsResponse = z.strictObject({ realms: z.array(OverworldRealmSummary) });
-export type OverworldRealmsResponse = z.infer<typeof OverworldRealmsResponse>;
+export const WorldView = z.strictObject({
+  /** The language fights in the world are played in. */
+  language: z.string(),
+  zone: ZoneView,
+  position: MapPoint,
+  /** Started quests, unfinished first. */
+  quests: z.array(QuestView),
+});
+export type WorldView = z.infer<typeof WorldView>;
 
-export const EnterOverworldRequest = z.strictObject({ language: z.string().min(1) });
-export type EnterOverworldRequest = z.infer<typeof EnterOverworldRequest>;
+export const ConversationView = z.strictObject({
+  /** Who is being talked to and where the conversation is, so a choice can be sent back. Absent for signs. */
+  npcId: z.string().optional(),
+  nodeId: z.string().optional(),
+  speakerName: z.string(),
+  speakerTitle: z.string().optional(),
+  /** Art id for the speaker's portrait. */
+  portrait: z.string().optional(),
+  text: z.string(),
+  choices: z.array(z.strictObject({ index: z.int(), text: z.string() })),
+});
+export type ConversationView = z.infer<typeof ConversationView>;
 
-export const MoveOverworldRequest = z.strictObject({ x: z.int(), y: z.int() });
-export type MoveOverworldRequest = z.infer<typeof MoveOverworldRequest>;
+export const WorldResponse = z.strictObject({ world: WorldView });
+export type WorldResponse = z.infer<typeof WorldResponse>;
 
-export const ResolveOverworldEncounterRequest = z.strictObject({ runId: z.string().min(1) });
-export type ResolveOverworldEncounterRequest = z.infer<typeof ResolveOverworldEncounterRequest>;
+/** `world` is null until the character has arrived in the world. */
+export const WorldStatusResponse = z.strictObject({ world: WorldView.nullable() });
+export type WorldStatusResponse = z.infer<typeof WorldStatusResponse>;
+
+/** The result of talking, choosing, inspecting, or using a portal. */
+export const WorldActionResponse = z.strictObject({
+  world: WorldView,
+  /** The next line to show; absent when the conversation is over. */
+  conversation: ConversationView.optional(),
+  open: WorldScreenId.optional(),
+  /** Changes worth announcing, such as "Quest started: The Foundry Cools". */
+  notices: z.array(z.string()),
+});
+export type WorldActionResponse = z.infer<typeof WorldActionResponse>;
+
+/** Arrive in the world, or change the language its fights are played in. */
+export const StartWorldRequest = z.strictObject({ language: z.string().min(1) });
+export type StartWorldRequest = z.infer<typeof StartWorldRequest>;
+
+export const MoveWorldRequest = z.strictObject({ x: z.int(), y: z.int() });
+export type MoveWorldRequest = z.infer<typeof MoveWorldRequest>;
+
+export const MoveWorldResponse = z.strictObject({ position: MapPoint });
+export type MoveWorldResponse = z.infer<typeof MoveWorldResponse>;
+
+export const TravelRequest = z.strictObject({ portalId: z.string().min(1) });
+export type TravelRequest = z.infer<typeof TravelRequest>;
+
+export const TalkRequest = z.strictObject({ npcId: z.string().min(1) });
+export type TalkRequest = z.infer<typeof TalkRequest>;
+
+export const ChooseRequest = z.strictObject({ npcId: z.string().min(1), nodeId: z.string().min(1), choice: z.int().min(0) });
+export type ChooseRequest = z.infer<typeof ChooseRequest>;
+
+export const InspectRequest = z.strictObject({ featureId: z.string().min(1) });
+export type InspectRequest = z.infer<typeof InspectRequest>;
+
+export const ResolveMarkerRequest = z.strictObject({ runId: z.string().min(1) });
+export type ResolveMarkerRequest = z.infer<typeof ResolveMarkerRequest>;

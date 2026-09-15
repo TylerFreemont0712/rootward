@@ -1,5 +1,5 @@
 import type { LearnerView, SessionLength } from "@rootward/shared";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { masteryName, masteryWidth } from "../learner/mastery.ts";
 import { useGame } from "../state/store.ts";
 
@@ -7,8 +7,8 @@ const LENGTHS: readonly SessionLength[] = ["short", "standard", "long"];
 /** Kickoff decision 6 (docs/ROADMAP.md): long expeditions unless the player picks otherwise. */
 const DEFAULT_LENGTH: SessionLength = "long";
 
-/** M1's stand-in for the Bastion: descend on an expedition, walk the overworld, read the Chronicle, or practice a
- * single fight. */
+/** The Guild Board, inside the Bastion's Guild Hall (ADR-0011): descend on an expedition planned around what you know,
+ * read the Chronicle, or practice a single fight. The world's doors and people open it at the section they mean. */
 export function GuildBoard() {
   const challenges = useGame((s) => s.challenges);
   const learner = useGame((s) => s.learner);
@@ -17,17 +17,32 @@ export function GuildBoard() {
   const startPractice = useGame((s) => s.startPractice);
   const startExpedition = useGame((s) => s.startExpedition);
   const busy = useGame((s) => s.busy);
+  const showWorld = useGame((s) => s.showWorld);
+  const boardSection = useGame((s) => s.boardSection);
+  const clearBoardSection = useGame((s) => s.clearBoardSection);
   const [length, setLength] = useState<SessionLength>(DEFAULT_LENGTH);
   const languages = [...new Set(challenges.flatMap((challenge) => challenge.playableLanguages))].sort();
+
+  // Arriving from a door or a conversation in the world: scroll to the part of the board it pointed at.
+  useEffect(() => {
+    if (boardSection === undefined) return;
+    document.getElementById(`${boardSection}-title`)?.scrollIntoView({ block: "start" });
+    clearBoardSection();
+  }, [boardSection, clearBoardSection]);
 
   return (
     <div className="select">
       <header className="hero">
         <h1>THE GUILD BOARD</h1>
         <p className="narr">
-          Bit Rot is spreading through the Machine. Descend toward Root through a dungeon planned around what you know,
-          walk the overworld and pick your own fights, or warm up on a single job first.
+          Bit Rot is spreading through the Machine. Descend toward Root through a dungeon planned around what you know, or
+          warm up on a single job first. The Bastion&apos;s people, quests, and the Foundry&apos;s halls wait outside.
         </p>
+        <div className="actions">
+          <button type="button" className="btn" onClick={showWorld}>
+            ← Back to the Bastion
+          </button>
+        </div>
         {activeProfile && (
           <p className="meta">
             Playing as {activeProfile.name} ·{" "}
@@ -74,11 +89,9 @@ export function GuildBoard() {
         </div>
       </section>
 
-      <ExploreSection languages={languages} />
-
       {learner && <Chronicle learner={learner} />}
 
-      <h2 className="board-heading">Practice a single fight</h2>
+      <h2 id="practice-title" className="board-heading">Practice a single fight</h2>
       {busy === "loading" && <p>Reading the board…</p>}
       {challenges.map((challenge) => (
         <section className="block card" key={challenge.id}>
@@ -108,60 +121,6 @@ export function GuildBoard() {
         </section>
       ))}
     </div>
-  );
-}
-
-/** Realms with a walkable zone open, others shown as locked (ADR-0010) -- driven entirely by the server's
- * `available` flag, not a client-side realm list. */
-function ExploreSection({ languages }: { languages: string[] }) {
-  const realms = useGame((s) => s.overworldRealms);
-  const overworld = useGame((s) => s.overworld);
-  const enterOverworld = useGame((s) => s.enterOverworld);
-  const busy = useGame((s) => s.busy);
-
-  if (realms.length === 0) return null;
-
-  return (
-    <section className="block card wide" aria-labelledby="explore-title">
-      <h2 id="explore-title">Explore</h2>
-      <div className="meta">Walk a realm yourself; walking onto a marker starts its fight.</div>
-      <ul className="floors">
-        {realms.map((realm) => (
-          <li key={realm.id}>
-            {!realm.available ? (
-              <span className="meta">{realm.name} · coming soon</span>
-            ) : overworld?.realmId === realm.id ? (
-              <button
-                type="button"
-                className="btn primary"
-                disabled={busy !== undefined}
-                onClick={() => void enterOverworld(realm.id, overworld.language)}
-              >
-                Continue exploring {realm.name} →
-              </button>
-            ) : (
-              <span className="actions spaced">
-                <span className="meta">{realm.name}:</span>
-                {languages.map((language) => (
-                  <button
-                    key={language}
-                    type="button"
-                    className="btn"
-                    disabled={busy !== undefined}
-                    onClick={() => void enterOverworld(realm.id, language)}
-                  >
-                    Explore in {language}
-                  </button>
-                ))}
-                {languages.length === 0 && busy !== "loading" && (
-                  <span className="meta">No language has a sandbox on this machine yet.</span>
-                )}
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }
 

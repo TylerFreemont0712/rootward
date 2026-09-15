@@ -5,14 +5,30 @@ import {
   ClassDef,
   Enemy,
   Item,
+  Npc,
   OathsFile,
   PackManifest,
+  PropsFile,
+  Quest,
   RealmsFile,
   SkillsFile,
+  TerrainFile,
+  Zone,
 } from "@rootward/content-schema";
 import type { z } from "zod";
 import type { CardRecord, LoadedChallenge, LoadedClass, LoadedPack, Sourced } from "../content-index.ts";
-import type { Enemy as EnemyType, Item as ItemType, Oath, Realm, SkillNode } from "@rootward/content-schema";
+import type {
+  Enemy as EnemyType,
+  Item as ItemType,
+  Npc as NpcType,
+  Oath,
+  Prop,
+  Quest as QuestType,
+  Realm,
+  SkillNode,
+  Terrain,
+  Zone as ZoneType,
+} from "@rootward/content-schema";
 import { readText, readYamlFile } from "../yaml.ts";
 import { loadChallenge } from "./challenge.ts";
 import { displayPath, type LoadContext } from "./context.ts";
@@ -29,6 +45,11 @@ export interface PackContents {
   items: Sourced<ItemType>[];
   cards: Sourced<CardRecord>[];
   challenges: LoadedChallenge[];
+  terrain: Sourced<Terrain>[];
+  props: Sourced<Prop>[];
+  npcs: Sourced<NpcType>[];
+  quests: Sourced<QuestType>[];
+  zones: Sourced<ZoneType>[];
 }
 
 export async function loadPack(ctx: LoadContext, absoluteDir: string): Promise<PackContents | undefined> {
@@ -52,6 +73,11 @@ export async function loadPack(ctx: LoadContext, absoluteDir: string): Promise<P
     items: [],
     cards: [],
     challenges: [],
+    terrain: [],
+    props: [],
+    npcs: [],
+    quests: [],
+    zones: [],
   };
   const sourced = <T>(value: T, file: string): Sourced<T> => ({ value, packId, file });
 
@@ -60,6 +86,10 @@ export async function loadPack(ctx: LoadContext, absoluteDir: string): Promise<P
   for (const realm of realms?.value.realms ?? []) contents.realms.push(sourced(realm, realms?.file ?? dir));
   const oaths = await readOptionalYaml(ctx, absoluteDir, dir, "oaths.yaml", OathsFile);
   for (const oath of oaths?.value.oaths ?? []) contents.oaths.push(sourced(oath, oaths?.file ?? dir));
+  const terrain = await readOptionalYaml(ctx, absoluteDir, dir, "terrain.yaml", TerrainFile);
+  for (const kind of terrain?.value.terrain ?? []) contents.terrain.push(sourced(kind, terrain?.file ?? dir));
+  const props = await readOptionalYaml(ctx, absoluteDir, dir, "props.yaml", PropsFile);
+  for (const prop of props?.value.props ?? []) contents.props.push(sourced(prop, props?.file ?? dir));
 
   // Folders of YAML files.
   await eachYaml(ctx, absoluteDir, dir, "skills", SkillsFile, (parsed, file) => {
@@ -73,6 +103,15 @@ export async function loadPack(ctx: LoadContext, absoluteDir: string): Promise<P
   });
   await eachYaml(ctx, absoluteDir, dir, "items", Item, (item, file, name) => {
     if (checkFileName(ctx, item.id, name, file)) contents.items.push(sourced(item, file));
+  });
+  await eachYaml(ctx, absoluteDir, dir, "npcs", Npc, (npc, file, name) => {
+    if (checkFileName(ctx, npc.id, name, file)) contents.npcs.push(sourced(npc, file));
+  });
+  await eachYaml(ctx, absoluteDir, dir, "quests", Quest, (quest, file, name) => {
+    if (checkFileName(ctx, quest.id, name, file)) contents.quests.push(sourced(quest, file));
+  });
+  await eachYaml(ctx, absoluteDir, dir, "zones", Zone, (zone, file, name) => {
+    if (checkFileName(ctx, zone.id, name, file)) contents.zones.push(sourced(zone, file));
   });
 
   for (const classDir of await listDirectories(path.join(absoluteDir, "classes"))) {

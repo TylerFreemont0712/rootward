@@ -36,8 +36,8 @@ export function isWallAt(tiles: readonly string[], x: number, y: number): boolea
  * in its unrotated form fills the right and bottom edges (an L opening toward the top-left), so a 90deg
  * clockwise turn of that shape covers (bottom, left), 180deg covers (left, top), 270deg covers (top, right).
  * Anything this simple scheme doesn't cover (a T-junction, a lone wall cell) falls back to the plain straight
- * texture unrotated -- there's no dead end in a generated dungeon (or overworld zone) this shape can't classify
- * from real layouts, but nothing hard-relies on that staying true. Shared by TileMapRenderer and OverworldRenderer.
+ * texture unrotated -- there's no dead end in a generated dungeon this shape can't classify from real layouts, but
+ * nothing hard-relies on that staying true.
  */
 export function wallOrientation(tiles: readonly string[], x: number, y: number): { corner: boolean; rotate: number } {
   const n = isWallAt(tiles, x, y - 1);

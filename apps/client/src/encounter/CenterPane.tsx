@@ -202,15 +202,15 @@ function Hints({ view }: { view: EncounterView }) {
 function Outcome({ view }: { view: EncounterView }) {
   const leave = useGame((s) => s.leave);
   const showMap = useGame((s) => s.showMap);
-  const finishOverworldEncounter = useGame((s) => s.finishOverworldEncounter);
+  const finishWorldEncounter = useGame((s) => s.finishWorldEncounter);
   const inExpedition = useGame((s) => s.run?.expedition !== undefined);
-  const inOverworld = useGame((s) => s.overworldMarkerId !== undefined);
+  const inWorld = useGame((s) => s.worldMarkerId !== undefined);
   const runEnded = useGame((s) => s.run?.status === "ended");
   const back = (
     <div className="actions">
-      {inOverworld ? (
-        <button type="button" className="btn primary" onClick={() => void finishOverworldEncounter()}>
-          Continue exploring →
+      {inWorld ? (
+        <button type="button" className="btn primary" onClick={() => void finishWorldEncounter()}>
+          Back to the world →
         </button>
       ) : inExpedition ? (
         <button type="button" className="btn primary" onClick={showMap}>

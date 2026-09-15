@@ -10,10 +10,15 @@ content/packs/<pack>/
   pack.yaml                 id, name, version, engine_range, dependencies, description
   realms.yaml               the layers of the Machine (optional per pack)
   oaths.yaml                learning goals (optional)
+  terrain.yaml              ground kinds for zones: walkable or not, and a fallback color (optional)
+  props.yaml                buildings, trees, furniture: footprint and whether it blocks (optional)
   skills/*.yaml             skill nodes: { nodes: [...] }
   cards/*.yaml              review cards for one node: { node, cards: [...] }
   enemies/<id>.yaml         one enemy per file; the file name must match the id
   items/<id>.yaml           one Artifact per file; the file name must match the id
+  zones/<id>.yaml           a walkable zone of the world (ADR-0011)
+  npcs/<id>.yaml            a person and their conversation
+  quests/<id>.yaml          a quest: who gives it, objectives, reward flags
   classes/<id>/             class.yaml, abilities.yaml, lore.md (folder name = class id)
   challenges/<realm>/<folder>/
 ```
@@ -76,6 +81,115 @@ validator fails the challenge if the reference solution breaks its own constrain
 - **Class:** `classes/<id>/class.yaml` + `abilities.yaml` + `lore.md`. Passive effect implemented so far:
   `lootMultiplierOnCrit` (param `factor`).
 - **Review cards:** `cards/<node>.yaml` with `{ node, cards: [{ id, q, a, kind? }] }`.
+
+## The world: zones, people, and quests
+
+The worked examples are `zones/bastion.yaml` (a town), `zones/foundry.yaml` (wilds with fights), `npcs/guildmaster.yaml`
+(a quest line), and `quests/the-foundry-cools.yaml`.
+
+### Conditions and effects
+
+Anything that can appear, open, or be offered only sometimes takes an `if:` with one condition:
+
+| Condition | Holds when |
+|---|---|
+| `{ flag: kiln-gate-open }` | some effect or quest reward has set the flag |
+| `{ quest: the-foundry-cools, status: ready }` | the quest is `not-started`, `active`, `ready` (every objective met), or `done` |
+| `{ cleared: foundry/foundry-loops }` | the character has won that marker's fight |
+| `{ cleared_in: foundry, at_least: 3 }` | at least that many markers are won in the zone |
+| `{ mastery: py.control.loops, at_least: 2 }` | the learner model has that mastery level on the node |
+| `{ all: [...] }`, `{ any: [...] }`, `{ not: ... }` | combinations |
+
+Effects happen when a dialogue choice is picked or a feature is used, in order: `{ start_quest: id }`,
+`{ complete_quest: id }` (only works once the quest is `ready`, and sets its reward flags), `{ set_flag: id }`, and
+`{ open: guild-board | chronicle | practice }`.
+
+### Zones
+
+```yaml
+id: foundry
+name: The Foundry
+kind: wild                 # town | wild
+realm: foundry             # optional
+sight: 7                   # optional: tiles lit around the Maintainer; omit for a fully visible town
+ambience: embers           # none | embers | leaves
+arrival: "Molten glyphs drip from the ceiling."
+legend: { "#": rock, ".": ash, ",": basalt, "~": lava }   # tile character -> terrain id
+tiles: |
+  ############
+  #....,,....#
+  ############
+entry: { x: 21, y: 2 }
+props:    [{ prop: anvil, x: 9, y: 7 }, { prop: kiln-gate, x: 20, y: 21, if: { not: { flag: kiln-gate-open } } }]
+npcs:     [{ npc: pell, x: 27, y: 5, if: { not: { flag: pell-rescued } } }]
+markers:  [{ id: foundry-loops, kind: encounter, x: 27, y: 8, node: py.control.loops, challenges: [foundry.py.staircase] }]
+features: [{ id: kiln-inscription, x: 24, y: 20, label: Inscription, text: "THE KILN KEEPS COUNT." }]
+portals:  [{ id: to-bastion, x: 21, y: 1, label: Waystone, to: { zone: bastion, portal: to-foundry }, arrive: { x: 21, y: 2 } }]
+```
+
+- Coordinates count from the top-left tile, `x` across and `y` down. A prop's `x`/`y` is the top-left of its footprint;
+  its art is drawn bottom-aligned on the footprint, so tall buildings rise over the rows behind them.
+- **Markers** are fights: walking onto one starts the best fit from `challenges` for the player (ranked against
+  mastery on `node`). Marker ids are saved in each character's progress, so do not rename them.
+- **Portals** are walked onto; `arrive` is where someone coming *through* this portal stands, next to it. A portal with
+  an `if` is locked until it holds and shows `locked_text`.
+- **Features** (signs, doors) are used from an adjacent tile with E.
+- Exactly one zone in all content has `start: true`.
+- The validator checks that nothing stands on a blocked tile and that every marker, portal, arrival point, person, and
+  feature can be walked to from `entry` (with conditional props treated as open).
+
+### People
+
+```yaml
+id: compiler
+name: Brannoc
+title: The Compiler
+dialogue:
+  start:                   # tried in order; the first whose `if` holds opens the conversation
+    - { if: { quest: hammer-and-test, status: ready }, goto: turn-in }
+    - { goto: hello }      # keep a last entry without `if`
+  nodes:
+    hello:
+      text: "Bring me the function. And its tests.\n\nNo tests, no spell."   # a blank line starts a new page
+      choices:
+        - { text: "Test me.", if: { quest: hammer-and-test, status: not-started }, effects: [{ start_quest: hammer-and-test }] }
+        - { text: "Later, smith." }          # no `goto`: the conversation ends
+    turn-in:
+      text: "You returned the value. Good."
+      choices:
+        - { text: "Thank you.", effects: [{ complete_quest: hammer-and-test }] }
+```
+
+A node with no choices ends the conversation when the player moves on. `speaker: lint` on a node lets someone else say
+that line. A "!" appears over a person when a conversation started now could hand out a quest, and a "?" when one of
+their quests is ready to hand in. Guard quest-starting choices with a `not-started` condition, as above, so the choice
+disappears once the quest is in the journal. Voices: `ideas/game-content/lore-and-narrative.md`.
+
+### Quests
+
+```yaml
+id: the-foundry-cools
+name: The Foundry Cools
+giver: guildmaster          # the NPC whose dialogue hands it in
+summary: "Clear three of the Foundry's fights, then report back to Guildmaster Orin."
+objectives:
+  - { text: "Clear fights in the Foundry", cleared_in: foundry, at_least: 3 }
+rewards:
+  flags: [kiln-gate-open]
+  text: "The kiln gate at the bottom of the Foundry has been unsealed."
+```
+
+Objectives use the leaf conditions above (`cleared`, `cleared_in`, `mastery`, `flag`). Progress counts the world as it
+is, so fights won before the quest started count too. Only ask for things the game really records: no building or
+quest may stand in for a mechanic that does not exist yet (ADR-0011).
+
+### Art for the world
+
+Art is optional; without it props show a letter, people and monsters a glyph, and terrain its `color`. To generate
+some, add entries to `scripts/art/manifest.json` and run `scripts/art/generate.py` (see `assets/README.md`), then add
+the new ids to the catalog in `apps/client/src/assets/AssetRegistry.ts`. People use `npcs/<sprite>` and
+`portraits/<portrait>`, monsters on markers use `creatures/<enemy id>`, props use `props/<id>`, and terrain uses four
+seamless variants `terrain/<id>-0..3`.
 
 ## Quality checklist (from ideas/solutions/content-pipeline.md)
 

@@ -1,0 +1,18 @@
+# The Package Manager (Quartermaster): a cheerful salesman obsessed with dependencies and versions.
+id: quartermaster
+name: Nym
+title: The Package Manager
+dialogue:
+  start:
+    - { goto: hello }
+  nodes:
+    hello:
+      text: "Welcome, welcome! Nym, Package Manager to the Guild! Potions, patches, rubber ducks, every one pinned to an exact version!\n\nOnly three transitive dependencies! A bargain!"
+      choices:
+        - { text: "What are you selling?", goto: wares }
+        - { text: "What is a transitive dependency?", goto: transitive }
+        - { text: "Just looking." }
+    wares:
+      text: "Ah. Well. Everything is still in transit from upstream. The Guild opens my stall once Cycles can travel home with you from an expedition.\n\nUntil then, a tip, free of charge: pin your versions."
+    transitive:
+      text: "You want a hammer. The hammer needs a handle. The handle needs a tree. The tree needs a forest, and now you are maintaining a forest! That is a transitive dependency. Always read the label."

@@ -122,6 +122,11 @@ function mergePack(index: ContentIndex, contents: PackContents, diagnostics: Dia
   addSourced("oath", index.oaths, contents.oaths);
   addSourced("enemy", index.enemies, contents.enemies);
   addSourced("item", index.items, contents.items);
+  addSourced("terrain", index.terrain, contents.terrain);
+  addSourced("prop", index.props, contents.props);
+  addSourced("npc", index.npcs, contents.npcs);
+  addSourced("quest", index.quests, contents.quests);
+  addSourced("zone", index.zones, contents.zones);
 
   for (const card of contents.cards) {
     const key = `${card.value.node}#${card.value.id}`;

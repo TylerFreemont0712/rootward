@@ -1,0 +1,10 @@
+id: pells-notes
+name: Pell's Notes
+giver: pell
+summary: "Journeyman Pell is stuck at his camp in the Foundry. Two bugs took his notes: one in the edge-case hall, one in the dictionary hall."
+objectives:
+  - { text: "Win the fight in the edge-case hall", cleared: foundry/foundry-edge-cases }
+  - { text: "Win the fight in the dictionary hall", cleared: foundry/foundry-dicts }
+rewards:
+  flags: [pell-rescued]
+  text: "Pell went home to the Warm Cache with his notes, and wrote your name in them."

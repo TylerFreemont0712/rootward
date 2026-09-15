@@ -1,0 +1,41 @@
+# Things placed in zones (ADR-0011). Art lives in assets/generated/props/<id>.png and is drawn bottom-aligned on the
+# footprint, so a building can rise above the tiles behind it. Footprints are in tiles.
+props:
+  # Buildings of the Bastion
+  - { id: guild-hall, name: Guild Hall, footprint: { w: 5, h: 3 } }
+  - { id: library, name: The Library, footprint: { w: 4, h: 3 } }
+  - { id: smithy, name: The Compiler's forge, footprint: { w: 4, h: 3 } }
+  - { id: inn, name: The Warm Cache, footprint: { w: 4, h: 3 } }
+  - { id: house-red, name: Cottage, footprint: { w: 3, h: 2 } }
+  - { id: house-blue, name: Stone cottage, footprint: { w: 3, h: 2 } }
+  - { id: market-stall, name: Market stall, footprint: { w: 3, h: 2 } }
+  - { id: town-gate, name: South gate, footprint: { w: 3, h: 1 }, blocking: false }
+  # Town furniture
+  - { id: fountain, name: Fountain, footprint: { w: 2, h: 2 } }
+  - { id: well, name: Well }
+  - { id: oak, name: Oak tree }
+  - { id: pine, name: Pine tree }
+  - { id: bush, name: Bush }
+  - { id: lamp, name: Street lamp }
+  - { id: barrel, name: Barrel }
+  - { id: crates, name: Crates }
+  - { id: fence, name: Fence }
+  - { id: bench, name: Bench }
+  - { id: signpost, name: Signpost }
+  - { id: notice-board, name: Notice board, footprint: { w: 2, h: 1 } }
+  - { id: dummy, name: Training dummy }
+  - { id: cart, name: Hand cart, footprint: { w: 2, h: 1 } }
+  - { id: flowers, name: Wildflowers, blocking: false }
+  # The Foundry
+  - { id: anvil, name: Anvil }
+  - { id: furnace, name: Smelting furnace, footprint: { w: 2, h: 2 } }
+  - { id: crucible, name: Crucible }
+  - { id: gears, name: Gear pile }
+  - { id: glyph-pillar, name: Glyph pillar }
+  - { id: ore-rocks, name: Ore vein }
+  - { id: boulder, name: Boulder }
+  - { id: kiln-gate, name: Sealed kiln gate, footprint: { w: 3, h: 1 } }
+  - { id: kiln-arch, name: Open kiln gate, footprint: { w: 3, h: 1 }, blocking: false }
+  - { id: tent, name: Camp tent, footprint: { w: 2, h: 1 } }
+  - { id: campfire, name: Campfire }
+  - { id: portal, name: Waystone circle, blocking: false }

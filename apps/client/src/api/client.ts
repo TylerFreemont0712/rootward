@@ -1,21 +1,27 @@
 import {
   type ActionRequest,
   ChallengeListResponse,
+  type ChooseRequest,
   type CreateProfileRequest,
   DebriefResponse,
-  type EnterOverworldRequest,
   type EnterRoomRequest,
   ErrorResponse,
+  type InspectRequest,
   LearnerResponse,
-  type MoveOverworldRequest,
-  OverworldRealmsResponse,
-  OverworldResponse,
+  type MoveWorldRequest,
+  MoveWorldResponse,
   ProfileListResponse,
   ProfileResponse,
-  type ResolveOverworldEncounterRequest,
+  type ResolveMarkerRequest,
   RunResponse,
   type StartEncounterRequest,
   type StartExpeditionRequest,
+  type StartWorldRequest,
+  type TalkRequest,
+  type TravelRequest,
+  WorldActionResponse,
+  WorldResponse,
+  WorldStatusResponse,
 } from "@rootward/shared";
 import type { z } from "zod";
 
@@ -75,8 +81,9 @@ async function request<T extends z.ZodType>(
 const profileUrl = (profileId: string, suffix = "") => `/api/profiles/${encodeURIComponent(profileId)}${suffix}`;
 const profileRunUrl = (profileId: string, runId: string, suffix = "") =>
   `${profileUrl(profileId)}/runs/${encodeURIComponent(runId)}${suffix}`;
-const overworldUrl = (profileId: string, realmId: string, suffix = "") =>
-  `${profileUrl(profileId)}/overworld/${encodeURIComponent(realmId)}${suffix}`;
+const worldUrl = (profileId: string, suffix = "") => `${profileUrl(profileId)}/world${suffix}`;
+const markerUrl = (profileId: string, markerId: string, suffix: string) =>
+  worldUrl(profileId, `/markers/${encodeURIComponent(markerId)}${suffix}`);
 
 export const api = {
   // Global content, not player data: not scoped to a character.
@@ -97,15 +104,15 @@ export const api = {
   debrief: (profileId: string, runId: string) => request("GET", profileRunUrl(profileId, runId, "/debrief"), DebriefResponse),
   learner: (profileId: string) => request("GET", profileUrl(profileId, "/learner"), LearnerResponse),
 
-  // The overworld (ADR-0010): a free-roam zone alongside the expedition above.
-  overworldRealms: (profileId: string) => request("GET", profileUrl(profileId, "/overworld"), OverworldRealmsResponse),
-  enterOverworld: (profileId: string, realmId: string, body: EnterOverworldRequest) =>
-    request("POST", overworldUrl(profileId, realmId, "/enter"), OverworldResponse, body),
-  getOverworld: (profileId: string, realmId: string) => request("GET", overworldUrl(profileId, realmId), OverworldResponse),
-  moveOverworld: (profileId: string, realmId: string, body: MoveOverworldRequest) =>
-    request("POST", overworldUrl(profileId, realmId, "/move"), OverworldResponse, body),
-  startMarkerEncounter: (profileId: string, realmId: string, markerId: string) =>
-    request("POST", overworldUrl(profileId, realmId, `/markers/${encodeURIComponent(markerId)}/start`), RunResponse),
-  resolveMarkerEncounter: (profileId: string, realmId: string, markerId: string, body: ResolveOverworldEncounterRequest) =>
-    request("POST", overworldUrl(profileId, realmId, `/markers/${encodeURIComponent(markerId)}/resolve`), OverworldResponse, body),
+  // The world (ADR-0011): towns and wilds with people, quests, and fights.
+  world: (profileId: string) => request("GET", worldUrl(profileId), WorldStatusResponse),
+  startWorld: (profileId: string, body: StartWorldRequest) => request("POST", worldUrl(profileId, "/start"), WorldResponse, body),
+  moveWorld: (profileId: string, body: MoveWorldRequest) => request("POST", worldUrl(profileId, "/move"), MoveWorldResponse, body),
+  travel: (profileId: string, body: TravelRequest) => request("POST", worldUrl(profileId, "/travel"), WorldActionResponse, body),
+  talk: (profileId: string, body: TalkRequest) => request("POST", worldUrl(profileId, "/talk"), WorldActionResponse, body),
+  choose: (profileId: string, body: ChooseRequest) => request("POST", worldUrl(profileId, "/choose"), WorldActionResponse, body),
+  inspect: (profileId: string, body: InspectRequest) => request("POST", worldUrl(profileId, "/inspect"), WorldActionResponse, body),
+  startMarker: (profileId: string, markerId: string) => request("POST", markerUrl(profileId, markerId, "/start"), RunResponse),
+  resolveMarker: (profileId: string, markerId: string, body: ResolveMarkerRequest) =>
+    request("POST", markerUrl(profileId, markerId, "/resolve"), WorldResponse, body),
 };

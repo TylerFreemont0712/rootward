@@ -1,0 +1,9 @@
+id: counting-lessons
+name: Counting Lessons
+giver: pip
+summary: "Pip always counts one duck short. Something in the Foundry's loop hall is teaching everyone to stop early. Beat it."
+objectives:
+  - { text: "Win the fight in the loop hall", cleared: foundry/foundry-loops }
+rewards:
+  flags: [pip-counts-right]
+  text: "range stops before its end, on purpose. Pip counted five ducks, twice."

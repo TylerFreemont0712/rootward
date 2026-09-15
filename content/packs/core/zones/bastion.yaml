@@ -1,0 +1,210 @@
+# The Bastion: the Guild's town, where every new Maintainer arrives (ADR-0011). Edit freely; `pnpm content:validate`
+# checks that every person, door, and road can still be walked to.
+id: bastion
+name: The Bastion
+kind: town
+start: true
+ambience: leaves
+arrival: "The Guild's town. Bread, bells, and the far-off hum of the Machine."
+legend:
+  "#": stone-wall
+  ".": grass
+  "=": cobble
+  ":": flagstone
+  ",": dirt
+  "~": water
+  "_": planks
+tiles: |
+  ########################################
+  #.....~~...............................#
+  #.....~~...............................#
+  #.....~~...............................#
+  #.....~~...............................#
+  #.....~~...............................#
+  #.....~~...............................#
+  #.....~~...............................#
+  #.....~~..,,.......==.......,,.........#
+  #.....~~..,,.......==.......,,.........#
+  #.....~~..,,.......==.......,,.........#
+  #.....~~..,,...::::::::::...,,.........#
+  #.....~~..,,...::::::::::...,,.........#
+  #.....~~..,,...::::::::::...,,.........#
+  #=====__=======::::::::::==============#
+  #=====__=======::::::::::==============#
+  #.....~~.....,.::::::::::..............#
+  #.....~~.....,.::::::::::..............#
+  #.....~~.....,.::::::::::..............#
+  #.....~~.....,.....==..................#
+  #.....~~.....,.....==..................#
+  #.....~~.....,.....==..................#
+  #.....~~.....,.....==..................#
+  #.....~~..,,,,.....==..................#
+  #.....~~...........==..................#
+  #.....~~...........==..................#
+  #.....~~...........==..................#
+  #.....~~...........==..................#
+  #.....~~...........==..................#
+  ###################==###################
+entry: { x: 19, y: 17 }
+props:
+  - { prop: guild-hall, x: 17, y: 5 }
+  - { prop: library, x: 9, y: 5 }
+  - { prop: smithy, x: 27, y: 5 }
+  - { prop: inn, x: 9, y: 20 }
+  - { prop: market-stall, x: 27, y: 20 }
+  - { prop: house-red, x: 1, y: 3 }
+  - { prop: house-blue, x: 1, y: 9 }
+  - { prop: house-blue, x: 33, y: 3 }
+  - { prop: house-red, x: 33, y: 9 }
+  - { prop: house-red, x: 33, y: 24 }
+  - { prop: house-blue, x: 1, y: 22 }
+  - { prop: town-gate, x: 18, y: 29 }
+  - { prop: fountain, x: 19, y: 14 }
+  - { prop: lamp, x: 18, y: 10 }
+  - { prop: lamp, x: 21, y: 10 }
+  - { prop: lamp, x: 15, y: 11 }
+  - { prop: lamp, x: 24, y: 11 }
+  - { prop: lamp, x: 15, y: 18 }
+  - { prop: lamp, x: 24, y: 18 }
+  - { prop: lamp, x: 18, y: 27 }
+  - { prop: lamp, x: 21, y: 28 }
+  - { prop: bench, x: 17, y: 11 }
+  - { prop: bench, x: 22, y: 11 }
+  - { prop: well, x: 16, y: 17 }
+  - { prop: notice-board, x: 16, y: 13 }
+  - { prop: signpost, x: 23, y: 16 }
+  - { prop: signpost, x: 2, y: 13 }
+  - { prop: signpost, x: 37, y: 13 }
+  - { prop: signpost, x: 21, y: 22 }
+  - { prop: anvil, x: 31, y: 8 }
+  - { prop: barrel, x: 32, y: 8 }
+  - { prop: crates, x: 26, y: 20 }
+  - { prop: barrel, x: 30, y: 21 }
+  - { prop: cart, x: 31, y: 20 }
+  - { prop: crates, x: 14, y: 21 }
+  - { prop: dummy, x: 24, y: 25 }
+  - { prop: dummy, x: 26, y: 25 }
+  - { prop: dummy, x: 25, y: 27 }
+  - { prop: fence, x: 23, y: 23 }
+  - { prop: fence, x: 24, y: 23 }
+  - { prop: fence, x: 25, y: 23 }
+  - { prop: fence, x: 26, y: 23 }
+  - { prop: fence, x: 27, y: 23 }
+  - { prop: fence, x: 28, y: 23 }
+  - { prop: fence, x: 28, y: 24 }
+  - { prop: fence, x: 28, y: 25 }
+  - { prop: fence, x: 28, y: 26 }
+  - { prop: fence, x: 28, y: 27 }
+  - { prop: fence, x: 28, y: 28 }
+  - { prop: fence, x: 23, y: 28 }
+  - { prop: fence, x: 24, y: 28 }
+  - { prop: fence, x: 25, y: 28 }
+  - { prop: fence, x: 26, y: 28 }
+  - { prop: fence, x: 27, y: 28 }
+  - { prop: oak, x: 4, y: 7 }
+  - { prop: oak, x: 4, y: 17 }
+  - { prop: oak, x: 2, y: 19 }
+  - { prop: oak, x: 13, y: 2 }
+  - { prop: oak, x: 15, y: 3 }
+  - { prop: oak, x: 24, y: 3 }
+  - { prop: oak, x: 26, y: 2 }
+  - { prop: oak, x: 37, y: 7 }
+  - { prop: oak, x: 37, y: 17 }
+  - { prop: oak, x: 36, y: 20 }
+  - { prop: oak, x: 31, y: 26 }
+  - { prop: oak, x: 37, y: 27 }
+  - { prop: oak, x: 15, y: 26 }
+  - { prop: oak, x: 10, y: 27 }
+  - { prop: oak, x: 3, y: 27 }
+  - { prop: pine, x: 11, y: 2 }
+  - { prop: pine, x: 22, y: 2 }
+  - { prop: pine, x: 30, y: 2 }
+  - { prop: pine, x: 37, y: 1 }
+  - { prop: pine, x: 1, y: 1 }
+  - { prop: pine, x: 5, y: 25 }
+  - { prop: pine, x: 12, y: 26 }
+  - { prop: pine, x: 36, y: 12 }
+  - { prop: pine, x: 32, y: 16 }
+  - { prop: pine, x: 38, y: 22 }
+  - { prop: bush, x: 8, y: 4 }
+  - { prop: bush, x: 31, y: 4 }
+  - { prop: bush, x: 14, y: 19 }
+  - { prop: bush, x: 25, y: 19 }
+  - { prop: bush, x: 8, y: 11 }
+  - { prop: bush, x: 30, y: 11 }
+  - { prop: flowers, x: 14, y: 9 }
+  - { prop: flowers, x: 25, y: 9 }
+  - { prop: flowers, x: 8, y: 17 }
+  - { prop: flowers, x: 31, y: 17 }
+  - { prop: flowers, x: 16, y: 20 }
+  - { prop: flowers, x: 23, y: 20 }
+  - { prop: flowers, x: 5, y: 20 }
+  - { prop: flowers, x: 35, y: 21 }
+  - { prop: flowers, x: 17, y: 24 }
+  - { prop: flowers, x: 2, y: 6 }
+  - { prop: flowers, x: 36, y: 6 }
+npcs:
+  - { npc: lint, x: 21, y: 17 }
+  - { npc: guildmaster, x: 22, y: 8 }
+  - { npc: archivist, x: 13, y: 9 }
+  - { npc: compiler, x: 26, y: 9 }
+  - { npc: innkeeper, x: 8, y: 23 }
+  - { npc: quartermaster, x: 28, y: 22 }
+  - { npc: sergeant, x: 22, y: 24 }
+  - { npc: guard, x: 17, y: 27 }
+  - { npc: pip, x: 5, y: 12 }
+  - { npc: pell, x: 14, y: 23, if: { flag: pell-rescued } }
+markers: []
+features:
+  - id: guild-hall-door
+    x: 19
+    y: 7
+    label: "Guild Hall"
+    text: "The Guild Board hangs inside: expeditions planned around what you know, and what you should learn next."
+    effects: [{ open: guild-board }]
+  - id: library-door
+    x: 10
+    y: 7
+    label: "The Library"
+    text: "Rows of shelves, and one of them is yours. The Chronicle of your fights is kept here."
+    effects: [{ open: chronicle }]
+  - id: testing-grounds
+    x: 21
+    y: 22
+    label: "Testing Grounds"
+    text: "Pick any job and drill it. Nothing here counts against you."
+    effects: [{ open: practice }]
+  - id: inn-door
+    x: 10
+    y: 22
+    label: "The Warm Cache"
+    text: "The common room is loud with Maintainers comparing stack traces. Someone is explaining a bug with a spoon and two bowls."
+  - id: notice-board
+    x: 16
+    y: 13
+    label: "Notice board"
+    text: "WANTED: whoever keeps counting the ledger one short. REWARD: correct ledgers. -- Also: lost, one journeyman (Pell). Last seen on the Foundry road."
+  - id: plaza-signpost
+    x: 23
+    y: 16
+    label: "Signpost"
+    text: "North: the Guild Hall. West: the Library and the Warm Cache. East: the Compiler's forge and the market. South: the gate and the Foundry road."
+  - id: grove-road
+    x: 2
+    y: 13
+    label: "Road west"
+    text: "Beyond the river the road to the Grove of Structures is overgrown. The Guild has not cleared a way yet."
+  - id: kernel-road
+    x: 37
+    y: 13
+    label: "Road east"
+    text: "A sealed door marked KERNEL HALLS. Whoever locked it did not leave you the permissions."
+portals:
+  - id: to-foundry
+    x: 19
+    y: 29
+    label: "The Foundry road"
+    to: { zone: foundry, portal: to-bastion }
+    arrive: { x: 19, y: 28 }
+    if: { flag: sworn-in }
+    locked_text: "Guard Hollis steps into the road: \"Sworn Maintainers only. The Guildmaster is in the Guild Hall.\""

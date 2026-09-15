@@ -16,13 +16,20 @@ export type AssetCategory =
   | "tiles"
   | "hud"
   | "backgrounds"
-  | "avatars";
+  | "avatars"
+  | "props"
+  | "npcs"
+  | "portraits"
+  | "creatures";
 
 /** Served from apps/client/public/generated, which is assets/generated at the repo root (see that folder's symlink). */
 const BASE_URL = "/generated";
 
+const NPCS = ["guildmaster", "lint", "archivist", "compiler", "quartermaster", "sergeant", "pip", "guard", "innkeeper", "pell"];
+const ENEMIES = ["null-wraith", "off-by-one-goblin", "regex-sphinx", "tally-wisp", "type-mimic", "kiln-warden"];
+
 const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
-  enemies: new Set(["null-wraith", "off-by-one-goblin", "regex-sphinx", "tally-wisp", "type-mimic"]),
+  enemies: new Set(ENEMIES),
   classes: new Set(["artificer"]),
   items: new Set(["rubber-duck", "stack-trace-lens"]),
   oaths: new Set([
@@ -56,9 +63,57 @@ const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
   /** Full-bleed opaque backdrops (one per realm, eventually); id is the realm id. Only "foundry" exists so far --
    * it's the only realm any seeded content is actually set in. */
   backgrounds: new Set(["foundry"]),
-  /** Top-down map tokens, distinct from the `classes` portrait; id is the class slug. */
+  /** Map sprites for the player, keyed by class slug; distinct from the `classes` portrait. */
   avatars: new Set(["artificer"]),
+  /** World props (content/packs/<pack>/props.yaml), drawn bottom-aligned on their footprint. */
+  props: new Set([
+    "guild-hall",
+    "library",
+    "smithy",
+    "inn",
+    "house-red",
+    "house-blue",
+    "market-stall",
+    "town-gate",
+    "fountain",
+    "well",
+    "oak",
+    "pine",
+    "bush",
+    "lamp",
+    "barrel",
+    "crates",
+    "fence",
+    "bench",
+    "signpost",
+    "notice-board",
+    "dummy",
+    "cart",
+    "flowers",
+    "anvil",
+    "furnace",
+    "crucible",
+    "gears",
+    "glyph-pillar",
+    "ore-rocks",
+    "boulder",
+    "kiln-gate",
+    "kiln-arch",
+    "tent",
+    "campfire",
+    "portal",
+  ]),
+  /** NPC map sprites; id is the NPC's `sprite` (its id unless the content says otherwise). */
+  npcs: new Set(NPCS),
+  /** Dialogue portraits: every NPC, plus the player's class. */
+  portraits: new Set([...NPCS, "artificer"]),
+  /** Enemy map sprites standing on world markers; id is the enemy template id. */
+  creatures: new Set(ENEMIES),
 };
+
+/** Ground tile art: each terrain has this many interchangeable variants (`terrain/<id>-<n>.png`) that tile seamlessly. */
+const TERRAIN = new Set(["grass", "dirt", "cobble", "flagstone", "planks", "water", "stone-wall", "ash", "basalt", "lava", "rock"]);
+const TERRAIN_VARIANTS = 4;
 
 /** A display name to logical id, e.g. "Off-By-One Goblin" -> "off-by-one-goblin". */
 export function slugify(name: string): string {
@@ -68,4 +123,10 @@ export function slugify(name: string): string {
 /** The asset's URL, or undefined when `id` isn't in the known catalog for `category`. */
 export function assetUrl(category: AssetCategory, id: string): string | undefined {
   return CATALOG[category].has(id) ? `${BASE_URL}/${category}/${id}.png` : undefined;
+}
+
+/** Every variant URL for a terrain, or none when it has no art (the renderer then fills tiles with its color). */
+export function terrainVariantUrls(terrainId: string): string[] {
+  if (!TERRAIN.has(terrainId)) return [];
+  return Array.from({ length: TERRAIN_VARIANTS }, (_, index) => `${BASE_URL}/terrain/${terrainId}-${index}.png`);
 }

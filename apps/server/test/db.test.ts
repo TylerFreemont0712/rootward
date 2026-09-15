@@ -85,3 +85,24 @@ describe("transaction", () => {
     expect(db.prepare("SELECT COUNT(*) AS n FROM t").get()).toEqual({ n: 1 });
   });
 });
+
+describe("migration 0003 (the world, ADR-0011)", () => {
+  it("keeps overworld progress written under ADR-0010 as zone progress", () => {
+    const db = new DatabaseSync(MEMORY);
+    const migrations = loadMigrations();
+    migrate(db, MEMORY, migrations.slice(0, 2));
+    db.prepare("INSERT INTO profiles (id, name, class_id, created_at) VALUES ('p1', 'Ada', 'artificer', 'then')").run();
+    db.prepare(
+      `INSERT INTO overworld_progress (profile_id, realm_id, language, pos_x, pos_y, cleared, updated_at)
+       VALUES ('p1', 'foundry', 'python', 14, 4, '["foundry-loops"]', 'then')`,
+    ).run();
+
+    migrate(db, MEMORY, migrations);
+    expect(db.prepare("SELECT profile_id, zone_id, pos_x, pos_y, cleared FROM zone_progress").all()).toEqual([
+      { profile_id: "p1", zone_id: "foundry", pos_x: 14, pos_y: 4, cleared: '["foundry-loops"]' },
+    ]);
+    expect(tableNames(db)).toEqual(expect.arrayContaining(["world_state", "zone_progress"]));
+    expect(tableNames(db)).not.toContain("overworld_progress");
+    db.close();
+  });
+});
