@@ -35,6 +35,32 @@ Played from headless-browser screenshots, not by hand: a Shardrun run from the s
 - **Both rooms on a floor can hold the same foes** (both fights on floor 2 were goblins). Polish; encounters are drawn
   per room from the seed and may repeat.
 
+## 2026-09-16 — the player's WIP.md after testing Shardrun (ADR-0013)
+
+What the player reported, and what changed:
+
+- **Up and down walking cycled too slowly.** Polish; front and back strips now cycle in 0.4 s against 0.56 s for side
+  walking, since a knee lift is a shorter motion than a stride.
+- **Needs levels: plain words for beginners, only the function for programmers.** Blocking for the learning goal;
+  Beginner and Programmer difficulties, enforced by the server.
+- **No view of the spell as one function, which is the whole point.** Blocking; every spell has a Code view that
+  composes it into one function, and every cast plays through that code line by line, damage and block growing as each
+  shard returns (speed in Options: off, slow, normal, fast).
+- **A delay between choosing a spell and it happening.** Annoying; measured at about 270 ms per command in JavaScript
+  and 2.2 s in Python. The causes were a fresh sandbox per preview and a single Python spare. After the fix a cast
+  answers without the sandbox, and one warm job per turn fills in the next previews.
+- **The background did not fit a battle arena.** Polish; new side-view arenas, one per layer, at twice the resolution
+  and color count.
+- **Top-to-bottom map was confusing; bottom-to-top reads as climbing.** Annoying; Slay the Spire style generated maps
+  per layer, climbing to the guardian.
+- **Skeleton for levels, new spells, items.** Three layers, nine relics, boss spells, forge widening, treasure rooms.
+- **All modes felt live at once; Guild Board belongs to the World; drop Descend; class placeholders.** A main menu picks
+  The World or Shardrun, the Guild Board lives in the World without Descend, and six planned classes are listed with
+  art.
+
+Checked by `pnpm test:e2e` (class picker, main menu, World, practice fight, a Shardrun cast played as code) and by unit
+and service tests. Not yet played by hand end to end: balance across three layers is a guess.
+
 ## Tunables to watch in the first playtests
 
 - **Strike damage.** Failing tests × enemy ATK, capped at 24 per Strike (`enemy_moves.strike_damage_cap`). Casting the
@@ -61,3 +87,10 @@ Played from headless-browser screenshots, not by hand: a Shardrun run from the s
   about three forks deep. Too generous?
 - **Guardian difficulty.** The Kiln Warden has 95 HP, ignores bolts under 5 power, resists fire, and hits up to 12 a
   turn. Beatable with the shards a typical run finds by floor 7?
+- **Shardrun length.** Three layers of 8 to 9 rows plus a boss is about 27 rooms. Too long for "short runs"? Levers: `rows`
+  per layer in `shardrun/run.yaml`, or fewer layers.
+- **Relic power.** Overclocked Core (all damage x1.3) and Mana Capacitor (+1 mana) are guardian relics. Do they make
+  the next layer trivial?
+- **Programmer difficulty.** No predictions means reading every shard. Is it satisfying, or just slower? Is keeping the
+  mana cost visible the right hint?
+- **Code view speed.** Normal takes about 160 ms a line plus pauses at each shard. Does watching every cast get old?

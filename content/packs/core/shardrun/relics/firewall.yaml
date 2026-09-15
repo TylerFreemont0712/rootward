@@ -1,0 +1,8 @@
+id: firewall
+name: Firewall
+rarity: common
+icon: firewall
+summary: "Start every turn with 3 block."
+flavor: "Nothing gets in that you did not allow."
+effects:
+  - { kind: turn-block, amount: 3 }

@@ -109,6 +109,17 @@ export const Balance = z.strictObject({
     pattern_off_multiplier: Ratio,
     rest_heal_fraction: Ratio,
     reward_choices: PositiveInt,
+    /** Relics offered after an elite, in a treasure room, and after a boss. */
+    elite_relic_choices: NonNegativeInt,
+    treasure_relic_choices: PositiveInt,
+    boss_relic_choices: PositiveInt,
+    max_spells: PositiveInt,
+    /** A forge can widen a spell up to this many slots. */
+    max_spell_capacity: PositiveInt,
+    /** Integrity restored on reaching the next layer, as a fraction of the maximum. */
+    layer_heal_fraction: Ratio,
+    /** Bolts per step kept in a spell's trace for the code view. */
+    trace_bolts: PositiveInt,
   }),
   sandbox_defaults: z.strictObject({
     wall_ms: PositiveInt,

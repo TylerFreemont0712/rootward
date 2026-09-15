@@ -1,6 +1,7 @@
 import {
   type ActionRequest,
   type ChallengeSummary,
+  type ClassCardView,
   type ConversationView,
   type DebriefView,
   type FileMap,
@@ -31,19 +32,20 @@ const draftKey = (runId: string, roomId: string) => `rootward:draft:${runId}:${r
 
 export type Busy = "loading" | "start" | "enter" | "probe" | "cast" | "hint" | "retreat" | "abandon" | "debrief" | "world";
 export type CenterTab = "task" | "editor";
-/** Character select, the walkable world, the Guild Board, the expedition map, a fight, a finished run's debrief, or
- * Shardrun, the roguelite mode (ADR-0012). */
-export type Screen = "profiles" | "world" | "board" | "map" | "encounter" | "debrief" | "shardrun";
+/** Character select, the main menu, the walkable world, the Guild Board, the expedition map, a fight, a finished run's
+ * debrief, or Shardrun, the roguelite mode (ADR-0012). */
+export type Screen = "profiles" | "menu" | "world" | "board" | "map" | "encounter" | "debrief" | "shardrun";
 /** A part of the Guild Board the world can send the player straight to. */
-export type BoardSection = "descend" | "chronicle" | "practice";
+export type BoardSection = "chronicle" | "practice";
 
 export interface Toast {
   id: number;
   text: string;
 }
 
-const BOARD_SECTION: Readonly<Record<Exclude<WorldScreenId, "shardrun">, BoardSection>> = {
-  "guild-board": "descend",
+/** Where each world screen opens the Guild Board; the board itself opens at its top. */
+const BOARD_SECTION: Readonly<Record<Exclude<WorldScreenId, "shardrun">, BoardSection | undefined>> = {
+  "guild-board": undefined,
   chronicle: "chronicle",
   practice: "practice",
 };
@@ -53,6 +55,8 @@ export interface GameStore {
   /** Profile id -> what that character has done, for the title screen. */
   profileSummaries: Record<string, ProfileSummaryView>;
   startingClass: StartingClassView | undefined;
+  /** Every class for the picker, playable and planned. */
+  classes: ClassCardView[];
   lastProfileId: string | undefined;
   activeProfile: ProfileView | undefined;
   challenges: ChallengeSummary[];
@@ -81,7 +85,7 @@ export interface GameStore {
   restoreProfile: () => Promise<void>;
   /** Refresh the character list and summaries. */
   loadProfiles: () => Promise<void>;
-  createProfile: (name: string) => Promise<void>;
+  createProfile: (name: string, classId: string) => Promise<void>;
   selectProfile: (profile: ProfileView) => void;
   /** Leave the current character for the select screen; its run and world progress are left as they are. */
   switchProfile: () => void;
@@ -98,6 +102,8 @@ export interface GameStore {
   /** Back to the Guild Board. */
   leave: () => void;
   abandon: () => Promise<void>;
+  /** The main menu: pick a mode for the active character. */
+  showMenu: () => void;
   showWorld: () => void;
   showBoard: (section?: BoardSection) => void;
   clearBoardSection: () => void;
@@ -195,6 +201,7 @@ export const useGame = create<GameStore>()((set, get) => {
     profiles: [],
     profileSummaries: {},
     startingClass: undefined,
+    classes: [],
     lastProfileId: undefined,
     activeProfile: undefined,
     challenges: [],
@@ -229,8 +236,8 @@ export const useGame = create<GameStore>()((set, get) => {
         }
       }
       try {
-        const { profiles, summaries, startingClass } = await api.profiles();
-        set({ profiles, profileSummaries: summaries, startingClass, lastProfileId: readStorage(LAST_PROFILE_KEY), busy: undefined });
+        const { profiles, summaries, startingClass, classes } = await api.profiles();
+        set({ profiles, profileSummaries: summaries, startingClass, classes, lastProfileId: readStorage(LAST_PROFILE_KEY), busy: undefined });
         const match = candidateId !== undefined ? profiles.find((p) => p.id === candidateId) : undefined;
         if (match) get().selectProfile(match);
         else {
@@ -244,16 +251,16 @@ export const useGame = create<GameStore>()((set, get) => {
 
     loadProfiles: async () => {
       try {
-        const { profiles, summaries, startingClass } = await api.profiles();
-        set({ profiles, profileSummaries: summaries, startingClass });
+        const { profiles, summaries, startingClass, classes } = await api.profiles();
+        set({ profiles, profileSummaries: summaries, startingClass, classes });
       } catch (error) {
         set({ error: describe(error) });
       }
     },
 
-    createProfile: (name) =>
+    createProfile: (name, classId) =>
       request("start", async () => {
-        const { profile } = await api.createProfile({ name });
+        const { profile } = await api.createProfile({ name, classId });
         set({ profiles: [...get().profiles, profile] });
         get().selectProfile(profile);
       }),
@@ -264,7 +271,7 @@ export const useGame = create<GameStore>()((set, get) => {
       set({
         activeProfile: profile,
         lastProfileId: profile.id,
-        screen: "world",
+        screen: "menu",
         world: undefined,
         worldLoaded: false,
         conversation: undefined,
@@ -384,6 +391,10 @@ export const useGame = create<GameStore>()((set, get) => {
     abandon: async () => {
       await act("abandon", { type: "abandon" });
       if (get().error === undefined) get().leave();
+    },
+
+    showMenu: () => {
+      set({ screen: "menu", notice: undefined, conversation: undefined });
     },
 
     showWorld: () => {

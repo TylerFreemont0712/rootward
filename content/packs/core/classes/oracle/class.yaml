@@ -1,0 +1,11 @@
+# A planned class (PROMPT.md section 6): shown at character creation, not playable until its fights exist.
+id: oracle
+name: Oracle
+tagline: "Prove it works. Then prove it again."
+discipline: Testing and quality
+status: planned
+order: 4
+subjects: [unit tests, property-based testing, mutation testing, coverage]
+affinity: { spire: 1.0, ruins: 0.6 }
+default_runner_kinds: [tests]
+lore: lore.md

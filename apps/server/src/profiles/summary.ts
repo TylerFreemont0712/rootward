@@ -1,4 +1,4 @@
-import type { ProfileSummaryView, StartingClassView } from "@rootward/shared";
+import type { ClassCardView, ProfileSummaryView, StartingClassView } from "@rootward/shared";
 import type { GameContent } from "../content.ts";
 import type { RunServiceRegistry } from "../runs/registry.ts";
 import type { WorldService } from "../world/service.ts";
@@ -28,4 +28,19 @@ export async function profileSummary(profile: Profile, deps: SummaryDeps): Promi
 export function startingClass(content: GameContent, classId: string): StartingClassView | undefined {
   const def = content.index.classes.get(classId)?.def;
   return def && { id: def.id, name: def.name, tagline: def.tagline, discipline: def.discipline };
+}
+
+/** Every class for the character creation picker, playable ones first, then in each class's own order. */
+export function classCards(content: GameContent): ClassCardView[] {
+  return [...content.index.classes.values()]
+    .map(({ def }) => def)
+    .sort((a, b) => Number(b.status === "playable") - Number(a.status === "playable") || a.order - b.order || a.name.localeCompare(b.name))
+    .map((def) => ({
+      id: def.id,
+      name: def.name,
+      tagline: def.tagline,
+      discipline: def.discipline,
+      subjects: [...def.subjects],
+      playable: def.status === "playable",
+    }));
 }

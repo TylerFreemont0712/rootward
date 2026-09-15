@@ -20,8 +20,13 @@ const MEMORY_POLL_MS = 100;
 const MAX_STARTUP_ATTEMPTS = 2;
 
 export interface WasmPythonRunnerOptions {
-  /** Keep one sandbox process loaded and waiting, so a Probe does not pay Pyodide's start-up (about 1.5 s). */
+  /** Keep sandbox processes loaded and waiting, so a Probe does not pay Pyodide's start-up (about 1.5 s). */
   warm?: boolean;
+  /**
+   * How many loaded processes to keep waiting (default 1). Every job still gets a fresh process of its own; more spares
+   * only mean that jobs arriving in quick succession (a Shardrun cast, then the next previews) never wait for one to load.
+   */
+  spares?: number;
   startupAllowanceMs?: number;
 }
 
@@ -46,13 +51,16 @@ export class WasmPythonRunner implements Runner {
   readonly kinds: readonly RunKind[] = ["tests"];
   readonly tier = "wasm";
   private readonly warm: boolean;
+  private readonly spareCount: number;
   private readonly startupAllowanceMs: number;
   private readonly live = new Set<PythonProcess>();
-  private spare: PythonProcess | undefined;
+  /** Loaded processes waiting for a job, oldest first. */
+  private readonly spares: PythonProcess[] = [];
   private disposed = false;
 
   constructor(options: WasmPythonRunnerOptions = {}) {
     this.warm = options.warm ?? true;
+    this.spareCount = Math.max(1, options.spares ?? 1);
     this.startupAllowanceMs = options.startupAllowanceMs ?? DEFAULT_STARTUP_ALLOWANCE_MS;
   }
 
@@ -60,15 +68,15 @@ export class WasmPythonRunner implements Runner {
     return Promise.resolve(pyodideDir() !== undefined);
   }
 
-  /** Start the spare process now instead of on the first job. */
+  /** Start the spare processes now instead of on the first job. */
   prewarm(): void {
-    if (this.warm && !this.disposed && !this.spare) this.spare = new PythonProcess();
+    if (!this.warm || this.disposed) return;
+    while (this.spares.length < this.spareCount) this.spares.push(new PythonProcess());
   }
 
   dispose(): Promise<void> {
     this.disposed = true;
-    this.spare?.close();
-    this.spare = undefined;
+    for (const spare of this.spares.splice(0)) spare.close();
     for (const sandbox of this.live) sandbox.close();
     this.live.clear();
     return Promise.resolve();
@@ -110,8 +118,8 @@ export class WasmPythonRunner implements Runner {
   }
 
   private acquire(): PythonProcess {
-    const sandbox = this.spare ?? new PythonProcess();
-    this.spare = undefined;
+    // LEARN: the oldest spare has had the longest to load, so it is the most likely to be ready right now.
+    const sandbox = this.spares.shift() ?? new PythonProcess();
     this.live.add(sandbox);
     this.prewarm();
     return sandbox;

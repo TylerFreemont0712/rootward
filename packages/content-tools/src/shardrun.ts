@@ -2,10 +2,11 @@ import type { Bolt, Shard, ShardBattle } from "@rootward/content-schema";
 import type { RunJob, RunLimits, RunResult } from "@rootward/runners";
 import { z } from "zod";
 
-// The Shardrun pipeline harness (ADR-0012). A spell's shards are real functions; this builds one program that loads
-// each shard in its own namespace, feeds the bolts through them in slot order, and prints what came out. It runs as an
-// ordinary io job, one case per input, so the same sandboxes and limits that grade challenges also contain shards: an
-// infinite loop in a shard is a timeout, not a hung server.
+// The Shardrun spell harness (ADR-0012, ADR-0013). A spell's shards are real functions; this builds one program that
+// runs any number of spells, each shard loaded fresh in its own namespace, and prints one result line per spell with a
+// trace of the bolts after every shard. It runs as an ordinary io job, so the same sandboxes and limits that grade
+// challenges also contain shards: an infinite loop in a shard is a timeout, not a hung server. Running every spell of a
+// turn in one job means one sandbox start instead of one per spell.
 
 export const SHARDRUN_LANGUAGES = ["python", "javascript"] as const;
 export type ShardrunLanguage = (typeof SHARDRUN_LANGUAGES)[number];
@@ -19,18 +20,49 @@ export interface PipelineInput {
   battle: ShardBattle;
   /** A shard's output is cut to this many bolts before the next shard sees it. */
   limit: number;
+  /** Bolts kept per step in the trace. */
+  traceLimit: number;
 }
 
-/** Marks the harness's result line, so whatever a shard prints itself cannot be mistaken for it. */
+/** A spell to run: an id to report under, and its shards in slot order. */
+export interface SpellProgram {
+  id: string;
+  shards: readonly Shard[];
+}
+
+/** One io case: spells that all start from the same input. */
+export interface SpellCase {
+  spells: readonly SpellProgram[];
+  input: PipelineInput;
+}
+
+/** Marks the harness's result lines, so whatever a shard prints itself cannot be mistaken for them. */
 const MARKER = "@@shardrun@@";
 
-const TraceStep = z.strictObject({ shard: z.string(), given: z.int().min(0), returned: z.int().min(0) });
+const TraceStep = z.strictObject({
+  shard: z.string(),
+  given: z.int().min(0),
+  returned: z.int().min(0),
+  /** The bolts this shard passed on (the first `traceLimit`), exactly as the next shard received them. */
+  bolts: z.array(z.unknown()),
+});
 export type TraceStep = z.infer<typeof TraceStep>;
-const HarnessOutput = z.strictObject({ bolts: z.array(z.unknown()), trace: z.array(TraceStep) });
+
+const SpellLine = z.discriminatedUnion("ok", [
+  z.strictObject({ spell: z.string(), ok: z.literal(true), bolts: z.array(z.unknown()), trace: z.array(TraceStep) }),
+  z.strictObject({
+    spell: z.string(),
+    ok: z.literal(false),
+    error: z.string(),
+    shard: z.string().optional(),
+    line: z.int().optional(),
+    trace: z.array(TraceStep),
+  }),
+]);
 
 export type PipelineRun =
   | { ok: true; bolts: unknown[]; trace: TraceStep[]; work: number; console: string }
-  | { ok: false; reason: string; console: string };
+  | { ok: false; reason: string; shard?: string; line?: number; trace: TraceStep[]; console: string };
 
 /** The name a shard's function has in `language`: snake_case in Python, camelCase in JavaScript. */
 export function shardFunctionName(shard: Shard, language: ShardrunLanguage): string {
@@ -38,21 +70,23 @@ export function shardFunctionName(shard: Shard, language: ShardrunLanguage): str
 }
 
 /**
- * A job that runs `shards` in order once per input. Undefined when a shard has no code in `language`.
- * LEARN: the shard list is embedded as a JSON string inside a JSON string. A JSON string literal is also a valid Python
- * and JavaScript string literal, so `json.loads("...")` and `JSON.parse("...")` read it back with no escaping bugs.
+ * A job with one io case per `SpellCase`. Undefined when a shard has no code in `language`.
+ * LEARN: the shard sources are embedded as a JSON string inside a JSON string. A JSON string literal is also a valid
+ * Python and JavaScript string literal, so `json.loads("...")` and `JSON.parse("...")` read it back with no escaping bugs.
  */
-export function pipelineJob(
-  language: ShardrunLanguage,
-  shards: readonly Shard[],
-  inputs: readonly PipelineInput[],
-  limits: RunLimits,
-): RunJob | undefined {
+export function spellsJob(language: ShardrunLanguage, cases: readonly SpellCase[], limits: RunLimits): RunJob | undefined {
   const embedded: { id: string; name: string; source: string }[] = [];
-  for (const shard of shards) {
-    const source = shard.code[language];
-    if (source === undefined) return undefined;
-    embedded.push({ id: shard.id, name: shardFunctionName(shard, language), source });
+  const indexOf = new Map<string, number>();
+  for (const spellCase of cases) {
+    for (const spell of spellCase.spells) {
+      for (const shard of spell.shards) {
+        if (indexOf.has(shard.id)) continue;
+        const source = shard.code[language];
+        if (source === undefined) return undefined;
+        indexOf.set(shard.id, embedded.length);
+        embedded.push({ id: shard.id, name: shardFunctionName(shard, language), source });
+      }
+    }
   }
   const literal = JSON.stringify(JSON.stringify(embedded));
   const entry = language === "python" ? "spell.py" : "spell.js";
@@ -66,40 +100,73 @@ export function pipelineJob(
     testSpec: {
       form: "io",
       normalize: { trailingWhitespace: true, newlines: true },
-      cases: inputs.map((input, index) => ({
-        id: `cast-${index + 1}`,
-        name: `cast ${index + 1}`,
-        stdin: JSON.stringify(input),
-        // Nothing is expected: the job only needs what the spell printed, and every case "fails" the comparison.
+      cases: cases.map((spellCase, index) => ({
+        id: `case-${index + 1}`,
+        name: `case ${index + 1}`,
+        stdin: JSON.stringify({
+          spells: spellCase.spells.map((spell) => ({ id: spell.id, shards: spell.shards.map((shard) => indexOf.get(shard.id) ?? -1) })),
+          bolts: spellCase.input.bolts,
+          battle: spellCase.input.battle,
+          limit: spellCase.input.limit,
+          traceLimit: spellCase.input.traceLimit,
+        }),
+        // Nothing is expected: the job only needs what the spells printed, and every case "fails" the comparison.
         expectedStdout: MARKER,
       })),
     },
   };
 }
 
-/** What each input's run produced, in input order. */
-export function readPipelineRuns(result: RunResult, count: number): PipelineRun[] {
-  const tests = result.tests ?? [];
-  return Array.from({ length: count }, (_, index): PipelineRun => {
-    const test = tests[index];
-    if (!test) return { ok: false, reason: describeStatus(result.status, result.stderr), console: "" };
-    const lines = (test.actual ?? "").split("\n");
-    const markerAt = lines.findLastIndex((line) => line.startsWith(MARKER));
-    const printed = lines.slice(0, markerAt < 0 ? lines.length : markerAt).join("\n").trim();
-    if (test.status !== "ok" || markerAt < 0) {
-      return { ok: false, reason: describeStatus(test.status, test.stderr ?? test.message ?? ""), console: printed };
+/** The run of each spell in case `caseIndex` of a `spellsJob` result, keyed by spell id. */
+export function readSpellRuns(result: RunResult, caseIndex: number, spellIds: readonly string[]): Map<string, PipelineRun> {
+  const test = result.tests?.[caseIndex];
+  const printed: string[] = [];
+  const lines = new Map<string, z.infer<typeof SpellLine>>();
+  for (const line of (test?.actual ?? "").split("\n")) {
+    if (!line.startsWith(MARKER)) {
+      printed.push(line);
+      continue;
     }
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(lines[markerAt]?.slice(MARKER.length) ?? "");
-    } catch {
-      return { ok: false, reason: "the spell produced something that is not a list of bolts", console: printed };
+    const parsed = SpellLine.safeParse(parseJson(line.slice(MARKER.length)));
+    if (parsed.success) lines.set(parsed.data.spell, parsed.data);
+  }
+  const console = printed.join("\n").trim();
+  const runs = new Map<string, PipelineRun>();
+  for (const spellId of spellIds) {
+    const line = lines.get(spellId);
+    if (line?.ok === true) {
+      const work = line.trace.reduce((sum, step) => sum + step.given, 0);
+      runs.set(spellId, { ok: true, bolts: line.bolts, trace: line.trace, work, console });
+    } else if (line) {
+      runs.set(spellId, {
+        ok: false,
+        reason: line.shard === undefined ? line.error : `${line.shard}${line.line === undefined ? "" : ` line ${line.line}`}: ${line.error}`,
+        ...(line.shard === undefined ? {} : { shard: line.shard }),
+        ...(line.line === undefined ? {} : { line: line.line }),
+        trace: line.trace,
+        console,
+      });
+    } else {
+      const reason = test ? describeStatus(test.status, test.stderr ?? test.message ?? "") : describeStatus(result.status, result.stderr);
+      runs.set(spellId, { ok: false, reason, trace: [], console });
     }
-    const output = HarnessOutput.safeParse(parsed);
-    if (!output.success) return { ok: false, reason: "the spell produced something that is not a list of bolts", console: printed };
-    const work = output.data.trace.reduce((sum, step) => sum + step.given, 0);
-    return { ok: true, bolts: output.data.bolts, trace: output.data.trace, work, console: printed };
-  });
+  }
+  return runs;
+}
+
+/** Whether a result stopped before every spell reported, the way a timeout or a crash does. */
+export function stoppedEarly(result: RunResult, caseIndex: number): boolean {
+  const status = result.tests?.[caseIndex]?.status ?? result.status;
+  return status === "timeout" || status === "oom" || status === "sandbox-error" || status === "runtime-error";
+}
+
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    // A line that is not JSON is reported as a missing result for its spell, with the run's own status as the reason.
+    return undefined;
+  }
 }
 
 function describeStatus(status: RunResult["status"], detail: string): string {
@@ -125,33 +192,83 @@ function describeStatus(status: RunResult["status"], detail: string): string {
 function pythonHarness(literal: string): string {
   return `import json
 import sys
+import traceback
 
 SHARDS = json.loads(${literal})
+MARKER = ${JSON.stringify(MARKER)}
 
 
 def load(shard):
-    # Each shard gets its own namespace, so two shards can both define a helper called \`clamp\` without colliding.
+    # Each shard gets its own namespace, loaded fresh for every spell, so shards cannot collide or keep state.
     namespace = {"__name__": "shard_" + shard["name"]}
     exec(compile(shard["source"], shard["id"] + ".py", "exec"), namespace)
     function = namespace.get(shard["name"])
     if not callable(function):
-        raise NameError("shard " + shard["id"] + " does not define " + shard["name"] + "(bolts, battle)")
+        raise NameError(shard["id"] + " does not define " + shard["name"] + "(bolts, battle)")
     return function
+
+
+class ShardFailure(Exception):
+    def __init__(self, shard, error):
+        super().__init__(str(error))
+        self.shard = shard
+        self.error = error
+
+
+def run_spell(spell, data, battle_json, trace):
+    bolts = json.loads(json.dumps(data["bolts"]))
+    for index in spell["shards"]:
+        shard = SHARDS[index]
+        try:
+            function = load(shard)
+            given = len(bolts)
+            result = function(bolts, json.loads(battle_json))
+            if not isinstance(result, list):
+                raise TypeError(shard["name"] + " must return a list of bolts, not " + type(result).__name__)
+            # A JSON round trip copies the bolts, so no shard can change another step's bolts afterwards, and it rejects
+            # values that are not plain data (like float("inf")) at the shard that made them.
+            snapshot = json.dumps(result[: data["limit"]], allow_nan=False)
+        except Exception as error:
+            raise ShardFailure(shard, error)
+        bolts = json.loads(snapshot)
+        kept = json.loads(snapshot)[: data["traceLimit"]]
+        trace.append({"shard": shard["id"], "given": given, "returned": len(result), "bolts": kept})
+    return bolts
+
+
+def locate(failure):
+    error = failure.error
+    filename = failure.shard["id"] + ".py"
+    line = None
+    if isinstance(error, SyntaxError) and error.filename == filename:
+        line = error.lineno
+    for frame in traceback.extract_tb(error.__traceback__):
+        if frame.filename == filename:
+            line = frame.lineno
+    return line
 
 
 def main():
     data = json.loads(sys.stdin.read())
-    bolts = data["bolts"]
-    trace = []
-    for shard in SHARDS:
-        function = load(shard)
-        given = len(bolts)
-        result = function(bolts, json.loads(json.dumps(data["battle"])))
-        if not isinstance(result, list):
-            raise TypeError(shard["name"] + " must return a list of bolts, not " + type(result).__name__)
-        trace.append({"shard": shard["id"], "given": given, "returned": len(result)})
-        bolts = result[: data["limit"]]
-    print(${JSON.stringify(MARKER)} + json.dumps({"bolts": bolts, "trace": trace}, allow_nan=False))
+    battle_json = json.dumps(data["battle"])
+    for spell in data["spells"]:
+        trace = []
+        try:
+            bolts = run_spell(spell, data, battle_json, trace)
+            result = {"spell": spell["id"], "ok": True, "bolts": bolts, "trace": trace}
+        except ShardFailure as failure:
+            error = failure.error
+            result = {
+                "spell": spell["id"],
+                "ok": False,
+                "error": type(error).__name__ + ": " + str(error),
+                "shard": failure.shard["id"],
+                "trace": trace,
+            }
+            line = locate(failure)
+            if line is not None:
+                result["line"] = line
+        print(MARKER + json.dumps(result))
 
 
 main()
@@ -160,25 +277,52 @@ main()
 
 function javascriptHarness(literal: string): string {
   return `const SHARDS = JSON.parse(${literal});
+const MARKER = ${JSON.stringify(MARKER)};
 
 function load(shard) {
-  // Each shard is compiled in its own function scope, so helpers in two shards never collide.
+  // Each shard is compiled in its own function scope, fresh for every spell, so shards never collide or keep state.
   const fn = new Function(shard.source + "\\nreturn typeof " + shard.name + " === \\"function\\" ? " + shard.name + " : undefined;")();
-  if (typeof fn !== "function") throw new Error("shard " + shard.id + " does not define " + shard.name + "(bolts, battle)");
+  if (typeof fn !== "function") throw new Error(shard.id + " does not define " + shard.name + "(bolts, battle)");
   return fn;
 }
 
-const data = JSON.parse(require("fs").readFileSync(0, "utf8"));
-let bolts = data.bolts;
-const trace = [];
-for (const shard of SHARDS) {
-  const fn = load(shard);
-  const given = bolts.length;
-  const result = fn(bolts, JSON.parse(JSON.stringify(data.battle)));
-  if (!Array.isArray(result)) throw new TypeError(shard.name + " must return an array of bolts, not " + typeof result);
-  trace.push({ shard: shard.id, given, returned: result.length });
-  bolts = result.slice(0, data.limit);
+function runSpell(spell, data, battleJson, trace) {
+  let bolts = JSON.parse(JSON.stringify(data.bolts));
+  for (const index of spell.shards) {
+    const shard = SHARDS[index];
+    let snapshot;
+    let given;
+    let returned;
+    try {
+      const fn = load(shard);
+      given = bolts.length;
+      const result = fn(bolts, JSON.parse(battleJson));
+      if (!Array.isArray(result)) throw new TypeError(shard.name + " must return an array of bolts, not " + typeof result);
+      returned = result.length;
+      snapshot = JSON.stringify(result.slice(0, data.limit));
+    } catch (error) {
+      throw { shard, error };
+    }
+    bolts = JSON.parse(snapshot);
+    trace.push({ shard: shard.id, given, returned, bolts: JSON.parse(snapshot).slice(0, data.traceLimit) });
+  }
+  return bolts;
 }
-console.log(${JSON.stringify(MARKER)} + JSON.stringify({ bolts, trace }));
+
+const data = JSON.parse(require("fs").readFileSync(0, "utf8"));
+const battleJson = JSON.stringify(data.battle);
+for (const spell of data.spells) {
+  const trace = [];
+  let result;
+  try {
+    result = { spell: spell.id, ok: true, bolts: runSpell(spell, data, battleJson, trace), trace };
+  } catch (failure) {
+    const error = failure && failure.error;
+    const name = error && error.name ? error.name : "Error";
+    const message = error && error.message !== undefined ? error.message : String(error);
+    result = { spell: spell.id, ok: false, error: name + ": " + message, shard: failure && failure.shard ? failure.shard.id : undefined, trace };
+  }
+  console.log(MARKER + JSON.stringify(result));
+}
 `;
 }

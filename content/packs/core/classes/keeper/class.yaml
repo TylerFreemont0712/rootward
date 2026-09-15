@@ -1,0 +1,11 @@
+# A planned class (PROMPT.md section 6): shown at character creation, not playable until its fights exist.
+id: keeper
+name: Keeper
+tagline: "Data remembers. Make sure it remembers right."
+discipline: Data and databases
+status: planned
+order: 5
+subjects: [SQL, schema design, indexes and query plans, data pipelines]
+affinity: { archives: 1.0 }
+default_runner_kinds: [tests]
+lore: lore.md

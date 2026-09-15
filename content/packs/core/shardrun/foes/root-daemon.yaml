@@ -1,0 +1,15 @@
+id: root-daemon
+name: The Root Daemon
+sprite: root-daemon
+hp: 200
+weak: [spark]
+resist: [none]
+trait: { kind: thick-hide, threshold: 8 }
+intents:
+  - { kind: shield, amount: 15 }
+  - { kind: strike, power: 14 }
+  - { kind: stoke }
+  - { kind: multi, power: 6, times: 3 }
+  - { kind: heal, amount: 15 }
+  - { kind: strike, power: 16 }
+flavor: The process that owns every other. It does not stop for signals, and small bolts do not reach it.

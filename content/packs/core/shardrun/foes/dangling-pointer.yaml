@@ -1,0 +1,9 @@
+id: dangling-pointer
+name: Dangling Pointer
+sprite: dangling-pointer
+hp: 22
+trait: { kind: shifting-weakness, cycle: [frost, spark, fire] }
+intents:
+  - { kind: strike, power: 7 }
+  - { kind: shield, amount: 5 }
+flavor: It points at something that is no longer there, and its weakness keeps moving.

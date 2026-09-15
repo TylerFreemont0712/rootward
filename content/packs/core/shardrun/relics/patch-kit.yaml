@@ -1,0 +1,8 @@
+id: patch-kit
+name: Patch Kit
+rarity: common
+icon: patch-kit
+summary: "Recover 6 Integrity after every fight."
+flavor: "Small fixes, applied often."
+effects:
+  - { kind: heal-after-fight, amount: 6 }

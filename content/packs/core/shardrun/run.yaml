@@ -1,36 +1,106 @@
-# Shardrun (ADR-0012): what a run starts with, the floors of the Salvage, and who waits on them. Every number that is
-# a rule rather than content lives in config/balance.yaml under `shardrun`.
+# Shardrun (ADR-0012, ADR-0013): what a run starts with, how much it explains, the layers of the Salvage, and what is
+# found in them. Every number that is a rule rather than content lives in config/balance.yaml under `shardrun`.
 start:
   spells:
     - { name: Bolt, capacity: 3, shards: [amplify] }
     - { name: Ward, capacity: 3, shards: [ward] }
     - { name: Fork, capacity: 3, shards: [fork] }
   inventory: [kindle]
+  relics: []
 
-# One list per floor: the rooms to choose between. Battles draw their foes from `encounters` by the run's seed.
-floors:
-  - [fight]
-  - [fight, fight]
-  - [fight, rest]
-  - [elite, forge]
-  - [fight, fight]
-  - [rest, forge]
-  - [boss]
+difficulties:
+  - id: beginner
+    name: Beginner
+    summary: "Every shard says what it does in plain words, and every spell predicts its damage before you cast. Foes are a little softer."
+    show_summaries: true
+    show_predictions: true
+    foe_hp: 0.85
+  - id: programmer
+    name: Programmer
+    summary: "Shards show only their code, and spells predict nothing: read the function, or cast it and watch. Foes at full strength."
+    show_summaries: false
+    show_predictions: false
+    foe_hp: 1.0
 
-encounters:
-  fight:
-    - [tally-wisp]
-    - [off-by-one-goblin]
-    - [null-wraith]
-    - [tally-wisp, tally-wisp]
-  elite:
-    - [regex-sphinx]
-    - [type-mimic, tally-wisp]
-  boss:
-    - [kiln-warden]
+# Each layer is a generated map: `paths` climb `rows` rows from the bottom, and the boss waits above the top row.
+# `fixed_rows` pins whole rows to one kind: "0" is the bottom row, "-1" the row just under the boss.
+layers:
+  - id: salvage
+    name: The Salvage
+    flavor: Broken programs, shattered into shards. The first guardians still keep their posts.
+    backdrop: arena-salvage
+    rows: 8
+    columns: 5
+    paths: 5
+    fixed_rows: { "0": fight, "4": treasure, "-1": rest }
+    weights: { fight: 52, elite: 14, rest: 12, forge: 12, treasure: 0 }
+    elite_from_row: 3
+    encounters:
+      fight:
+        - [tally-wisp]
+        - [off-by-one-goblin]
+        - [null-wraith]
+        - [tally-wisp, tally-wisp]
+      elite:
+        - [regex-sphinx]
+        - [type-mimic, tally-wisp]
+      boss:
+        - [kiln-warden]
+    boss_spell: { name: Surge, capacity: 2 }
 
-# Relative odds of each rarity when a won fight offers shards.
+  - id: heap
+    name: The Heap
+    flavor: Memory that was never freed, piled into caverns. Things live in the leaks.
+    backdrop: arena-heap
+    rows: 9
+    columns: 5
+    paths: 5
+    fixed_rows: { "0": fight, "4": treasure, "-1": rest }
+    weights: { fight: 50, elite: 16, rest: 12, forge: 12, treasure: 0 }
+    elite_from_row: 2
+    encounters:
+      fight:
+        - [memory-leak-ooze]
+        - [race-condition-imp, race-condition-imp]
+        - [dangling-pointer]
+        - [memory-leak-ooze, race-condition-imp]
+      elite:
+        - [garbage-collector]
+        - [dangling-pointer, dangling-pointer]
+      boss:
+        - [deadlock-golem]
+    boss_spell: { name: Cascade, capacity: 3 }
+
+  - id: kernel
+    name: The Kernel
+    flavor: The core of the Machine, where every process answers to one owner.
+    backdrop: arena-kernel
+    rows: 9
+    columns: 5
+    paths: 6
+    fixed_rows: { "0": fight, "4": treasure, "-1": rest }
+    weights: { fight: 48, elite: 18, rest: 12, forge: 12, treasure: 0 }
+    elite_from_row: 2
+    encounters:
+      fight:
+        - [stack-overflow-serpent]
+        - [segfault-specter]
+        - [segfault-specter, race-condition-imp]
+        - [stack-overflow-serpent, dangling-pointer]
+      elite:
+        - [fork-bomb]
+        - [garbage-collector, segfault-specter]
+      boss:
+        - [root-daemon]
+
 rewards:
-  fight: { common: 70, uncommon: 25, rare: 5 }
-  elite: { common: 25, uncommon: 50, rare: 25 }
-  boss: { common: 0, uncommon: 50, rare: 50 }
+  # Relative odds of each shard rarity when a won fight offers shards.
+  shards:
+    fight: { common: 70, uncommon: 25, rare: 5 }
+    elite: { common: 25, uncommon: 50, rare: 25 }
+    boss: { common: 0, uncommon: 40, rare: 60 }
+  # Relative odds of each relic rarity, by where the relic is found.
+  relics:
+    elite: { common: 50, uncommon: 35, rare: 15, boss: 0 }
+    treasure: { common: 45, uncommon: 40, rare: 15, boss: 0 }
+    boss: { common: 0, uncommon: 0, rare: 30, boss: 70 }

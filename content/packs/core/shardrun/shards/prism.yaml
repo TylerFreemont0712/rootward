@@ -1,0 +1,33 @@
+id: prism
+name: Prism
+rarity: uncommon
+cost: 1
+function: prism
+summary: "Splits every bolt into three: one fire, one frost, one spark, each at 40% power."
+tags: [nested-loops, lists]
+code:
+  python: |
+    def prism(bolts, battle):
+        split = []
+        for bolt in bolts:
+            for element in ["fire", "frost", "spark"]:
+                split.append({**bolt, "element": element, "power": bolt["power"] * 0.4})
+        return split
+  javascript: |
+    function prism(bolts, battle) {
+      const split = [];
+      for (const bolt of bolts) {
+        for (const element of ["fire", "frost", "spark"]) {
+          split.push({ ...bolt, element, power: bolt.power * 0.4 });
+        }
+      }
+      return split;
+    }
+examples:
+  - name: one bolt becomes three elements
+    bolts:
+      - { power: 10, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 4, element: fire, target: front, pierce: false, ward: false }
+      - { power: 4, element: frost, target: front, pierce: false, ward: false }
+      - { power: 4, element: spark, target: front, pierce: false, ward: false }

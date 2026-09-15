@@ -1,12 +1,16 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import type { FoeIntent, FoeTrait, Shard } from "@rootward/content-schema";
+import { Bolt, type FoeIntent, type FoeTrait, type Relic, type Shard } from "@rootward/content-schema";
 import {
   baseBolt,
+  difficultyOf,
   encounterFor,
   type FoeState,
-  type MapNode,
+  layerOf,
+  manaPerTurn,
+  nextRooms,
   type PipelineOutcome,
+  previewBolts,
   previewCast,
   type ShardrunCatalog,
   type ShardrunCommand,
@@ -18,19 +22,26 @@ import {
 } from "@rootward/core";
 import {
   isShardrunLanguage,
+  type PipelineInput,
   type PipelineRun,
-  pipelineJob,
-  readPipelineRuns,
+  readSpellRuns,
   SHARDRUN_LANGUAGES,
   shardFunctionName,
   type ShardrunLanguage,
+  spellsJob,
+  stoppedEarly,
 } from "@rootward/content-tools";
 import type {
+  BoltView,
+  RelicView,
   ShardrunCommandRequest,
+  ShardrunDifficultyView,
   ShardrunFoeView,
-  ShardrunNodeView,
+  ShardrunMapNodeView,
+  ShardrunPreviewsResponse,
   ShardrunView,
   ShardView,
+  SpellRunView,
   SpellView,
 } from "@rootward/shared";
 import { z } from "zod";
@@ -39,37 +50,56 @@ import { settle } from "../db/promise.ts";
 import { ServiceError } from "../errors.ts";
 import type { Sandbox } from "../sandbox.ts";
 
-// Shardrun on the server (ADR-0012): runs are JSON snapshots in SQLite, spells run in the sandbox, and the pure rules in
-// @rootward/core decide what a cast does. A spell's pipeline result is cached by its exact input, so the preview the
-// player sees and the cast they then make come from the same run of the same code, even if a shard is random.
+// Shardrun on the server (ADR-0012, ADR-0013): runs are JSON snapshots in SQLite, spells run in the sandbox, and the
+// pure rules in @rootward/core decide what a cast does. Every spell of a turn runs in one sandbox job, and each result
+// is cached by its exact input, so the preview a player reads and the cast they make come from the same run of the
+// same code, even if a shard is random. A command answers without waiting for the next previews; they run afterwards.
 
 const RunRow = z.object({ id: z.string(), state: z.string() });
 const ENDED = ["won", "lost", "abandoned"] as const;
-/** Distinct spell inputs remembered; a battle only ever needs a handful. */
-const PIPELINE_CACHE_LIMIT = 256;
+/** Finished spell runs remembered; a battle only ever needs a handful at a time. */
+const RUN_CACHE_LIMIT = 256;
+const NO_RESULT: PipelineRun = { ok: false, reason: "the spell produced nothing", trace: [], console: "" };
 
 export interface ShardrunDeps {
   db: DatabaseSync;
   content: GameContent;
   sandbox: Sandbox;
+  /** Where a failure of previews warmed in the background is reported. Defaults to the console. */
+  onBackgroundError?: (error: unknown) => void;
+}
+
+interface LoadedRun {
+  id: string;
+  state: ShardrunState;
 }
 
 export class ShardrunService {
   private readonly db: DatabaseSync;
   private readonly sandbox: Sandbox;
   private readonly catalog: ShardrunCatalog | undefined;
-  private readonly pipelines = new Map<string, Promise<PipelineRun>>();
+  private readonly onBackgroundError: (error: unknown) => void;
+  /** Finished spell runs, by exact input. */
+  private readonly runs = new Map<string, PipelineRun>();
+  /** Spell runs still in the sandbox, by exact input. */
+  private readonly inFlight = new Map<string, Promise<PipelineRun>>();
   private readonly queues = new Map<string, Promise<unknown>>();
 
   constructor(deps: ShardrunDeps) {
     this.db = deps.db;
     this.sandbox = deps.sandbox;
+    this.onBackgroundError =
+      deps.onBackgroundError ??
+      ((error: unknown) => {
+        console.error("Shardrun previews failed in the background:", error);
+      });
     const { index, balance } = deps.content;
     const run = index.shardrun;
     this.catalog = run && {
       config: run.value,
       shards: new Map([...index.shards].map(([id, shard]) => [id, shard.value])),
       foes: new Map([...index.shardrunFoes].map(([id, foe]) => [id, foe.value])),
+      relics: new Map([...index.shardrunRelics].map(([id, relic]) => [id, relic.value])),
       balance: balance.shardrun,
     };
   }
@@ -80,32 +110,41 @@ export class ShardrunService {
     return usable.flat();
   }
 
+  difficulties(): ShardrunDifficultyView[] {
+    return (this.catalog?.config.difficulties ?? []).map((difficulty) => ({ id: difficulty.id, name: difficulty.name, summary: difficulty.summary }));
+  }
+
   /** The profile's latest run, finished or not; null before their first. */
   async latest(profileId: string): Promise<ShardrunView | null> {
     this.requireProfile(profileId);
-    const row = await settle(() => this.db.prepare("SELECT id, state FROM shardrun_runs WHERE profile_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1").get(profileId));
+    const row = await settle(() =>
+      this.db.prepare("SELECT id, state FROM shardrun_runs WHERE profile_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1").get(profileId),
+    );
     if (row === undefined) return null;
-    const { id, state } = RunRow.parse(row);
-    return this.view(id, parseState(state));
+    const loaded = this.load(RunRow.parse(row));
+    return loaded ? this.view(loaded) : null;
   }
 
-  async start(profileId: string, language: string): Promise<ShardrunView> {
+  async start(profileId: string, language: string, difficulty: string): Promise<ShardrunView> {
     return this.serialize(profileId, async () => {
       const catalog = this.requireCatalog();
       this.requireProfile(profileId);
       if (!isShardrunLanguage(language) || !(await this.sandbox.canRun(language))) {
         throw new ServiceError(400, "unsupported-language", `Shardrun cannot be played in ${language} on this machine.`);
       }
-      if (this.activeRow(profileId)) {
+      if (!catalog.config.difficulties.some((candidate) => candidate.id === difficulty)) {
+        throw new ServiceError(400, "unknown-difficulty", `There is no ${difficulty} difficulty.`);
+      }
+      if (this.active(profileId)) {
         throw new ServiceError(409, "run-in-progress", "A run is already underway. Finish or abandon it first.");
       }
       const id = randomUUID();
-      const state = startShardrun(catalog, randomUUID(), language);
+      const state = startShardrun(catalog, { seed: randomUUID(), language, difficulty });
       const now = new Date().toISOString();
       this.db
         .prepare("INSERT INTO shardrun_runs (id, profile_id, status, state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
         .run(id, profileId, state.status, JSON.stringify(state), now, now);
-      return this.view(id, state);
+      return this.view({ id, state });
     });
   }
 
@@ -113,36 +152,63 @@ export class ShardrunService {
     return this.serialize(profileId, async () => {
       const catalog = this.requireCatalog();
       this.requireProfile(profileId);
-      const row = this.activeRow(profileId);
-      if (!row) throw new ServiceError(404, "no-run", "There is no run underway.");
-      const state = parseState(row.state);
+      const run = this.active(profileId);
+      if (!run) throw new ServiceError(404, "no-run", "There is no run underway.");
+      const before = run.state;
 
       let command: ShardrunCommand;
+      let cast: { spell: SpellState; run: PipelineRun } | undefined;
       if (request.type === "cast") {
-        const spell = state.spells.find((candidate) => candidate.id === request.spellId);
-        // Without a battle or the spell, the rules refuse before they look at the outcome, so nothing needs to run.
-        const outcome: PipelineOutcome = spell && state.battle ? toOutcome(await this.pipeline(state, spell)) : { ok: false, reason: "" };
-        command = { type: "cast", spellId: request.spellId, outcome };
+        const spell = before.spells.find((candidate) => candidate.id === request.spellId);
+        if (spell && before.battle && !before.battle.cast.includes(spell.id)) {
+          const spellRun = (await this.spellRuns(before, [spell])).get(spell.id) ?? NO_RESULT;
+          command = { type: "cast", spellId: spell.id, outcome: toOutcome(spellRun) };
+          cast = { spell, run: spellRun };
+        } else {
+          // The rules refuse this cast before they look at the outcome, so nothing needs to run.
+          command = { type: "cast", spellId: request.spellId, outcome: { ok: false, reason: "" } };
+        }
       } else {
         command = request;
       }
-      const result = stepShardrun(state, command, catalog);
+      const result = stepShardrun(before, command, catalog);
       if (!result.ok) throw new ServiceError(409, result.error.code, result.error.message);
       this.db
         .prepare("UPDATE shardrun_runs SET status = ?, state = ?, updated_at = ? WHERE id = ?")
-        .run(result.state.status, JSON.stringify(result.state), new Date().toISOString(), row.id);
-      return this.view(row.id, result.state);
+        .run(result.state.status, JSON.stringify(result.state), new Date().toISOString(), run.id);
+
+      if (result.state.battle) this.warm(result.state);
+      const replay = cast && { spellId: cast.spell.id, run: this.spellRunView(before, cast.spell, cast.run, true) };
+      return this.view({ id: run.id, state: result.state }, replay);
     });
+  }
+
+  /** Spell previews for the active battle, waiting for any still running. */
+  async previews(profileId: string): Promise<ShardrunPreviewsResponse> {
+    const catalog = this.requireCatalog();
+    this.requireProfile(profileId);
+    const run = this.active(profileId);
+    if (!run?.state.battle) return { revision: run?.state.revision ?? 0, spells: {} };
+    const { state } = run;
+    const reveal = difficultyOf(catalog, state.difficulty).show_predictions;
+    const runs = await this.spellRuns(state, state.spells);
+    return {
+      revision: state.revision,
+      spells: Object.fromEntries(state.spells.map((spell) => [spell.id, this.spellRunView(state, spell, runs.get(spell.id) ?? NO_RESULT, reveal)])),
+    };
   }
 
   // --- Views ------------------------------------------------------------------------------------------------------
 
-  private async view(id: string, state: ShardrunState): Promise<ShardrunView> {
+  private view({ id, state }: LoadedRun, replay?: ShardrunView["replay"]): ShardrunView {
     const catalog = this.requireCatalog();
-    const language = isShardrunLanguage(state.language) ? state.language : "python";
+    const language = runLanguage(state);
+    const difficulty = difficultyOf(catalog, state.difficulty);
+    const layer = layerOf(state, catalog);
     const battle = state.battle;
+    const reward = state.reward;
 
-    const mentioned = new Set([...state.spells.flatMap((spell) => spell.shards), ...state.inventory, ...(state.reward?.choices ?? [])]);
+    const mentioned = new Set([...state.spells.flatMap((spell) => spell.shards), ...state.inventory, ...(reward?.shards ?? [])]);
     for (const shardId of [...mentioned]) {
       const into = catalog.shards.get(shardId)?.forge?.into;
       if (into !== undefined) mentioned.add(into);
@@ -150,57 +216,100 @@ export class ShardrunService {
     const shards: Record<string, ShardView> = {};
     for (const shardId of mentioned) {
       const shard = catalog.shards.get(shardId);
-      if (shard) shards[shardId] = shardView(shard, language, catalog);
+      if (shard) shards[shardId] = shardView(shard, language, catalog, difficulty.show_summaries);
+    }
+    const relicInfo: Record<string, RelicView> = {};
+    for (const relicId of [...state.relics, ...(reward?.relics ?? [])]) {
+      const relic = catalog.relics.get(relicId);
+      if (relic) relicInfo[relicId] = relicView(relic);
     }
 
-    const spells = await Promise.all(
-      state.spells.map(async (spell): Promise<SpellView> => {
-        const view: SpellView = { id: spell.id, name: spell.name, capacity: spell.capacity, shards: [...spell.shards], spent: battle?.cast.includes(spell.id) ?? false };
-        if (state.status !== "battle" || !battle) return view;
-        const run = await this.pipeline(state, spell);
-        const preview = previewCast(state, spell.id, toOutcome(run), catalog);
-        if (!preview) return view;
-        return {
-          ...view,
-          preview: {
-            ...preview,
-            trace: run.ok ? run.trace : [],
-            console: run.console,
-          },
-        };
-      }),
-    );
+    const spells = state.spells.map((spell): SpellView => {
+      const view: SpellView = { id: spell.id, name: spell.name, capacity: spell.capacity, shards: [...spell.shards], spent: battle?.cast.includes(spell.id) ?? false };
+      if (!battle) return view;
+      const run = this.finishedRun(state, spell);
+      if (!run) return view;
+      return { ...view, preview: this.spellRunView(state, spell, run, difficulty.show_predictions) };
+    });
 
-    const floors = state.floors.map((nodes) => nodes.map((node) => this.nodeView(state, node)));
+    const open = new Set(state.status === "map" ? nextRooms(state.map, state.position).map((node) => node.id) : []);
+    const currentRow = state.map.nodes.find((node) => node.id === state.position)?.row ?? -1;
+    const nodes = state.map.nodes.map((node): ShardrunMapNodeView => {
+      const nodeState: ShardrunMapNodeView["state"] =
+        node.id === state.position
+          ? "current"
+          : state.visited.includes(node.id)
+            ? "visited"
+            : open.has(node.id)
+              ? "open"
+              : node.row <= currentRow
+                ? "passed"
+                : "ahead";
+      const foes = encounterFor(state.seed, node, layer).flatMap((foeId) => {
+        const foe = catalog.foes.get(foeId);
+        return foe ? [{ name: foe.name, sprite: foe.sprite }] : [];
+      });
+      return { id: node.id, row: node.row, col: node.col, kind: node.kind, state: nodeState, foes };
+    });
+
+    const { balance } = catalog;
     const owned = [...new Set([...state.spells.flatMap((spell) => spell.shards), ...state.inventory])];
-    const balance = catalog.balance;
     return {
       id,
       status: state.status,
       language: state.language,
+      difficulty: { id: difficulty.id, name: difficulty.name, showSummaries: difficulty.show_summaries, showPredictions: difficulty.show_predictions },
+      revision: state.revision,
       integrity: state.integrity,
       integrityMax: state.integrityMax,
-      floors,
+      layer: {
+        index: state.layer,
+        count: catalog.config.layers.length,
+        id: layer.id,
+        name: layer.name,
+        flavor: layer.flavor,
+        backdrop: layer.backdrop,
+      },
+      map: { nodes, edges: state.map.edges.map(([from, to]): [string, string] => [from, to]) },
       spells,
       inventory: [...state.inventory],
+      relics: [...state.relics],
       shards,
+      relicInfo,
       ...(battle
         ? {
             battle: {
               kind: battle.kind,
               turn: battle.turn,
               mana: battle.mana,
-              manaMax: balance.mana_per_turn,
+              manaMax: manaPerTurn(state, catalog),
               block: battle.block,
               foes: battle.foes.map(foeView),
             },
           }
         : {}),
-      ...(state.reward ? { reward: { choices: [...state.reward.choices] } } : {}),
-      forgeable: state.status === "forge" ? owned.filter((shardId) => catalog.shards.get(shardId)?.forge !== undefined) : [],
+      previews: battle && spells.some((spell) => spell.preview === undefined) ? "pending" : "ready",
+      ...(reward
+        ? {
+            reward: {
+              ...(reward.shards ? { shards: [...reward.shards] } : {}),
+              ...(reward.relics ? { relics: [...reward.relics] } : {}),
+              ...(reward.spell ? { spell: { ...reward.spell } } : {}),
+            },
+          }
+        : {}),
+      ...(state.status === "forge"
+        ? {
+            forge: {
+              shards: owned.filter((shardId) => catalog.shards.get(shardId)?.forge !== undefined),
+              spells: state.spells.filter((spell) => spell.capacity < balance.max_spell_capacity).map((spell) => spell.id),
+            },
+          }
+        : {}),
       ...(state.status === "rest"
         ? { restHeal: Math.min(state.integrityMax - state.integrity, Math.ceil(state.integrityMax * balance.rest_heal_fraction)) }
         : {}),
+      ...(replay ? { replay } : {}),
       log: state.log.map((entry) => ({ ...entry })),
       stats: { ...state.stats },
       rules: {
@@ -208,68 +317,153 @@ export class ShardrunService {
         workPerMana: balance.work_per_mana,
         maxBolts: balance.max_bolts,
         baseBoltPower: balance.base_bolt_power,
+        maxSpellCapacity: balance.max_spell_capacity,
       },
     };
   }
 
-  private nodeView(state: ShardrunState, node: MapNode): ShardrunNodeView {
+  /**
+   * A spell run for the client. With `reveal`, every step says what its bolts would do if the spell ended there, using
+   * the rules' own resolution against this battle; without it, only the cost and any error are shown.
+   */
+  private spellRunView(state: ShardrunState, spell: SpellState, run: PipelineRun, reveal: boolean): SpellRunView {
     const catalog = this.requireCatalog();
-    const taken = state.path[node.floor];
-    const nodeState: ShardrunNodeView["state"] =
-      taken === node.id
-        ? "visited"
-        : taken !== undefined
-          ? "passed"
-          : node.floor === state.path.length && state.status === "map"
-            ? "open"
-            : "ahead";
-    const foes = encounterFor(state.seed, node, catalog.config).flatMap((foeId) => {
-      const foe = catalog.foes.get(foeId);
-      return foe ? [{ name: foe.name, sprite: foe.sprite }] : [];
-    });
-    return { id: node.id, floor: node.floor, kind: node.kind, state: nodeState, foes };
+    const base = baseBolt(catalog.balance);
+    const preview = previewCast(state, spell.id, toOutcome(run), catalog);
+    const view: SpellRunView = {
+      cost: preview?.cost ?? 0,
+      affordable: preview?.affordable ?? false,
+      base: { bolts: [base] },
+      steps: [],
+      console: run.console,
+    };
+    if (!run.ok) {
+      view.misfire = { reason: run.reason, ...(run.shard === undefined ? {} : { shard: run.shard }), ...(run.line === undefined ? {} : { line: run.line }) };
+    }
+    if (!reveal) return view;
+    view.base = { bolts: [base], outcome: previewBolts(state, [base], catalog) };
+    view.steps = run.trace.map((step) => ({
+      shard: step.shard,
+      given: step.given,
+      returned: step.returned,
+      bolts: displayBolts(step.bolts),
+      outcome: previewBolts(state, step.bolts, catalog),
+    }));
+    if (run.ok && preview) view.result = { bolts: preview.bolts, damage: preview.damage, block: preview.block };
+    return view;
   }
 
   // --- Running spells ---------------------------------------------------------------------------------------------
 
-  /** Run a spell's shards against the current battle, or reuse the run for this exact input. */
-  private pipeline(state: ShardrunState, spell: SpellState): Promise<PipelineRun> {
+  /** Start previews for a battle state without waiting; a failure is reported, and the previews route retries. */
+  private warm(state: ShardrunState): void {
+    this.spellRuns(state, state.spells).catch(this.onBackgroundError);
+  }
+
+  /** A finished run for this spell in this state, if the cache has one. */
+  private finishedRun(state: ShardrunState, spell: SpellState): PipelineRun | undefined {
+    const input = this.inputFor(state);
+    if (!input) return undefined;
+    if (spell.shards.length === 0) return emptyRun(input);
+    return this.runs.get(runKey(state, spell, input));
+  }
+
+  /** Runs for these spells against the current battle: cached ones at once, running ones awaited, the rest in one job. */
+  private async spellRuns(state: ShardrunState, spells: readonly SpellState[]): Promise<Map<string, PipelineRun>> {
+    const input = this.inputFor(state);
+    const results = new Map<string, PipelineRun>();
+    if (!input) return results;
+    const waiting: Promise<void>[] = [];
+    const missing: SpellState[] = [];
+    for (const spell of spells) {
+      if (spell.shards.length === 0) {
+        results.set(spell.id, emptyRun(input));
+        continue;
+      }
+      const key = runKey(state, spell, input);
+      const done = this.runs.get(key);
+      const flying = this.inFlight.get(key);
+      if (done) results.set(spell.id, done);
+      else if (flying) {
+        waiting.push(
+          flying.then((run) => {
+            results.set(spell.id, run);
+          }),
+        );
+      } else missing.push(spell);
+    }
+    if (missing.length > 0) {
+      const batch = this.runBatch(runLanguage(state), missing, input);
+      for (const spell of missing) {
+        const key = runKey(state, spell, input);
+        const promise = batch.then((runs) => runs.get(spell.id) ?? NO_RESULT);
+        this.inFlight.set(key, promise);
+        waiting.push(
+          promise
+            .then((run) => {
+              this.remember(key, run);
+              results.set(spell.id, run);
+            })
+            .finally(() => {
+              if (this.inFlight.get(key) === promise) this.inFlight.delete(key);
+            }),
+        );
+      }
+    }
+    await Promise.all(waiting);
+    return results;
+  }
+
+  /** Run spells together in one sandbox job. If the job stops early, each spell runs alone to find the one to blame. */
+  private async runBatch(language: ShardrunLanguage, spells: readonly SpellState[], input: PipelineInput): Promise<Map<string, PipelineRun>> {
+    const catalog = this.requireCatalog();
+    const runs = new Map<string, PipelineRun>();
+    const programs: { id: string; shards: Shard[] }[] = [];
+    for (const spell of spells) {
+      const shards = spell.shards.flatMap((shardId) => catalog.shards.get(shardId) ?? []);
+      if (shards.length !== spell.shards.length) runs.set(spell.id, { ok: false, reason: "one of its shards no longer exists", trace: [], console: "" });
+      else programs.push({ id: spell.id, shards });
+    }
+    if (programs.length === 0) return runs;
+    const job = spellsJob(language, [{ spells: programs, input }], this.sandbox.limits);
+    if (!job) {
+      for (const program of programs) runs.set(program.id, { ok: false, reason: `a shard has no ${language} code`, trace: [], console: "" });
+      return runs;
+    }
+    const result = await this.sandbox.runJob(job);
+    if (stoppedEarly(result, 0) && programs.length > 1) {
+      // LEARN: one endless loop stops the whole job, and the spells after it never report. Running each spell alone
+      // costs more, but only in that rare case, and it pins the timeout on the spell that caused it.
+      const alone = await Promise.all(programs.map((program) => this.runBatch(language, spells.filter((spell) => spell.id === program.id), input)));
+      for (const map of alone) for (const [spellId, run] of map) runs.set(spellId, run);
+      return runs;
+    }
+    for (const [spellId, run] of readSpellRuns(result, 0, programs.map((program) => program.id))) runs.set(spellId, run);
+    return runs;
+  }
+
+  private remember(key: string, run: PipelineRun): void {
+    // A timeout or a sandbox failure may be the machine's fault rather than the code's, so only runs whose outcome the
+    // code decided (it finished, or one of its shards raised) are kept.
+    if (!run.ok && run.shard === undefined) return;
+    this.runs.set(key, run);
+    // LEARN: a Map iterates in insertion order, so its first key is the oldest entry: a tiny first-in, first-out cache.
+    if (this.runs.size > RUN_CACHE_LIMIT) {
+      const oldest = this.runs.keys().next().value;
+      if (oldest !== undefined) this.runs.delete(oldest);
+    }
+  }
+
+  private inputFor(state: ShardrunState): PipelineInput | undefined {
     const catalog = this.requireCatalog();
     const battle = state.battle;
-    if (!battle) return Promise.resolve({ ok: false, reason: "there is no battle", console: "" });
-    const input = { bolts: [baseBolt(catalog.balance)], battle: shardBattle(state, battle), limit: catalog.balance.max_pipeline_bolts };
-    if (spell.shards.length === 0) {
-      return Promise.resolve({ ok: true, bolts: [...input.bolts], trace: [], work: 0, console: "" });
-    }
-    const key = JSON.stringify([state.language, spell.shards, input]);
-    const cached = this.pipelines.get(key);
-    if (cached) return cached;
-
-    const shards: Shard[] = [];
-    for (const shardId of spell.shards) {
-      const shard = catalog.shards.get(shardId);
-      if (!shard) return Promise.resolve({ ok: false, reason: `the shard ${shardId} no longer exists`, console: "" });
-      shards.push(shard);
-    }
-    const language = isShardrunLanguage(state.language) ? state.language : "python";
-    const job = pipelineJob(language, shards, [input], this.sandbox.limits);
-    if (!job) return Promise.resolve({ ok: false, reason: `a shard has no ${language} code`, console: "" });
-
-    const run = this.sandbox.runJob(job).then((result) => readPipelineRuns(result, 1)[0] ?? { ok: false as const, reason: "the spell produced nothing", console: "" });
-    this.pipelines.set(key, run);
-    // A failure may be the machine's fault (a busy sandbox timing out), so only successful runs stay cached.
-    run.then(
-      (outcome) => {
-        if (!outcome.ok) this.pipelines.delete(key);
-      },
-      () => this.pipelines.delete(key),
-    );
-    // LEARN: a Map iterates in insertion order, so its first key is the oldest entry: a tiny first-in, first-out cache.
-    if (this.pipelines.size > PIPELINE_CACHE_LIMIT) {
-      const oldest = this.pipelines.keys().next().value;
-      if (oldest !== undefined) this.pipelines.delete(oldest);
-    }
-    return run;
+    if (!battle) return undefined;
+    return {
+      bolts: [baseBolt(catalog.balance)],
+      battle: shardBattle(state, battle),
+      limit: catalog.balance.max_pipeline_bolts,
+      traceLimit: catalog.balance.trace_bolts,
+    };
   }
 
   // --- Helpers ----------------------------------------------------------------------------------------------------
@@ -292,12 +486,22 @@ export class ShardrunService {
     return next;
   }
 
-  private activeRow(profileId: string): z.infer<typeof RunRow> | undefined {
+  private active(profileId: string): LoadedRun | undefined {
     const placeholders = ENDED.map(() => "?").join(", ");
     const row = this.db
       .prepare(`SELECT id, state FROM shardrun_runs WHERE profile_id = ? AND status NOT IN (${placeholders}) ORDER BY created_at DESC LIMIT 1`)
       .get(profileId, ...ENDED);
-    return row === undefined ? undefined : RunRow.parse(row);
+    return row === undefined ? undefined : this.load(RunRow.parse(row));
+  }
+
+  /** Parse a saved run. A snapshot from older rules cannot continue, so it is closed as abandoned instead of failing forever. */
+  private load(row: z.infer<typeof RunRow>): LoadedRun | undefined {
+    const parsed = ShardrunState.safeParse(JSON.parse(row.state));
+    if (parsed.success) return { id: row.id, state: parsed.data };
+    this.db
+      .prepare("UPDATE shardrun_runs SET status = 'abandoned', updated_at = ? WHERE id = ? AND status NOT IN ('won', 'lost', 'abandoned')")
+      .run(new Date().toISOString(), row.id);
+    return undefined;
   }
 
   private requireProfile(profileId: string): void {
@@ -312,28 +516,48 @@ export class ShardrunService {
   }
 }
 
-function parseState(json: string): ShardrunState {
-  return ShardrunState.parse(JSON.parse(json));
+function runLanguage(state: ShardrunState): ShardrunLanguage {
+  return isShardrunLanguage(state.language) ? state.language : "python";
+}
+
+function runKey(state: ShardrunState, spell: SpellState, input: PipelineInput): string {
+  return JSON.stringify([state.language, spell.shards, input]);
+}
+
+function emptyRun(input: PipelineInput): PipelineRun {
+  return { ok: true, bolts: [...input.bolts], trace: [], work: 0, console: "" };
 }
 
 function toOutcome(run: PipelineRun): PipelineOutcome {
   return run.ok ? { ok: true, bolts: run.bolts, work: run.work } : { ok: false, reason: run.reason };
 }
 
-function shardView(shard: Shard, language: ShardrunLanguage, catalog: ShardrunCatalog): ShardView {
+/** Bolts as the code view shows them: well-formed ones only, power to two decimals. */
+function displayBolts(raw: readonly unknown[]): BoltView[] {
+  return raw.flatMap((candidate) => {
+    const parsed = Bolt.safeParse(candidate);
+    return parsed.success ? [{ ...parsed.data, power: Math.round(parsed.data.power * 100) / 100 }] : [];
+  });
+}
+
+function shardView(shard: Shard, language: ShardrunLanguage, catalog: ShardrunCatalog, showSummary: boolean): ShardView {
   const into = shard.forge && catalog.shards.get(shard.forge.into);
   return {
     id: shard.id,
     name: shard.name,
     rarity: shard.rarity,
     cost: shard.cost,
-    summary: shard.summary,
+    ...(showSummary ? { summary: shard.summary } : {}),
     function: shardFunctionName(shard, language),
     code: shard.code[language] ?? "",
     tags: [...shard.tags],
     ...(shard.curse ? { curse: shard.curse.integrity } : {}),
     ...(shard.forge && into ? { forge: { into: into.id, intoName: into.name, verb: shard.forge.verb } } : {}),
   };
+}
+
+function relicView(relic: Relic): RelicView {
+  return { id: relic.id, name: relic.name, rarity: relic.rarity, icon: relic.icon, summary: relic.summary, flavor: relic.flavor };
 }
 
 function foeView(foe: FoeState): ShardrunFoeView {

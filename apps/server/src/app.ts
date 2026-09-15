@@ -20,6 +20,7 @@ import {
   ResolveMarkerRequest,
   RunResponse,
   ShardrunCommandRequest,
+  ShardrunPreviewsResponse,
   ShardrunResponse,
   ShardrunStatusResponse,
   StartEncounterRequest,
@@ -37,7 +38,7 @@ import { z } from "zod";
 import type { GameContent } from "./content.ts";
 import { ServiceError } from "./errors.ts";
 import type { ProfileService } from "./profiles/service.ts";
-import { profileSummary, startingClass } from "./profiles/summary.ts";
+import { classCards, profileSummary, startingClass } from "./profiles/summary.ts";
 import type { RunServiceRegistry } from "./runs/registry.ts";
 import { DEFAULT_CLASS_ID, type RunService } from "./runs/service.ts";
 import type { Sandbox } from "./sandbox.ts";
@@ -135,12 +136,17 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         profiles,
         summaries: Object.fromEntries(summaries),
         ...(starting ? { startingClass: starting } : {}),
+        classes: classCards(content),
       });
     });
 
     app.post("/api/profiles", async (request) => {
       const body = parseBody(CreateProfileRequest, request.body);
-      return ProfileResponse.parse({ profile: await profileService.create(body.name, DEFAULT_CLASS_ID) });
+      const classId = body.classId ?? DEFAULT_CLASS_ID;
+      const def = content.index.classes.get(classId)?.def;
+      if (!def) throw new ServiceError(400, "unknown-class", `There is no class called ${classId}.`);
+      if (def.status !== "playable") throw new ServiceError(400, "class-not-playable", `The ${def.name} cannot be played yet.`);
+      return ProfileResponse.parse({ profile: await profileService.create(body.name, classId) });
     });
 
     // Mirrors of the unscoped run routes above, one RunService per profile (ADR-0010) so each character's runs
@@ -186,13 +192,26 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     // Shardrun (ADR-0012): the roguelite mode. One run at a time per character; every change is a command.
     if (shardrun) {
       app.get<{ Params: { profileId: string } }>("/api/profiles/:profileId/shardrun", async (request) =>
-        ShardrunStatusResponse.parse({ run: await shardrun.latest(request.params.profileId), languages: await shardrun.languages() }),
+        ShardrunStatusResponse.parse({
+          run: await shardrun.latest(request.params.profileId),
+          languages: await shardrun.languages(),
+          difficulties: shardrun.difficulties(),
+        }),
       );
 
       app.post<{ Params: { profileId: string } }>("/api/profiles/:profileId/shardrun/start", async (request) =>
         ShardrunResponse.parse({
-          run: await shardrun.start(request.params.profileId, parseBody(StartShardrunRequest, request.body).language),
+          run: await (async () => {
+            const body = parseBody(StartShardrunRequest, request.body);
+            return shardrun.start(request.params.profileId, body.language, body.difficulty);
+          })(),
         }),
+      );
+
+      // A command answers as soon as its rules are applied; the next spell previews run in the sandbox afterwards, and this
+      // waits for them (ADR-0013), so a cast never waits on previews it does not need.
+      app.get<{ Params: { profileId: string } }>("/api/profiles/:profileId/shardrun/previews", async (request) =>
+        ShardrunPreviewsResponse.parse(await shardrun.previews(request.params.profileId)),
       );
 
       app.post<{ Params: { profileId: string } }>("/api/profiles/:profileId/shardrun/command", async (request) =>

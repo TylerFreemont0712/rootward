@@ -129,6 +129,7 @@ function mergePack(index: ContentIndex, contents: PackContents, diagnostics: Dia
   addSourced("zone", index.zones, contents.zones);
   addSourced("shard", index.shards, contents.shards);
   addSourced("shardrun foe", index.shardrunFoes, contents.shardrunFoes);
+  addSourced("shardrun relic", index.shardrunRelics, contents.shardrunRelics);
   if (contents.shardrun) {
     if (index.shardrun) {
       diagnostics.error("duplicate-id", `the Shardrun run is already defined in ${index.shardrun.file}`, {

@@ -70,6 +70,16 @@ describe("profile-scoped routes", () => {
     expect(listed.summaries[ada]).toMatchObject({ className: "Artificer", fights: 0, questsActive: 0, questsDone: 0 });
     expect(listed.summaries[ada]?.zoneName).toBeUndefined();
     expect(listed.startingClass).toMatchObject({ id: "artificer", name: "Artificer" });
+    // Every class is listed for the picker, the playable one first; planned classes cannot be chosen yet.
+    expect(listed.classes[0]).toMatchObject({ id: "artificer", playable: true });
+    const warden = listed.classes.find((card) => card.id === "warden");
+    expect(warden?.playable).toBe(false);
+    expect(warden?.discipline).toContain("Linux");
+    const planned = await app.inject({ method: "POST", url: "/api/profiles", payload: { name: "Wren", classId: "warden" } });
+    expect(planned.statusCode).toBe(400);
+    expect(planned.json()).toMatchObject({ error: { code: "class-not-playable" } });
+    const unknown = await app.inject({ method: "POST", url: "/api/profiles", payload: { name: "Wren", classId: "bard" } });
+    expect(unknown.json()).toMatchObject({ error: { code: "unknown-class" } });
   });
 
   it("scopes practice fights and mastery per character", SLOW, async () => {

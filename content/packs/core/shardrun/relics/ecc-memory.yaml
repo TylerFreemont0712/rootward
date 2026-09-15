@@ -1,0 +1,8 @@
+id: ecc-memory
+name: ECC Memory
+rarity: uncommon
+icon: ecc-memory
+summary: "Gain 12 maximum Integrity."
+flavor: "It corrects its own mistakes before you notice them."
+effects:
+  - { kind: max-integrity, add: 12 }

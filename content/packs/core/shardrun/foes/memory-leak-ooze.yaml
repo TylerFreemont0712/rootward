@@ -1,0 +1,10 @@
+id: memory-leak-ooze
+name: Memory Leak Ooze
+sprite: memory-leak-ooze
+hp: 30
+weak: [fire]
+intents:
+  - { kind: heal, amount: 6 }
+  - { kind: strike, power: 6 }
+  - { kind: strike, power: 5 }
+flavor: It never gives back what it takes. Burn it down before it grows back.

@@ -1,0 +1,11 @@
+# A planned class (PROMPT.md section 6): shown at character creation, not playable until its fights exist.
+id: necromancer
+name: Necromancer
+tagline: "No code is ever truly dead."
+discipline: Legacy code and debugging
+status: planned
+order: 6
+subjects: [debugging, git history, refactoring, reading code you did not write]
+affinity: { ruins: 1.0 }
+default_runner_kinds: [tests]
+lore: lore.md

@@ -6,6 +6,23 @@ import { WorkerMessage } from "./messages.ts";
 
 const WORKER_URL = new URL("./worker.ts", import.meta.url);
 
+export interface WasmJsRunnerOptions {
+  /**
+   * Keep one worker started ahead of the next job, already loading QuickJS (about 120 ms of every job). Each job still
+   * gets a worker of its own that is terminated afterwards; warmth only moves the start-up earlier.
+   */
+  warm?: boolean;
+}
+
+function spawnWorker(job: RunJob | undefined): Worker {
+  return new Worker(WORKER_URL, {
+    ...(job ? { workerData: job } : {}),
+    resourceLimits: { stackSizeMb: WORKER_STACK_MB, maxOldGenerationSizeMb: WORKER_HEAP_MB },
+    stdout: true,
+    stderr: true,
+  });
+}
+
 /**
  * Runs JavaScript in QuickJS compiled to WebAssembly, one worker thread per job (PROMPT.md section 12.2, tier 1).
  * Isolation comes from three layers: QuickJS has no I/O except what the prelude exposes; QuickJS enforces memory,
@@ -16,10 +33,39 @@ export class WasmJsRunner implements Runner {
   readonly languages: readonly string[] = ["javascript"];
   readonly kinds: readonly RunKind[] = ["tests", "script"];
   readonly tier = "wasm";
+  private readonly warm: boolean;
+  private spare: Worker | undefined;
+  private disposed = false;
+
+  constructor(options: WasmJsRunnerOptions = {}) {
+    this.warm = options.warm ?? false;
+  }
 
   isAvailable(): Promise<boolean> {
     // The WASM build ships inside the npm package, so there is nothing to detect.
     return Promise.resolve(true);
+  }
+
+  /** Start the spare worker now instead of after the first job. */
+  prewarm(): void {
+    if (!this.warm || this.disposed || this.spare) return;
+    const worker = spawnWorker(undefined);
+    // LEARN: an idle worker would keep Node's event loop alive on its own; unref lets the process exit around it. A spare
+    // that dies while waiting is simply forgotten, and the next job starts a fresh worker instead.
+    worker.unref();
+    const forget = (): void => {
+      if (this.spare === worker) this.spare = undefined;
+    };
+    worker.once("exit", forget);
+    worker.once("error", forget);
+    this.spare = worker;
+  }
+
+  async dispose(): Promise<void> {
+    this.disposed = true;
+    const spare = this.spare;
+    this.spare = undefined;
+    if (spare) await spare.terminate();
   }
 
   run(job: RunJob, signal: AbortSignal): Promise<RunResult> {
@@ -30,12 +76,14 @@ export class WasmJsRunner implements Runner {
       const workerLog = new OutputBuffer(16 * 1024);
       let settled = false;
 
-      const worker = new Worker(WORKER_URL, {
-        workerData: job,
-        resourceLimits: { stackSizeMb: WORKER_STACK_MB, maxOldGenerationSizeMb: WORKER_HEAP_MB },
-        stdout: true,
-        stderr: true,
-      });
+      const spare = this.spare;
+      this.spare = undefined;
+      const worker = spare ?? spawnWorker(job);
+      if (spare) {
+        spare.ref();
+        spare.postMessage(job);
+      }
+      this.prewarm();
       worker.stdout.on("data", (chunk: Buffer) => workerLog.write(chunk.toString("utf8")));
       worker.stderr.on("data", (chunk: Buffer) => workerLog.write(chunk.toString("utf8")));
 

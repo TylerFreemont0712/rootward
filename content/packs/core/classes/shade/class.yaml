@@ -1,0 +1,11 @@
+# A planned class (PROMPT.md section 6): shown at character creation, not playable until its fights exist.
+id: shade
+name: Shade
+tagline: "Every system has a seam. Find it before someone else does."
+discipline: Security engineering
+status: planned
+order: 3
+subjects: [threat modeling, input validation, exploits and their fixes, secure code review]
+affinity: { bazaar: 1.0, kernel: 0.6 }
+default_runner_kinds: [tests]
+lore: lore.md

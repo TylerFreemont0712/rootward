@@ -214,7 +214,7 @@ function WorldLayers({ zone, avatar, facing, walking, stepMs, revealed, avatarAr
             ),
         )}
         <div
-          className={["w-avatar", walking ? "walking" : "", flipped ? "flip" : ""].filter(Boolean).join(" ")}
+          className={["w-avatar", `dir-${strip.direction}`, walking ? "walking" : "", flipped ? "flip" : ""].filter(Boolean).join(" ")}
           style={{
             width: TILE_PX,
             height: TILE_PX,

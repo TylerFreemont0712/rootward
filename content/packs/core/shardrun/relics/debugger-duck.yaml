@@ -1,0 +1,8 @@
+id: debugger-duck
+name: Debugger Duck
+rarity: common
+icon: debugger-duck
+summary: "Every bolt gains 1 power."
+flavor: "Explain the spell to the duck. It listens, and somehow the spell gets better."
+effects:
+  - { kind: bolt-power, add: 1 }

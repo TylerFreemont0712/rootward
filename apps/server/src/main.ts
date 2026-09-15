@@ -22,10 +22,13 @@ async function main(): Promise<void> {
   const databaseFile = path.join(env.dataDir, "rootward.db");
   const db = openDatabase(databaseFile);
 
-  const python = new WasmPythonRunner({ warm: true });
-  // Load one Python sandbox now so the first Python Probe does not wait for Pyodide.
+  // Sandboxes are started ahead of the jobs that will use them (every job still gets its own): Shardrun runs a job for
+  // every command, and waiting on a cold Pyodide (about 2 s) or QuickJS (about 120 ms) each time is the lag players feel.
+  const python = new WasmPythonRunner({ warm: true, spares: 2 });
   python.prewarm();
-  const sandbox = new Sandbox(content.balance, [new WasmJsRunner(), python]);
+  const javascript = new WasmJsRunner({ warm: true });
+  javascript.prewarm();
+  const sandbox = new Sandbox(content.balance, [javascript, python]);
   const service = new RunService({
     content,
     sandbox,

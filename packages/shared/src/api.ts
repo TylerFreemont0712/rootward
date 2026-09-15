@@ -376,18 +376,35 @@ export const StartingClassView = z.strictObject({
 });
 export type StartingClassView = z.infer<typeof StartingClassView>;
 
+/** A class in the character creation picker; planned ones are shown but cannot be chosen yet. */
+export const ClassCardView = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+  tagline: z.string(),
+  discipline: z.string(),
+  subjects: z.array(z.string()),
+  playable: z.boolean(),
+});
+export type ClassCardView = z.infer<typeof ClassCardView>;
+
 export const ProfileListResponse = z.strictObject({
   profiles: z.array(ProfileView),
   /** Profile id -> summary. */
   summaries: z.record(z.string(), ProfileSummaryView),
   startingClass: StartingClassView.optional(),
+  /** Every class, in picker order. */
+  classes: z.array(ClassCardView),
 });
 export type ProfileListResponse = z.infer<typeof ProfileListResponse>;
 
 export const ProfileResponse = z.strictObject({ profile: ProfileView });
 export type ProfileResponse = z.infer<typeof ProfileResponse>;
 
-export const CreateProfileRequest = z.strictObject({ name: z.string().min(1).max(60) });
+export const CreateProfileRequest = z.strictObject({
+  name: z.string().min(1).max(60),
+  /** Defaults to the starting class; must be playable. */
+  classId: z.string().min(1).optional(),
+});
 export type CreateProfileRequest = z.infer<typeof CreateProfileRequest>;
 
 // ---- The world (ADR-0010, ADR-0011): towns and wilds walked freely, with people, quests, and fights ----
@@ -556,10 +573,19 @@ export type InspectRequest = z.infer<typeof InspectRequest>;
 export const ResolveMarkerRequest = z.strictObject({ runId: z.string().min(1) });
 export type ResolveMarkerRequest = z.infer<typeof ResolveMarkerRequest>;
 
-// ---- Shardrun (ADR-0012): the roguelite mode, where spells are pipelines of found code ----
+// ---- Shardrun (ADR-0012, ADR-0013): the roguelite mode, where spells are pipelines of found code ----
 
 export const ElementView = z.enum(["none", "fire", "frost", "spark"]);
 export type ElementView = z.infer<typeof ElementView>;
+
+export const BoltView = z.strictObject({
+  power: z.number(),
+  element: ElementView,
+  target: z.enum(["front", "back", "weakest", "strongest", "all"]),
+  pierce: z.boolean(),
+  ward: z.boolean(),
+});
+export type BoltView = z.infer<typeof BoltView>;
 
 export const ShardView = z.strictObject({
   id: z.string(),
@@ -567,7 +593,8 @@ export const ShardView = z.strictObject({
   rarity: z.enum(["common", "uncommon", "rare"]),
   /** Mana added to every cast of a spell holding it. */
   cost: z.int(),
-  summary: z.string(),
+  /** Plain words for what the code does; absent on difficulties that show only the code. */
+  summary: z.string().optional(),
   /** The function's name and source in the run's language. */
   function: z.string(),
   code: z.string(),
@@ -578,33 +605,57 @@ export const ShardView = z.strictObject({
 });
 export type ShardView = z.infer<typeof ShardView>;
 
-export const ShardrunNodeView = z.strictObject({
+export const RelicView = z.strictObject({
   id: z.string(),
-  floor: z.int(),
-  kind: z.enum(["fight", "elite", "boss", "rest", "forge"]),
-  /** `visited`: on the path taken. `open`: can be entered now. `passed`: the road not taken. `ahead`: a later floor. */
-  state: z.enum(["visited", "open", "passed", "ahead"]),
+  name: z.string(),
+  rarity: z.enum(["common", "uncommon", "rare", "boss"]),
+  icon: z.string(),
+  summary: z.string(),
+  flavor: z.string(),
+});
+export type RelicView = z.infer<typeof RelicView>;
+
+export const ShardrunMapNodeView = z.strictObject({
+  id: z.string(),
+  /** 0 is the bottom row; the boss is alone in the top row. */
+  row: z.int(),
+  col: z.int(),
+  kind: z.enum(["fight", "elite", "boss", "rest", "forge", "treasure"]),
+  /** `current`: the room the Maintainer is in or just left. `open`: can be entered now. `passed`: a road not taken. */
+  state: z.enum(["visited", "current", "open", "passed", "ahead"]),
   foes: z.array(z.strictObject({ name: z.string(), sprite: z.string() })),
 });
-export type ShardrunNodeView = z.infer<typeof ShardrunNodeView>;
+export type ShardrunMapNodeView = z.infer<typeof ShardrunMapNodeView>;
 
-export const TraceStepView = z.strictObject({ shard: z.string(), given: z.int(), returned: z.int() });
-export type TraceStepView = z.infer<typeof TraceStepView>;
+/** What a list of bolts would do if the spell ended with it: present only when predictions are shown (or after casting). */
+export const BoltOutcomeView = z.strictObject({ bolts: z.int(), damage: z.int(), block: z.int() });
+export type BoltOutcomeView = z.infer<typeof BoltOutcomeView>;
 
-/** What casting a spell right now would do, from a real run of its shards against the current battle. */
-export const SpellPreviewView = z.strictObject({
+export const SpellStepView = z.strictObject({
+  shard: z.string(),
+  given: z.int(),
+  returned: z.int(),
+  /** The bolts this shard passed on (up to the trace cap). */
+  bolts: z.array(BoltView),
+  outcome: BoltOutcomeView.optional(),
+});
+export type SpellStepView = z.infer<typeof SpellStepView>;
+
+/** A spell run against the current battle, from a real run of its shards: the cost, and step by step what it did. */
+export const SpellRunView = z.strictObject({
   cost: z.int(),
   affordable: z.boolean(),
-  bolts: z.int(),
-  damage: z.int(),
-  block: z.int(),
-  /** Why the spell would fizzle, when its code fails. */
-  misfire: z.string().optional(),
-  trace: z.array(TraceStepView),
+  /** The bolt every spell starts from. */
+  base: z.strictObject({ bolts: z.array(BoltView), outcome: BoltOutcomeView.optional() }),
+  /** One step per shard that ran; empty when predictions are hidden. */
+  steps: z.array(SpellStepView),
+  result: BoltOutcomeView.optional(),
+  /** Why the spell would fizzle, and where, when its code fails. */
+  misfire: z.strictObject({ reason: z.string(), shard: z.string().optional(), line: z.int().optional() }).optional(),
   /** Anything the shards printed. */
   console: z.string(),
 });
-export type SpellPreviewView = z.infer<typeof SpellPreviewView>;
+export type SpellRunView = z.infer<typeof SpellRunView>;
 
 export const SpellView = z.strictObject({
   id: z.string(),
@@ -613,7 +664,8 @@ export const SpellView = z.strictObject({
   shards: z.array(z.string()),
   /** Already cast this turn. */
   spent: z.boolean(),
-  preview: SpellPreviewView.optional(),
+  /** Absent while the spell is still running in the sandbox (see `previews`). */
+  preview: SpellRunView.optional(),
 });
 export type SpellView = z.infer<typeof SpellView>;
 
@@ -646,17 +698,27 @@ export const ShardrunLogView = z.strictObject({
 });
 export type ShardrunLogView = z.infer<typeof ShardrunLogView>;
 
+export const ShardrunDifficultyView = z.strictObject({ id: z.string(), name: z.string(), summary: z.string() });
+export type ShardrunDifficultyView = z.infer<typeof ShardrunDifficultyView>;
+
 export const ShardrunView = z.strictObject({
   id: z.string(),
   status: z.enum(["map", "battle", "reward", "rest", "forge", "won", "lost", "abandoned"]),
   language: z.string(),
+  difficulty: z.strictObject({ id: z.string(), name: z.string(), showSummaries: z.boolean(), showPredictions: z.boolean() }),
+  /** Counts accepted commands; previews fetched for an older revision are stale. */
+  revision: z.int(),
   integrity: z.int(),
   integrityMax: z.int(),
-  floors: z.array(z.array(ShardrunNodeView)),
+  layer: z.strictObject({ index: z.int(), count: z.int(), id: z.string(), name: z.string(), flavor: z.string(), backdrop: z.string() }),
+  map: z.strictObject({ nodes: z.array(ShardrunMapNodeView), edges: z.array(z.tuple([z.string(), z.string()])) }),
   spells: z.array(SpellView),
   inventory: z.array(z.string()),
+  relics: z.array(z.string()),
   /** Every shard the run mentions (held, offered, or forged into), by id. */
   shards: z.record(z.string(), ShardView),
+  /** Every relic the run mentions (held or offered), by id. */
+  relicInfo: z.record(z.string(), RelicView),
   battle: z
     .strictObject({
       kind: z.enum(["fight", "elite", "boss"]),
@@ -667,27 +729,59 @@ export const ShardrunView = z.strictObject({
       foes: z.array(ShardrunFoeView),
     })
     .optional(),
-  reward: z.strictObject({ choices: z.array(z.string()) }).optional(),
-  /** Held shards the forge can rework, while at a forge. */
-  forgeable: z.array(z.string()),
+  /** `pending` while spell previews are still running; fetch them from `.../shardrun/previews`. */
+  previews: z.enum(["ready", "pending"]),
+  reward: z
+    .strictObject({
+      shards: z.array(z.string()).optional(),
+      relics: z.array(z.string()).optional(),
+      spell: z.strictObject({ name: z.string(), capacity: z.int() }).optional(),
+    })
+    .optional(),
+  /** At a forge: held shards that can be reworked, and spells that can be widened. */
+  forge: z.strictObject({ shards: z.array(z.string()), spells: z.array(z.string()) }).optional(),
   /** Integrity resting would restore, while resting. */
   restHeal: z.int().optional(),
+  /** In the response to a cast: that cast, step by step, with every value shown. */
+  replay: z.strictObject({ spellId: z.string(), run: SpellRunView }).optional(),
   /** What the last command did, in order. */
   log: z.array(ShardrunLogView),
-  stats: z.strictObject({ fights: z.int(), turns: z.int(), casts: z.int(), damage: z.int(), shards: z.int() }),
+  stats: z.strictObject({
+    fights: z.int(),
+    turns: z.int(),
+    casts: z.int(),
+    damage: z.int(),
+    shards: z.int(),
+    relics: z.int(),
+    layers: z.int(),
+  }),
   /** Rules the workbench explains. */
-  rules: z.strictObject({ spellBaseCost: z.int(), workPerMana: z.int(), maxBolts: z.int(), baseBoltPower: z.int() }),
+  rules: z.strictObject({
+    spellBaseCost: z.int(),
+    workPerMana: z.int(),
+    maxBolts: z.int(),
+    baseBoltPower: z.int(),
+    maxSpellCapacity: z.int(),
+  }),
 });
 export type ShardrunView = z.infer<typeof ShardrunView>;
 
 export const ShardrunResponse = z.strictObject({ run: ShardrunView });
 export type ShardrunResponse = z.infer<typeof ShardrunResponse>;
 
-/** The latest run (finished ones stay until a new run starts), and the languages a new run can be played in. */
-export const ShardrunStatusResponse = z.strictObject({ run: ShardrunView.nullable(), languages: z.array(z.string()) });
+/** The latest run (finished ones stay until a new run starts), and what a new run can be started with. */
+export const ShardrunStatusResponse = z.strictObject({
+  run: ShardrunView.nullable(),
+  languages: z.array(z.string()),
+  difficulties: z.array(ShardrunDifficultyView),
+});
 export type ShardrunStatusResponse = z.infer<typeof ShardrunStatusResponse>;
 
-export const StartShardrunRequest = z.strictObject({ language: z.string().min(1) });
+/** Spell previews for the active battle at `revision`, once every spell has run. */
+export const ShardrunPreviewsResponse = z.strictObject({ revision: z.int(), spells: z.record(z.string(), SpellRunView) });
+export type ShardrunPreviewsResponse = z.infer<typeof ShardrunPreviewsResponse>;
+
+export const StartShardrunRequest = z.strictObject({ language: z.string().min(1), difficulty: z.string().min(1) });
 export type StartShardrunRequest = z.infer<typeof StartShardrunRequest>;
 
 export const ShardrunCommandRequest = z.discriminatedUnion("type", [
@@ -700,8 +794,12 @@ export const ShardrunCommandRequest = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("cast"), spellId: z.string().min(1) }),
   z.strictObject({ type: z.literal("end-turn") }),
   z.strictObject({ type: z.literal("take"), shardId: z.string().nullable() }),
+  z.strictObject({ type: z.literal("claim-relic"), relicId: z.string().min(1) }),
+  z.strictObject({ type: z.literal("claim-spell") }),
+  z.strictObject({ type: z.literal("leave") }),
   z.strictObject({ type: z.literal("rest") }),
   z.strictObject({ type: z.literal("forge"), shardId: z.string().nullable() }),
+  z.strictObject({ type: z.literal("widen"), spellId: z.string().min(1) }),
   z.strictObject({ type: z.literal("abandon") }),
 ]);
 export type ShardrunCommandRequest = z.infer<typeof ShardrunCommandRequest>;

@@ -1,9 +1,9 @@
 import { Element, FoeIntent, FoeTrait, ShardrunNodeKind } from "@rootward/content-schema";
 import { z } from "zod";
 
-// Shardrun state (ADR-0012). A run is saved as one validated snapshot after every command rather than as an event log:
-// the mode is young and its rules will change, and a snapshot keeps an old run playable where replaying old events under
-// new rules would not. Runtime keys are camelCase; the few that shard code sees are single words.
+// Shardrun state (ADR-0012, ADR-0013). A run is saved as one validated snapshot after every command rather than as an
+// event log: the mode is young and its rules will change, and a snapshot keeps an old run readable where replaying old
+// events under new rules would not. Runtime keys are camelCase; the few that shard code sees are single words.
 
 export const FoeState = z.strictObject({
   uid: z.string(),
@@ -37,7 +37,7 @@ export const BattleState = z.strictObject({
   mana: z.int().min(0),
   block: z.int().min(0),
   foes: z.array(FoeState).min(1),
-  /** Spell ids already cast this turn. */
+  /** Spell ids already cast this turn, in order. */
   cast: z.array(z.string()),
 });
 export type BattleState = z.infer<typeof BattleState>;
@@ -51,8 +51,16 @@ export const SpellState = z.strictObject({
 });
 export type SpellState = z.infer<typeof SpellState>;
 
-export const MapNode = z.strictObject({ id: z.string(), floor: z.int().min(0), kind: ShardrunNodeKind });
+/** A room on a layer's map. Row 0 is the bottom; the boss is alone in the top row. */
+export const MapNode = z.strictObject({ id: z.string(), row: z.int().min(0), col: z.int().min(0), kind: ShardrunNodeKind });
 export type MapNode = z.infer<typeof MapNode>;
+
+export const LayerMap = z.strictObject({
+  nodes: z.array(MapNode).min(1),
+  /** Paths upward, from a room to a room one row higher. */
+  edges: z.array(z.tuple([z.string(), z.string()])),
+});
+export type LayerMap = z.infer<typeof LayerMap>;
 
 export const LOG_KINDS = [
   "enter",
@@ -72,6 +80,9 @@ export const LOG_KINDS = [
   "victory",
   "loss",
   "reward",
+  "relic",
+  "spell",
+  "layer",
   "rest",
   "forge",
   "note",
@@ -89,24 +100,41 @@ export const LogEntry = z.strictObject({
 });
 export type LogEntry = z.infer<typeof LogEntry>;
 
+/** What is waiting to be claimed after a won fight or in a treasure room. Each part is claimed (or left) on its own. */
+export const RewardState = z.strictObject({
+  shards: z.array(z.string()).optional(),
+  relics: z.array(z.string()).optional(),
+  spell: z.strictObject({ name: z.string(), capacity: z.int().positive() }).optional(),
+});
+export type RewardState = z.infer<typeof RewardState>;
+
 export const SHARDRUN_STATUSES = ["map", "battle", "reward", "rest", "forge", "won", "lost", "abandoned"] as const;
 export const ShardrunStatus = z.enum(SHARDRUN_STATUSES);
 export type ShardrunStatus = z.infer<typeof ShardrunStatus>;
 
 export const ShardrunState = z.strictObject({
-  version: z.literal(1),
+  /** Snapshots from older rules do not load; the service reports them as runs that can no longer continue. */
+  version: z.literal(2),
   seed: z.string(),
   language: z.string(),
+  difficulty: z.string(),
   status: ShardrunStatus,
   integrity: z.int().min(0),
   integrityMax: z.int().positive(),
-  floors: z.array(z.array(MapNode)),
-  /** Node ids entered so far, one per floor. */
-  path: z.array(z.string()),
+  /** Index into the run's layers. */
+  layer: z.int().min(0),
+  map: LayerMap,
+  /** The room the Maintainer is in or just left; null before the first room of a layer. */
+  position: z.string().nullable(),
+  /** Rooms entered on this layer, in order. */
+  visited: z.array(z.string()),
   spells: z.array(SpellState),
   inventory: z.array(z.string()),
+  relics: z.array(z.string()),
   battle: BattleState.optional(),
-  reward: z.strictObject({ choices: z.array(z.string()) }).optional(),
+  reward: RewardState.optional(),
+  /** Counts accepted commands, so a view computed for an older state can be told apart from the current one. */
+  revision: z.int().min(0),
   /** What the most recent command did. */
   log: z.array(LogEntry),
   stats: z.strictObject({
@@ -115,6 +143,8 @@ export const ShardrunState = z.strictObject({
     casts: z.int().min(0),
     damage: z.int().min(0),
     shards: z.int().min(0),
+    relics: z.int().min(0),
+    layers: z.int().min(0),
   }),
 });
 export type ShardrunState = z.infer<typeof ShardrunState>;

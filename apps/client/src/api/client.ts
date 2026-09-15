@@ -15,6 +15,7 @@ import {
   type ResolveMarkerRequest,
   RunResponse,
   type ShardrunCommandRequest,
+  ShardrunPreviewsResponse,
   ShardrunResponse,
   ShardrunStatusResponse,
   type StartEncounterRequest,
@@ -126,4 +127,5 @@ export const api = {
     request("POST", profileUrl(profileId, "/shardrun/start"), ShardrunResponse, body),
   shardrunCommand: (profileId: string, body: ShardrunCommandRequest) =>
     request("POST", profileUrl(profileId, "/shardrun/command"), ShardrunResponse, body),
+  shardrunPreviews: (profileId: string) => request("GET", profileUrl(profileId, "/shardrun/previews"), ShardrunPreviewsResponse),
 };

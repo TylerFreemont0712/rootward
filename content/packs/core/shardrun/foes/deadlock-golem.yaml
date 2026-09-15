@@ -1,0 +1,12 @@
+id: deadlock-golem
+name: Deadlock Golem
+sprite: deadlock-golem
+hp: 130
+trait: { kind: pattern-ward, pattern: [spark, fire, frost] }
+intents:
+  - { kind: shield, amount: 12 }
+  - { kind: strike, power: 12 }
+  - { kind: stoke }
+  - { kind: strike, power: 10 }
+  - { kind: multi, power: 5, times: 3 }
+flavor: Two locks, each waiting on the other. Only the right element, at the right moment, gets through.

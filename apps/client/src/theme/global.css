@@ -383,5 +383,8 @@ main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 /* Walk strips: the standing pose, then four walk frames stepped through while walking (--strip-start skips the pose). */
 .w-avatar-strip { position: absolute; left: 50%; translate: -50% 0; image-rendering: pixelated; background-repeat: no-repeat; background-position: 0 0; filter: drop-shadow(0 0 5px var(--amber-glow)); }
 .w-avatar.walking .w-avatar-strip { animation: w-walk-cycle 0.56s steps(4) infinite; }
+/* Facing the viewer or walking away, a step is a short knee lift rather than a long stride, so it cycles faster to keep
+   pace with the same walking speed. */
+.w-avatar.walking.dir-down .w-avatar-strip, .w-avatar.walking.dir-up .w-avatar-strip { animation-duration: 0.4s; }
 .w-avatar.flip .w-avatar-strip { scale: -1 1; }
 @keyframes w-walk-cycle { from { background-position-x: var(--strip-start); } to { background-position-x: var(--strip-end); } }

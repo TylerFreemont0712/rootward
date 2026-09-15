@@ -1,0 +1,11 @@
+# A planned class (PROMPT.md section 6): shown at character creation, not playable until its fights exist.
+id: summoner
+name: Summoner
+tagline: "Call up minds made of math. Keep them honest."
+discipline: AI and machine learning
+status: planned
+order: 7
+subjects: [prompts and evaluations, embeddings and similarity, tool-calling agents, small classifiers]
+affinity: { observatory: 1.0 }
+default_runner_kinds: [tests]
+lore: lore.md

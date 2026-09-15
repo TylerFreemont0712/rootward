@@ -1,0 +1,11 @@
+id: fork-bomb
+name: Fork Bomb
+sprite: fork-bomb
+hp: 70
+weak: [frost]
+resist: [fire]
+intents:
+  - { kind: multi, power: 3, times: 5 }
+  - { kind: heal, amount: 10 }
+  - { kind: multi, power: 4, times: 4 }
+flavor: It copies itself faster than you can count. Cold slows it down; fire only feeds it.

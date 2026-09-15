@@ -8,11 +8,14 @@ export {
   isShardrunLanguage,
   type PipelineInput,
   type PipelineRun,
-  pipelineJob,
-  readPipelineRuns,
+  readSpellRuns,
   SHARDRUN_LANGUAGES,
   shardFunctionName,
   type ShardrunLanguage,
+  type SpellCase,
+  type SpellProgram,
+  spellsJob,
+  stoppedEarly,
   type TraceStep,
 } from "./shardrun.ts";
 export {

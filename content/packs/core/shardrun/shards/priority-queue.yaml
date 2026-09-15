@@ -1,0 +1,30 @@
+id: priority-queue
+name: Priority Queue
+rarity: rare
+cost: 1
+function: priority_queue
+summary: "Sorts bolts from strongest to weakest, and sends the strongest at the foe with the most HP."
+tags: [sorting, lambda]
+code:
+  python: |
+    def priority_queue(bolts, battle):
+        ordered = sorted(bolts, key=lambda bolt: bolt["power"], reverse=True)
+        if ordered:
+            ordered[0] = {**ordered[0], "target": "strongest"}
+        return ordered
+  javascript: |
+    function priorityQueue(bolts, battle) {
+      const ordered = [...bolts].sort((a, b) => b.power - a.power);
+      if (ordered.length > 0) ordered[0] = { ...ordered[0], target: "strongest" };
+      return ordered;
+    }
+examples:
+  - name: strongest first, aimed high
+    bolts:
+      - { power: 2, element: none, target: front, pierce: false, ward: false }
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 6, element: none, target: strongest, pierce: false, ward: false }
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 2, element: none, target: front, pierce: false, ward: false }

@@ -129,6 +129,14 @@ Task breakdown:
       one sprite; the player asked for real animation and equal sizes, so the strips are now pose-guided renders: an
       OpenPose ControlNet draws 15 posed figures in one image (a standing pose and a four-frame walk per direction), and
       `walk-cycle` in `scripts/art/` scales them all by one factor, so every direction is the same size
+- [x] **WIP.md pass** (ADR-0013, 2026-09-16, from the player's notes after testing Shardrun): up and down walk cycles
+      play faster; Shardrun gains Beginner and Programmer difficulties (Programmer shows only code, no predictions), a
+      code view that composes each spell into one function and runs it line by line with growing damage (speed in
+      options), three layers (the Salvage, the Heap, the Kernel) with Slay the Spire style maps climbing bottom to top,
+      9 relics, new spells from bosses, forge widening, treasure rooms, 4 new shards, 9 new foes, and per-layer arena
+      backdrops; the cast lag is gone (one sandbox job per turn, answer first and preview after, warm JavaScript and
+      Python spares); a main menu picks The World or Shardrun, the Guild Board lives in the World without Descend, and six
+      planned classes (Warden, Shade, Oracle, Keeper, Necromancer, Summoner) appear at character creation with art
 - [x] **Shardrun** (ADR-0012), a separate roguelite mode at the player's request (2026-09-15: "find pieces of code and
       plug and play them into powerful attacks and spells", turn-based, same art): 23 shards that are real Python and
       JavaScript functions, 6 foes with rule-bending traits, a seven-floor run with fights, elites, rests, forges, and a
@@ -181,9 +189,9 @@ Guildmaster Orin, and walks south to the Foundry, whose eleven fights are real c
 Foundry questline (three wins, then the Kiln Warden) and four side quests run on real facts only. The Guild Board is
 behind the Guild Hall's door and in the top bar. Art comes from `scripts/art/generate.py` (ComfyUI on this machine).
 Suggested order:
-0. The player is testing Shardrun and will ask for tweaks or shifts in vision: expect balance changes (shard costs,
-   foe HP and intents, the work rate), more shards and foes, and possibly shards the player can edit. Log what they
-   report in `docs/PLAYTEST_NOTES.md` first.
+0. The player keeps a `WIP.md` of tweaks at the repository root (not committed). Read it first; it is the current
+   focus. After ADR-0013, likely next asks: Shardrun balance across three layers, editable shards, what planned
+   classes play in Shardrun, and giving the other classes their first real fights.
 1. Playtest a full quest line in the browser and log friction in `docs/PLAYTEST_NOTES.md` (the first pass was from
    screenshots only).
 2. Content: a second and third challenge per node, then comprehensions, exceptions, and functions with arguments;

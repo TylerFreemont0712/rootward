@@ -1,9 +1,9 @@
-import type { ElementView, ShardView } from "@rootward/shared";
+import type { ElementView, RelicView, ShardView } from "@rootward/shared";
 import type { ReactNode } from "react";
 import { assetUrl, shardIconUrl } from "../assets/AssetRegistry.ts";
 
-// Small pieces every Shardrun screen shares: shard icons and cards, element tags, and mana costs. Each has a text or
-// glyph fallback, since generated art is optional (AGENT.md).
+// Small pieces every Shardrun screen shares: shard and relic icons and cards, element tags, and mana costs. Each has a
+// text or glyph fallback, since generated art is optional (AGENT.md).
 
 const ELEMENT_LABEL: Readonly<Record<ElementView, string>> = { none: "plain", fire: "fire", frost: "frost", spark: "spark" };
 
@@ -33,6 +33,17 @@ export function ShardIcon({ shardId, size }: { shardId: string; size: number }) 
   );
 }
 
+export function RelicIcon({ relic, size }: { relic: RelicView; size: number }) {
+  const url = assetUrl("shardrun", `relic-${relic.icon}`);
+  return url !== undefined ? (
+    <img className="shr-icon" src={url} alt="" width={size} height={size} draggable={false} />
+  ) : (
+    <span className="shr-icon glyph relic" style={{ width: size, height: size, fontSize: size * 0.55 }} aria-hidden="true">
+      ✦
+    </span>
+  );
+}
+
 export function ManaCost({ cost }: { cost: number }) {
   return (
     <span className="shr-mana" title={`${cost} mana`}>
@@ -42,7 +53,7 @@ export function ManaCost({ cost }: { cost: number }) {
   );
 }
 
-/** A shard with its rarity, cost, summary, and (optionally) its code: the thing a player is deciding about. */
+/** A shard with its rarity, cost, summary (when the difficulty shows one), and optionally its code. */
 export function ShardCard({ shard, showCode, children }: { shard: ShardView; showCode: boolean; children?: ReactNode }) {
   return (
     <article className={`shr-card rarity-${shard.rarity}`}>
@@ -56,7 +67,7 @@ export function ShardCard({ shard, showCode, children }: { shard: ShardView; sho
         </div>
         <ManaCost cost={shard.cost} />
       </header>
-      <p>{shard.summary}</p>
+      {shard.summary !== undefined && <p>{shard.summary}</p>}
       {shard.curse !== undefined && <p className="shr-curse">Cursed: every cast burns {shard.curse} Integrity.</p>}
       {shard.forge && (
         <p className="meta">
@@ -70,5 +81,40 @@ export function ShardCard({ shard, showCode, children }: { shard: ShardView; sho
       )}
       {children}
     </article>
+  );
+}
+
+export function RelicCard({ relic, children }: { relic: RelicView; children?: ReactNode }) {
+  return (
+    <article className={`shr-card shr-relic-card relic-${relic.rarity}`}>
+      <header>
+        <RelicIcon relic={relic} size={48} />
+        <div>
+          <h3>{relic.name}</h3>
+          <span className="meta">{relic.rarity === "boss" ? "guardian relic" : `${relic.rarity} relic`}</span>
+        </div>
+      </header>
+      <p>{relic.summary}</p>
+      <p className="shr-flavor">{relic.flavor}</p>
+      {children}
+    </article>
+  );
+}
+
+/** The relics a run holds, as a row of icons that explain themselves on hover. */
+export function RelicBar({ relics, info }: { relics: readonly string[]; info: Readonly<Record<string, RelicView>> }) {
+  if (relics.length === 0) return null;
+  return (
+    <ul className="shr-relic-bar" aria-label="Relics">
+      {relics.map((relicId) => {
+        const relic = info[relicId];
+        if (!relic) return null;
+        return (
+          <li key={relicId} title={`${relic.name}: ${relic.summary}`}>
+            <RelicIcon relic={relic} size={28} />
+          </li>
+        );
+      })}
+    </ul>
   );
 }

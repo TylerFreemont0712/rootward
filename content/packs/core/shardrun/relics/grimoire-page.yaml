@@ -1,0 +1,8 @@
+id: grimoire-page
+name: Grimoire Page
+rarity: rare
+icon: grimoire-page
+summary: "Every spell gains a slot."
+flavor: "A page torn from a Maintainer's spellbook, still humming."
+effects:
+  - { kind: spell-capacity, add: 1 }

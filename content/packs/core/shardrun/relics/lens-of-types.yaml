@@ -1,0 +1,8 @@
+id: lens-of-types
+name: Lens of Types
+rarity: uncommon
+icon: lens-of-types
+summary: "Hits on a weakness deal an extra 50% of their power."
+flavor: "See what a thing really is, and where it breaks."
+effects:
+  - { kind: weak-bonus, add: 0.5 }

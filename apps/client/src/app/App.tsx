@@ -3,6 +3,7 @@ import { DebriefScreen } from "../screens/DebriefScreen.tsx";
 import { EncounterScreen } from "../screens/EncounterScreen.tsx";
 import { ExpeditionScreen } from "../screens/ExpeditionScreen.tsx";
 import { GuildBoard } from "../screens/GuildBoard.tsx";
+import { MainMenu } from "../screens/MainMenu.tsx";
 import { ShardrunScreen } from "../screens/ShardrunScreen.tsx";
 import { TitleScreen } from "../screens/TitleScreen.tsx";
 import { WorldScreen } from "../screens/WorldScreen.tsx";
@@ -20,7 +21,7 @@ export function App() {
   const restoreProfile = useGame((s) => s.restoreProfile);
   const showWorld = useGame((s) => s.showWorld);
   const showBoard = useGame((s) => s.showBoard);
-  const showShardrun = useGame((s) => s.showShardrun);
+  const showMenu = useGame((s) => s.showMenu);
 
   useEffect(() => {
     void restoreProfile();
@@ -48,6 +49,19 @@ export function App() {
     );
   }
 
+  // The main menu is a whole page too: it is where a mode is chosen, so no mode's bars belong on it.
+  if (screen === "menu") {
+    return (
+      <>
+        <div className="crt" aria-hidden="true" />
+        <main>
+          {banner}
+          <MainMenu />
+        </main>
+      </>
+    );
+  }
+
   const encounter = screen === "encounter" ? run?.encounter : undefined;
   const expedition = screen === "map" ? run?.expedition : undefined;
   const inWorld = screen === "world";
@@ -64,26 +78,31 @@ export function App() {
       <div className="crt" aria-hidden="true" />
       <header className="topbar">
         <div className="brand">
-          ROOTWARD<small>M1 · the Bastion</small>
+          ROOTWARD<small>{inShardrun ? "Shardrun" : "The World · the Bastion"}</small>
         </div>
         {betweenRuns && (
           <nav className="topnav" aria-label="Places">
-            <button type="button" className="btn" aria-current={inWorld ? "page" : undefined} onClick={showWorld}>
-              The world
+            <button type="button" className="btn" onClick={showMenu}>
+              ☰ Main menu
             </button>
-            <button
-              type="button"
-              className="btn"
-              aria-current={screen === "board" ? "page" : undefined}
-              onClick={() => {
-                showBoard();
-              }}
-            >
-              Guild Board
-            </button>
-            <button type="button" className="btn" aria-current={inShardrun ? "page" : undefined} onClick={showShardrun}>
-              Shardrun
-            </button>
+            {/* The Guild Board belongs to the World: it is the Guild Hall's board, so it is only offered there. */}
+            {!inShardrun && (
+              <>
+                <button type="button" className="btn" aria-current={inWorld ? "page" : undefined} onClick={showWorld}>
+                  The world
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  aria-current={screen === "board" ? "page" : undefined}
+                  onClick={() => {
+                    showBoard();
+                  }}
+                >
+                  Guild Board
+                </button>
+              </>
+            )}
           </nav>
         )}
         {run && screen !== "debrief" && (

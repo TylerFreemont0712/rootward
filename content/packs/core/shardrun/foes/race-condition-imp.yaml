@@ -1,0 +1,9 @@
+id: race-condition-imp
+name: Race Condition Imp
+sprite: race-condition-imp
+hp: 14
+weak: [frost]
+intents:
+  - { kind: multi, power: 3, times: 2 }
+  - { kind: strike, power: 4 }
+flavor: There are always two, and they never agree on who strikes first.

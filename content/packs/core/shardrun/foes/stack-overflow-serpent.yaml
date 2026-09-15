@@ -1,0 +1,10 @@
+id: stack-overflow-serpent
+name: Stack Overflow Serpent
+sprite: stack-overflow-serpent
+hp: 40
+weak: [frost]
+intents:
+  - { kind: stoke }
+  - { kind: strike, power: 9 }
+  - { kind: multi, power: 4, times: 3 }
+flavor: Every strike calls another. It only stops when something runs out.

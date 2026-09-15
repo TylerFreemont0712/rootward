@@ -1,0 +1,11 @@
+# A planned class (PROMPT.md section 6): shown at character creation, not playable until its fights exist.
+id: warden
+name: Warden
+tagline: "Keep the lights on. Hold the line."
+discipline: Infrastructure, Linux, and operations
+status: planned
+order: 2
+subjects: [the Linux shell, containers, networking, logs and monitoring]
+affinity: { kernel: 1.0, citadel: 1.0 }
+default_runner_kinds: [terminal-check]
+lore: lore.md

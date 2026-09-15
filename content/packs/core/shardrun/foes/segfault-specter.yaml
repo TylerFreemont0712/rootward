@@ -1,0 +1,10 @@
+id: segfault-specter
+name: Segfault Specter
+sprite: segfault-specter
+hp: 32
+weak: [spark]
+trait: { kind: nullify-first }
+intents:
+  - { kind: strike, power: 10 }
+  - { kind: shield, amount: 8 }
+flavor: Touch the wrong address and it takes the hit for nothing.

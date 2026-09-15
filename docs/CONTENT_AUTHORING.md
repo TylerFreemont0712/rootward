@@ -22,6 +22,7 @@ content/packs/<pack>/
   shardrun/run.yaml         Shardrun: starting spells, floors, encounters, reward odds (ADR-0012)
   shardrun/shards/<id>.yaml a shard: a function in Python and JavaScript, with worked examples
   shardrun/foes/<id>.yaml   a Shardrun foe: HP, weaknesses, a trait, and its intents
+  shardrun/relics/<id>.yaml a Shardrun relic: a passive item built from effect primitives
   classes/<id>/             class.yaml, abilities.yaml, lore.md (folder name = class id)
   challenges/<realm>/<folder>/
 ```
@@ -84,6 +85,13 @@ validator fails the challenge if the reference solution breaks its own constrain
 - **Class:** `classes/<id>/class.yaml` + `abilities.yaml` + `lore.md`. Passive effect implemented so far:
   `lootMultiplierOnCrit` (param `factor`).
 - **Review cards:** `cards/<node>.yaml` with `{ node, cards: [{ id, q, a, kind? }] }`.
+
+### Classes: playable and planned
+
+A class (`classes/<id>/class.yaml`) can be `status: playable` (the default) or `status: planned`. Planned classes are
+listed at character creation with their `subjects` (a few words each: what the class teaches) but cannot be chosen, and
+the server refuses them. `order` sets their place in the picker. A planned class needs only `class.yaml` and
+`lore.md`; give it portrait and sprite art (`portraits/<id>`, `avatars/<id>`) so the picker is not a row of letters.
 
 ## The world: zones, people, and quests
 
@@ -249,11 +257,35 @@ intents:                     # played in order, one per turn, then repeated
 flavor: The first thing you throw at it becomes nothing.
 ```
 
+### Relics
+
+```yaml
+id: cache-hit
+name: Cache Hit
+rarity: uncommon            # common, uncommon, rare, or boss (boss relics are offered by guardians)
+icon: cache-hit             # shardrun/relic-<icon> art
+summary: "Your first spell each turn costs 1 less mana."
+flavor: "The answer was already there. Why compute it twice?"
+effects:
+  - { kind: first-cast-discount, amount: 1 }
+```
+
+Effect kinds: `bolt-power {add}`, `damage-multiplier {factor}`, `weak-bonus {add}`, `mana-per-turn {add}`,
+`first-cast-discount {amount}`, `turn-block {amount}`, `heal-after-fight {amount}`, and the one-time
+`spell-capacity {add}` and `max-integrity {add}`. A new effect is an engine change (a primitive), never a one-off.
+
 ### The run
 
-`shardrun/run.yaml` gives the starting spells (name, capacity, shards) and spare shards, the floors (each a list of
-room kinds to choose between: `fight`, `elite`, `boss`, `rest`, `forge`), the foe groups each battle kind draws from,
-and the rarity odds of rewards. Only one pack may define it. Validation checks every shard and foe it names.
+`shardrun/run.yaml` has four parts (ADR-0013):
+
+- `start`: spells (name, capacity, shards), spare shards, and relics.
+- `difficulties`: each with `show_summaries`, `show_predictions`, and a `foe_hp` multiplier. The first is the default.
+- `layers`: each a generated map (`rows`, `columns`, `paths`, `fixed_rows` like `{ "0": fight, "-1": rest }`, room
+  `weights`, `elite_from_row`), a `backdrop` art id, a `foe_hp` multiplier, `encounters` for fights, elites, and the
+  boss, and an optional `boss_spell` granted for beating it.
+- `rewards`: shard rarity odds per battle kind, and relic rarity odds for elites, treasure rooms, and bosses.
+
+Only one pack may define it. Validation checks every shard, foe, and relic it names.
 
 ## Quality checklist (from ideas/solutions/content-pipeline.md)
 

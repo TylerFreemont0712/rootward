@@ -1,0 +1,8 @@
+id: cache-hit
+name: Cache Hit
+rarity: uncommon
+icon: cache-hit
+summary: "Your first spell each turn costs 1 less mana."
+flavor: "The answer was already there. Why compute it twice?"
+effects:
+  - { kind: first-cast-discount, amount: 1 }

@@ -11,6 +11,7 @@ import {
   PropsFile,
   Quest,
   RealmsFile,
+  Relic,
   Shard,
   ShardrunConfig,
   ShardrunFoe,
@@ -28,6 +29,7 @@ import type {
   Prop,
   Quest as QuestType,
   Realm,
+  Relic as RelicType,
   Shard as ShardType,
   ShardrunConfig as ShardrunConfigType,
   ShardrunFoe as ShardrunFoeType,
@@ -58,6 +60,7 @@ export interface PackContents {
   zones: Sourced<ZoneType>[];
   shards: Sourced<ShardType>[];
   shardrunFoes: Sourced<ShardrunFoeType>[];
+  shardrunRelics: Sourced<RelicType>[];
   shardrun?: Sourced<ShardrunConfigType & { id: "shardrun" }>;
 }
 
@@ -89,6 +92,7 @@ export async function loadPack(ctx: LoadContext, absoluteDir: string): Promise<P
     zones: [],
     shards: [],
     shardrunFoes: [],
+    shardrunRelics: [],
   };
   const sourced = <T>(value: T, file: string): Sourced<T> => ({ value, packId, file });
 
@@ -131,6 +135,9 @@ export async function loadPack(ctx: LoadContext, absoluteDir: string): Promise<P
   });
   await eachYaml(ctx, absoluteDir, dir, "shardrun/foes", ShardrunFoe, (foe, file, name) => {
     if (checkFileName(ctx, foe.id, name, file)) contents.shardrunFoes.push(sourced(foe, file));
+  });
+  await eachYaml(ctx, absoluteDir, dir, "shardrun/relics", Relic, (relic, file, name) => {
+    if (checkFileName(ctx, relic.id, name, file)) contents.shardrunRelics.push(sourced(relic, file));
   });
   const run = await readOptionalYaml(ctx, absoluteDir, dir, "shardrun/run.yaml", ShardrunConfig);
   if (run) contents.shardrun = sourced({ ...run.value, id: "shardrun" as const }, run.file);

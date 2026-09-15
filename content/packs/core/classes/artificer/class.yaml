@@ -13,3 +13,6 @@ passives:
     implemented: true
     effects: [{ type: lootMultiplierOnCrit, factor: 2 }]
 lore: lore.md
+status: playable
+order: 1
+subjects: [Python, JavaScript, algorithms, data structures]

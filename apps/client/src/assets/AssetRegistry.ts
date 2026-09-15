@@ -29,6 +29,31 @@ const BASE_URL = "/generated";
 
 const NPCS = ["guildmaster", "lint", "archivist", "compiler", "quartermaster", "sergeant", "pip", "guard", "innkeeper", "pell"];
 const ENEMIES = ["null-wraith", "off-by-one-goblin", "regex-sphinx", "tally-wisp", "type-mimic", "kiln-warden"];
+/** Shardrun's deeper layers (ADR-0013); their sprites share the `creatures` folder. */
+const SHARDRUN_FOES = [
+  "memory-leak-ooze",
+  "race-condition-imp",
+  "dangling-pointer",
+  "garbage-collector",
+  "deadlock-golem",
+  "stack-overflow-serpent",
+  "segfault-specter",
+  "fork-bomb",
+  "root-daemon",
+];
+/** Every class, playable or planned (PROMPT.md section 6). */
+const CLASSES = ["artificer", "warden", "shade", "oracle", "keeper", "necromancer", "summoner"];
+const RELICS = [
+  "debugger-duck",
+  "firewall",
+  "patch-kit",
+  "cache-hit",
+  "lens-of-types",
+  "ecc-memory",
+  "grimoire-page",
+  "mana-capacitor",
+  "overclocked-core",
+];
 const SHARD_ICONS = [
   "fork",
   "lazy-fork",
@@ -48,6 +73,10 @@ const SHARD_ICONS = [
   "exploit",
   "echo",
   "overclock",
+  "prism",
+  "double-tap",
+  "bulwark",
+  "priority-queue",
 ];
 
 const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
@@ -84,9 +113,9 @@ const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
   hud: new Set(["integrity", "focus", "cycles"]),
   /** Full-bleed opaque backdrops (one per realm, eventually); id is the realm id. Only "foundry" exists so far --
    * it's the only realm any seeded content is actually set in. */
-  backgrounds: new Set(["foundry", "title", "salvage"]),
+  backgrounds: new Set(["foundry", "title", "salvage", "arena-salvage", "arena-heap", "arena-kernel"]),
   /** Map sprites for the player, keyed by class slug; distinct from the `classes` portrait. */
-  avatars: new Set(["artificer"]),
+  avatars: new Set(CLASSES),
   /** World props (content/packs/<pack>/props.yaml), drawn bottom-aligned on their footprint. */
   props: new Set([
     "guild-hall",
@@ -128,15 +157,17 @@ const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
   /** NPC map sprites; id is the NPC's `sprite` (its id unless the content says otherwise). */
   npcs: new Set(NPCS),
   /** Dialogue portraits: every NPC, plus the player's class. */
-  portraits: new Set([...NPCS, "artificer"]),
+  portraits: new Set([...NPCS, ...CLASSES]),
   /** Enemy map sprites standing on world markers; id is the enemy template id. */
-  creatures: new Set(ENEMIES),
+  creatures: new Set([...ENEMIES, ...SHARDRUN_FOES]),
   /** The title screen: the Guild emblem and a Maintainer seen from behind. */
   brand: new Set(["emblem", "wanderer", "shardrun"]),
   /** Shardrun (ADR-0012): `bolt-<element|ward>` projectiles and `shard-<id>` icons (an upgrade shares its base's icon). */
   shardrun: new Set([
     ...["none", "fire", "frost", "spark", "ward"].map((kind) => `bolt-${kind}`),
     ...SHARD_ICONS.map((id) => `shard-${id}`),
+    ...["fight", "elite", "boss", "rest", "forge", "treasure"].map((kind) => `map-${kind}`),
+    ...RELICS.map((id) => `relic-${id}`),
   ]),
 };
 

@@ -50,6 +50,7 @@ export { applyEffects, type EffectOutcome, type EffectResult } from "./world/eff
 
 // Shardrun, the roguelite mode (ADR-0012)
 export * from "./shardrun/engine.ts";
+export { bossId, generateLayerMap, nextRooms, roomId } from "./shardrun/map.ts";
 export * from "./shardrun/types.ts";
 
 // The walkable map laid over a plan

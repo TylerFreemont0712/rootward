@@ -93,27 +93,41 @@ thing that changes world state.
    that marker's own challenges. A quest counting wins becomes `ready` by itself; readiness is never stored.
 6. **Travelling.** Walking onto a portal posts `.../world/travel`; a locked portal answers with its locked line.
 
+## Modes and the main menu
+
+Choosing a character opens the main menu (`apps/client/src/screens/MainMenu.tsx`), which has one door per mode: The
+World (towns, quests, and code-graded fights, with the Guild Board inside it) and Shardrun. Only the chosen mode's
+screens and bars are shown. Classes are content with a `status`: only `playable` ones can be chosen at creation
+(`POST /api/profiles` checks it), and `planned` ones are shown with their subjects (ADR-0013).
+
 ## Shardrun
 
-The roguelite mode (ADR-0012). Content is `shardrun/shards/`, `shardrun/foes/`, and `shardrun/run.yaml` in a pack, and
+The roguelite mode (ADR-0012, ADR-0013). Content is `shardrun/shards/`, `shardrun/foes/`, and `shardrun/run.yaml` in a pack, and
 every rule number is under `shardrun` in `config/balance.yaml`. Routes are under `/api/profiles/:profileId/shardrun`;
 `ShardrunService` (`apps/server/src/shardrun/service.ts`) is the only thing that changes a run.
 
-1. **Starting.** `POST .../shardrun/start` refuses while another run is active, then saves a new snapshot from
-   `startShardrun` in `shardrun_runs` (migration 0004).
+1. **Starting.** `POST .../shardrun/start` takes a language and a difficulty, refuses while another run is active, then
+   saves a new snapshot from `startShardrun` in `shardrun_runs` (migration 0004). A run climbs layers; each layer's map
+   is generated from the seed by `generateLayerMap` (`packages/core/src/shardrun/map.ts`), and rooms are entered only
+   along its edges (`nextRooms`).
 2. **A command.** `POST .../shardrun/command` reads the active snapshot, and for a cast first runs the spell (below).
    `stepShardrun` in `packages/core/src/shardrun/engine.ts` then returns the next state and a log, or a refusal, and the
    new snapshot is saved. Commands for one profile run one at a time.
-3. **Running a spell.** `pipelineJob` (`packages/content-tools/src/shardrun.ts`) builds one program holding the spell's
-   shards, which reads `{bolts, battle, limit}` on stdin, passes the bolts through each shard in its own namespace, and
-   prints the result after a marker. It is an ordinary io job for `Sandbox.runJob`, with the usual limits.
-   `readPipelineRuns` turns the result into bolts plus a trace, or a misfire reason (an error's last line, a timeout).
+3. **Running spells.** `spellsJob` (`packages/content-tools/src/shardrun.ts`) builds one program that runs every spell
+   of a turn, each shard in its own namespace, and prints one result line per spell with the bolts after every shard
+   (and, on an error, the shard and line). It is an ordinary io job for `Sandbox.runJob`, with the usual limits; if an
+   endless loop stops the job early, the service re-runs the spells one at a time to find it. `readSpellRuns` turns
+   the output into runs.
 4. **Resolving.** The engine prices the cast (base + shard costs + work), validates and clamps the bolts, and applies
    them: wards become block, other bolts hit their target through weaknesses, resistances, shields, and traits. Ending
    a turn lets every living foe play its next intent.
-5. **The view.** Every response includes a preview per spell during a battle: a real run against the current battle,
-   priced and resolved on a copy of the state (`previewCast`). Runs are cached by exact input, so a cast reuses its
-   preview's run. Encounters on the map are derived from the seed (`encounterFor`), so the map shows who waits where.
+5. **The view.** A command responds as soon as the rules are applied; the next turn's spells then run in the
+   background, and `GET .../shardrun/previews` waits for them. Each preview is a real run, priced and resolved on a copy
+   of the state (`previewCast`), with the damage and block after every shard (`previewBolts`) for the code view. The
+   difficulty decides what is sent: on Programmer, no shard summaries and no predictions. Runs are cached by exact
+   input, so a cast reuses its preview's run and answers without the sandbox; its response carries a full replay.
+   Relics (content) change resolution through `relicModifiers`. Encounters on the map come from the seed
+   (`encounterFor`), so the map shows who waits where.
 
 ## State: events, state, artifacts
 
@@ -176,6 +190,10 @@ See `docs/CONTENT_AUTHORING.md`. Optional generated art is described in `assets/
 | A marker is cleared only by a win of its own challenge | `WorldService.resolveMarkerEncounter` | `apps/server/test/world.test.ts` |
 | The reference solution satisfies its own constraints and passes its tests | `packages/content-tools/src/validate/` | `pnpm content:validate` |
 | Shard code runs only in a sandbox, and an endless loop only misfires the spell | `pipelineJob` jobs through `Sandbox.runJob` | `apps/server/test/shardrun.test.ts` |
+| A spell's code view shows only measured values (the start, after each shard, the result) | `playbackFrames` in `apps/client/src/shardrun/source.ts`, values from `ShardrunService.spellRunView` | `apps/client/test/shardrun-source.test.ts` |
+| Programmer difficulty sends no summaries or predictions | `ShardrunService.view` and `spellRunView` | `apps/server/test/shardrun.test.ts` |
+| Map paths never cross, and every room reaches the boss | `generateLayerMap` | `packages/core/test/shardrun.test.ts` |
+| Planned classes cannot be chosen | `POST /api/profiles` in `apps/server/src/app.ts` | `apps/server/test/profile-routes.test.ts` |
 | No number a shard computes is trusted as damage (bolts parsed, clamped, capped, and priced) | `normalizeBolts` and `spellCost` in `packages/core/src/shardrun/engine.ts` | `packages/core/test/shardrun.test.ts` |
 | Rearranging spells never creates or destroys a shard | `stepShardrun` ("arrange") | `packages/core/test/shardrun.test.ts` |
 | A shard's examples match what its code really does, in both languages | `packages/content-tools/src/validate/shardrun.ts` | `pnpm content:validate` |
@@ -189,3 +207,5 @@ See `docs/CONTENT_AUTHORING.md`. Optional generated art is described in `assets/
 - `pnpm test:e2e`: builds the client, starts the real server, and plays in headless Chromium: a new character arrives
   in the Bastion and takes a quest from Lint by keyboard, then plays a whole expedition (keyboard movement, travel to
   each open door, every fight, the boss), and finally plays a Shardrun turn (a cast run in the sandbox, the foes' turn).
+  Since ADR-0013 it creates a character from the class picker, enters the World from the main menu, wins a practice
+  fight instead of an expedition, and plays a Shardrun turn whose cast runs as code.

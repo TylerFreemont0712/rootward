@@ -1,0 +1,30 @@
+id: double-tap
+name: Double Tap
+rarity: common
+cost: 1
+function: double_tap
+summary: "Fires the first bolt twice: a full-power copy goes in front of it."
+tags: [lists, copying]
+code:
+  python: |
+    def double_tap(bolts, battle):
+        if not bolts:
+            return bolts
+        return [dict(bolts[0])] + bolts
+  javascript: |
+    function doubleTap(bolts, battle) {
+      if (bolts.length === 0) return bolts;
+      return [{ ...bolts[0] }, ...bolts];
+    }
+examples:
+  - name: the first bolt is copied
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 2, element: fire, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 2, element: fire, target: front, pierce: false, ward: false }
+  - name: nothing to copy
+    bolts: []
+    expect: []

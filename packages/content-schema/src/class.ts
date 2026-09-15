@@ -29,6 +29,12 @@ export const ClassDef = z.strictObject({
   base_stats: z.strictObject({ integrity: z.int().positive(), focus: z.int().positive() }).optional(),
   passives: z.array(Passive).default([]),
   lore: NonEmptyString.default("lore.md"),
+  /** `planned` classes are shown at character creation but cannot be picked yet. */
+  status: z.enum(["playable", "planned"]).default("playable"),
+  /** What the class teaches, in a few words each, for the class picker. */
+  subjects: z.array(NonEmptyString).default([]),
+  /** Where the class appears in the picker; lower first. */
+  order: z.int().min(0).default(100),
 });
 export type ClassDef = z.infer<typeof ClassDef>;
 

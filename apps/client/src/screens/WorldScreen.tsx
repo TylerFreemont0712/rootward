@@ -100,7 +100,7 @@ function Arrival() {
             type="button"
             className="btn"
             onClick={() => {
-              showBoard("descend");
+              showBoard();
             }}
           >
             Go straight to the Guild Board
@@ -381,7 +381,7 @@ function ZoneBlock({ world }: { world: WorldView }) {
           type="button"
           className="btn"
           onClick={() => {
-            showBoard("descend");
+            showBoard();
           }}
         >
           Open the Guild Board

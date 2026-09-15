@@ -1,0 +1,11 @@
+id: garbage-collector
+name: Garbage Collector
+sprite: garbage-collector
+hp: 60
+resist: [none]
+trait: { kind: thick-hide, threshold: 6 }
+intents:
+  - { kind: shield, amount: 10 }
+  - { kind: strike, power: 9 }
+  - { kind: multi, power: 4, times: 3 }
+flavor: It sweeps away anything too small to matter. Bolts under 6 power are litter to it.

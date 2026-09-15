@@ -1,8 +1,9 @@
-import type { ShardrunFoeView, ShardrunView, SpellView } from "@rootward/shared";
-import { type CSSProperties, Fragment, useEffect } from "react";
+import type { ShardrunFoeView, ShardrunLogView, ShardrunView, SpellView } from "@rootward/shared";
+import { type CSSProperties, Fragment, useCallback, useEffect, useState } from "react";
 import { assetUrl, walkStripUrl } from "../assets/AssetRegistry.ts";
 import { useShardrun } from "../state/shardrun.ts";
 import { useGame } from "../state/store.ts";
+import { CodeView } from "./CodeView.tsx";
 import { boltUrl, ElementTag, ManaCost, ShardIcon } from "./parts.tsx";
 import { type Effect, usePlayback } from "./playback.ts";
 
@@ -17,6 +18,7 @@ const HERO: Spot = { x: 20, y: 64 };
 function foeSpot(index: number, count: number): Spot {
   return { x: 50 + ((index + 0.5) * 42) / count, y: 60 };
 }
+const NO_LOG: readonly ShardrunLogView[] = [];
 
 const INTENT_GLYPH: Readonly<Record<ShardrunFoeView["intent"]["kind"], string>> = {
   strike: "⚔",
@@ -26,20 +28,37 @@ const INTENT_GLYPH: Readonly<Record<ShardrunFoeView["intent"]["kind"], string>> 
   heal: "✚",
 };
 
-/** A turn-based battle: the stage with the Maintainer and foes, then spells, mana, and the battle log. */
-export function Arena({ run, battle, frozen }: { run: ShardrunView; battle: Battle; frozen: boolean }) {
+/**
+ * A turn-based battle: the stage with the Maintainer and foes, then spells, mana, and the battle log. A cast first plays
+ * as code (when the code speed is not off), then its hits play over the stage.
+ */
+export function Arena({ run, battle: current, frozen }: { run: ShardrunView; battle: Battle; frozen: boolean }) {
+  const staged = useShardrun((s) => s.staged);
   const beat = useShardrun((s) => s.beat);
   const busy = useShardrun((s) => s.busy);
   const history = useShardrun((s) => s.history);
   const command = useShardrun((s) => s.command);
+  const replay = useShardrun((s) => s.replay);
+  const phase = useShardrun((s) => s.phase);
+  const codeSpeed = useShardrun((s) => s.codeSpeed);
+  const finishReplay = useShardrun((s) => s.finishReplay);
   const classId = useGame((s) => s.activeProfile?.classId) ?? "artificer";
-  const effects = usePlayback(run.log, beat);
-  const disabled = frozen || busy;
+  const effects = usePlayback(phase === "log" ? run.log : NO_LOG, beat);
+  const [exploring, setExploring] = useState<string | undefined>();
+  const playingCode = replay !== undefined && phase === "code";
+  // While a cast's code plays, the stage still shows the battle before it: the result arrives with the hits.
+  const battle = playingCode && staged ? staged : current;
+  const disabled = frozen || busy || playingCode;
+  const closeExplore = useCallback(() => {
+    setExploring(undefined);
+  }, []);
 
   useEffect(() => {
     if (frozen) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || useShardrun.getState().busy) return;
+      if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+      const state = useShardrun.getState();
+      if (state.busy || state.phase === "code") return;
       if (event.target instanceof HTMLElement && ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)) return;
       const spell = run.spells[Number(event.key) - 1];
       if (spell) {
@@ -61,15 +80,17 @@ export function Arena({ run, battle, frozen }: { run: ShardrunView; battle: Batt
   const playing = (kinds: readonly string[], uid?: string) =>
     effects.some((effect) => kinds.includes(effect.entry.kind) && (uid === undefined || effect.entry.foe === uid));
   const strip = walkStripUrl(classId, "right");
-  const backdrop = assetUrl("backgrounds", "salvage") ?? assetUrl("backgrounds", "foundry");
+  const backdrop = assetUrl("backgrounds", run.layer.backdrop) ?? assetUrl("backgrounds", "salvage");
   const banner = effects.find((effect) => effect.entry.kind === "turn");
+  const castSpell = replay ? run.spells.find((spell) => spell.id === replay.spellId) : undefined;
+  const exploreSpell = exploring === undefined ? undefined : run.spells.find((spell) => spell.id === exploring);
 
   return (
     <div className="shr-battle">
       <div className="shr-stage" style={backdrop !== undefined ? { backgroundImage: `url("${backdrop}")` } : undefined}>
         <div className="shr-stage-shade" aria-hidden="true" />
         <div
-          className={`shr-hero${playing(["enemy", "curse"]) ? " hurt" : ""}${playing(["cast", "ward"]) ? " casting" : ""}`}
+          className={`shr-hero${playing(["enemy", "curse"]) ? " hurt" : ""}${playingCode || playing(["cast", "ward"]) ? " casting" : ""}`}
           style={{ left: `${HERO.x}%`, top: `${HERO.y}%` }}
         >
           {battle.block > 0 && (
@@ -113,6 +134,13 @@ export function Arena({ run, battle, frozen }: { run: ShardrunView; battle: Batt
             Turn {banner.entry.amount}
           </div>
         )}
+
+        {playingCode && castSpell && (
+          <CodeView key={`cast-${replay.beat}`} run={run} spell={castSpell} spellRun={replay.run} speed={codeSpeed} mode="cast" onDone={finishReplay} />
+        )}
+        {!playingCode && exploreSpell && (
+          <CodeView key={`explore-${exploreSpell.id}-${run.revision}`} run={run} spell={exploreSpell} spellRun={exploreSpell.preview} speed={codeSpeed} mode="explore" onDone={closeExplore} />
+        )}
       </div>
 
       <div className="shr-controls">
@@ -154,9 +182,13 @@ export function Arena({ run, battle, frozen }: { run: ShardrunView; battle: Batt
               spell={spell}
               index={index}
               disabled={disabled}
-              casting={effects.some((effect) => effect.entry.kind === "cast" && effect.entry.spell === spell.id)}
+              casting={(playingCode && replay.spellId === spell.id) || effects.some((effect) => effect.entry.kind === "cast" && effect.entry.spell === spell.id)}
               onCast={() => {
+                setExploring(undefined);
                 void command({ type: "cast", spellId: spell.id });
+              }}
+              onExplore={() => {
+                setExploring((current) => (current === spell.id ? undefined : spell.id));
               }}
             />
           ))}
@@ -259,12 +291,20 @@ function EffectLayer({ effect, from, to }: { effect: Effect; from: Spot; to: Spo
   }
 }
 
-function SpellCard(props: { run: ShardrunView; spell: SpellView; index: number; disabled: boolean; casting: boolean; onCast: () => void }) {
-  const { run, spell, index, disabled, casting, onCast } = props;
+function SpellCard(props: {
+  run: ShardrunView;
+  spell: SpellView;
+  index: number;
+  disabled: boolean;
+  casting: boolean;
+  onCast: () => void;
+  onExplore: () => void;
+}) {
+  const { run, spell, index, disabled, casting, onCast, onExplore } = props;
   const preview = spell.preview;
-  const counts = preview?.trace.map((step) => step.returned) ?? [];
+  const counts = preview?.steps.map((step) => step.returned) ?? [];
   const canCast = !disabled && !spell.spent && preview?.affordable === true;
-  const label = spell.spent ? "Spent this turn" : preview && !preview.affordable ? "Not enough mana" : "Cast";
+  const label = spell.spent ? "Spent this turn" : !preview ? "Reading the shards…" : !preview.affordable ? "Not enough mana" : "Cast";
   return (
     <article className={`shr-spell${spell.spent ? " spent" : ""}${casting ? " casting" : ""}`}>
       <header>
@@ -281,7 +321,7 @@ function SpellCard(props: { run: ShardrunView; spell: SpellView; index: number; 
             <span className="shr-arrow" aria-hidden="true">
               →
             </span>
-            <span className="shr-flow-shard" title={run.shards[shardId]?.summary}>
+            <span className="shr-flow-shard" title={run.shards[shardId]?.summary ?? run.shards[shardId]?.function}>
               <ShardIcon shardId={shardId} size={20} />
               {run.shards[shardId]?.name ?? shardId}
             </span>
@@ -292,24 +332,31 @@ function SpellCard(props: { run: ShardrunView; spell: SpellView; index: number; 
       </div>
       <div className="shr-predict">
         {preview?.misfire !== undefined ? (
-          <span className="shr-misfire">Misfire: {preview.misfire}</span>
-        ) : preview ? (
+          <span className="shr-misfire">Misfire: {preview.misfire.reason}</span>
+        ) : preview?.result ? (
           <>
             <span>
-              {preview.bolts} {preview.bolts === 1 ? "bolt" : "bolts"}
+              {preview.result.bolts} {preview.result.bolts === 1 ? "bolt" : "bolts"}
             </span>
             {/* Zero damage is worth saying out loud: it is how a nullify or a thick hide shows up before the cast. */}
-            {(preview.damage > 0 || preview.block === 0) && <span className="dmg">{preview.damage} damage</span>}
-            {preview.block > 0 && <span className="blk">{preview.block} block</span>}
+            {(preview.result.damage > 0 || preview.result.block === 0) && <span className="dmg">{preview.result.damage} damage</span>}
+            {preview.result.block > 0 && <span className="blk">{preview.result.block} block</span>}
           </>
+        ) : preview ? (
+          <span className="meta">Read the code to predict it.</span>
         ) : (
-          <span className="meta">Reading the shards…</span>
+          <span className="meta">Running the shards…</span>
         )}
       </div>
       {preview !== undefined && preview.console !== "" && <pre className="shr-console">{preview.console}</pre>}
-      <button type="button" className="btn primary" disabled={!canCast} onClick={onCast}>
-        {label}
-      </button>
+      <div className="shr-spell-actions">
+        <button type="button" className="btn" onClick={onExplore} title="See the whole spell as one function">
+          {"</>"} Code
+        </button>
+        <button type="button" className="btn primary" disabled={!canCast} onClick={onCast}>
+          {label}
+        </button>
+      </div>
     </article>
   );
 }

@@ -3,19 +3,21 @@ import type { ShardrunView } from "@rootward/shared";
 import { useEffect, useState } from "react";
 import { assetUrl } from "../assets/AssetRegistry.ts";
 import { Arena } from "../shardrun/Arena.tsx";
-import { ForgePanel, RestPanel, RewardPanel, SalvageMap } from "../shardrun/rooms.tsx";
+import { SPEED_CHOICES } from "../shardrun/CodeView.tsx";
+import { LayerMap } from "../shardrun/LayerMap.tsx";
+import { RelicBar } from "../shardrun/parts.tsx";
+import { ForgePanel, RestPanel, RewardPanel } from "../shardrun/rooms.tsx";
 import { Workbench } from "../shardrun/Workbench.tsx";
 import { useShardrun } from "../state/shardrun.ts";
 import { useGame } from "../state/store.ts";
 
 const ENDED: ReadonlySet<ShardrunView["status"]> = new Set(["won", "lost", "abandoned"]);
 
-/** Shardrun (ADR-0012): the roguelite mode. Spells are pipelines of found code; fights are turn by turn. */
+/** Shardrun (ADR-0012, ADR-0013): the roguelite mode. Spells are pipelines of found code; fights are turn by turn. */
 export function ShardrunScreen() {
   const profileId = useGame((s) => s.activeProfile?.id);
   const run = useShardrun((s) => s.run);
   const loaded = useShardrun((s) => s.loaded);
-  const languages = useShardrun((s) => s.languages);
   const error = useShardrun((s) => s.error);
   const afterglow = useShardrun((s) => s.afterglow);
   const load = useShardrun((s) => s.load);
@@ -36,7 +38,7 @@ export function ShardrunScreen() {
       </>
     );
   } else if (!run || ENDED.has(run.status)) {
-    body = <StartPanel run={run} languages={languages} />;
+    body = <StartPanel run={run} />;
   } else if (run.status === "battle" && run.battle) {
     body = (
       <>
@@ -57,7 +59,7 @@ export function ShardrunScreen() {
             {run.status === "reward" && <RewardPanel run={run} />}
             {run.status === "rest" && <RestPanel run={run} />}
             {run.status === "forge" && <ForgePanel run={run} />}
-            <SalvageMap run={run} />
+            <LayerMap run={run} />
           </div>
           <Workbench key={run.id} run={run} locked={false} />
         </div>
@@ -65,7 +67,7 @@ export function ShardrunScreen() {
     );
   }
 
-  const backdrop = assetUrl("backgrounds", "salvage");
+  const backdrop = assetUrl("backgrounds", run?.layer.backdrop ?? "arena-salvage") ?? assetUrl("backgrounds", "salvage");
   return (
     <div className="shr-screen">
       {backdrop !== undefined && <div className="shr-backdrop" style={{ backgroundImage: `url("${backdrop}")` }} aria-hidden="true" />}
@@ -86,7 +88,7 @@ function RunHeader({ run }: { run: ShardrunView }) {
   const command = useShardrun((s) => s.command);
   const busy = useShardrun((s) => s.busy);
   const [confirming, setConfirming] = useState(false);
-  const depth = run.floors.filter((floor) => floor.some((node) => node.state === "visited")).length;
+  const [options, setOptions] = useState(false);
   return (
     <header className="shr-header">
       <span className="shr-logo">SHARDRUN</span>
@@ -100,9 +102,20 @@ function RunHeader({ run }: { run: ShardrunView }) {
         </b>
       </div>
       <span className="meta">
-        Floor {Math.max(1, depth)} of {run.floors.length} · shards in {run.language}
+        {run.layer.name} ({run.layer.index + 1}/{run.layer.count}) · {run.difficulty.name} · {run.language}
       </span>
+      <RelicBar relics={run.relics} info={run.relicInfo} />
       <span className="shr-header-end">
+        <button
+          type="button"
+          className="btn"
+          aria-expanded={options}
+          onClick={() => {
+            setOptions((open) => !open);
+          }}
+        >
+          ⚙ Options
+        </button>
         {confirming ? (
           <>
             <button
@@ -139,14 +152,46 @@ function RunHeader({ run }: { run: ShardrunView }) {
           </button>
         )}
       </span>
+      {options && <OptionsPanel />}
     </header>
   );
 }
 
-function StartPanel({ run, languages }: { run: ShardrunView | undefined; languages: string[] }) {
+function OptionsPanel() {
+  const codeSpeed = useShardrun((s) => s.codeSpeed);
+  const setCodeSpeed = useShardrun((s) => s.setCodeSpeed);
+  return (
+    <div className="shr-options" role="group" aria-label="Options">
+      <div className="shr-option">
+        <span>Show each cast running as code</span>
+        <div className="actions">
+          {SPEED_CHOICES.map((choice) => (
+            <button
+              key={choice.speed}
+              type="button"
+              className={codeSpeed === choice.speed ? "btn primary" : "btn"}
+              aria-pressed={codeSpeed === choice.speed}
+              onClick={() => {
+                setCodeSpeed(choice.speed);
+              }}
+            >
+              {choice.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StartPanel({ run }: { run: ShardrunView | undefined }) {
   const start = useShardrun((s) => s.start);
   const busy = useShardrun((s) => s.busy);
-  const showWorld = useGame((s) => s.showWorld);
+  const languages = useShardrun((s) => s.languages);
+  const difficulties = useShardrun((s) => s.difficulties);
+  const difficulty = useShardrun((s) => s.difficulty);
+  const setDifficulty = useShardrun((s) => s.setDifficulty);
+  const showMenu = useGame((s) => s.showMenu);
   const emblem = assetUrl("brand", "shardrun");
   return (
     <section className="shr-start">
@@ -154,9 +199,28 @@ function StartPanel({ run, languages }: { run: ShardrunView | undefined; languag
       <h1 className="shr-title">SHARDRUN</h1>
       <p className="narr">
         Under the Bastion lies the Salvage: old programs, broken into shards. Every shard is a real function. Chain them into spells,
-        fight your way down, and find out what your code can do.
+        climb through three layers of the Machine, and find out what your code can do.
       </p>
       {run && <EndSummary run={run} />}
+
+      <div className="shr-difficulties" role="radiogroup" aria-label="Difficulty">
+        {difficulties.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            role="radio"
+            aria-checked={difficulty === option.id}
+            className={`shr-difficulty${difficulty === option.id ? " chosen" : ""}`}
+            onClick={() => {
+              setDifficulty(option.id);
+            }}
+          >
+            <b>{option.name}</b>
+            <span>{option.summary}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="actions">
         {languages.map((language) => (
           <button
@@ -172,8 +236,8 @@ function StartPanel({ run, languages }: { run: ShardrunView | undefined; languag
           </button>
         ))}
         {languages.length === 0 && <span className="meta">No Python or JavaScript sandbox is available on this machine yet.</span>}
-        <button type="button" className="btn" onClick={showWorld}>
-          Back to the Bastion
+        <button type="button" className="btn" onClick={showMenu}>
+          Main menu
         </button>
       </div>
       <ul className="shr-howto">
@@ -181,14 +245,14 @@ function StartPanel({ run, languages }: { run: ShardrunView | undefined; languag
           <b>A shard is a function</b> that takes a list of bolts and the battle, and returns bolts.
         </li>
         <li>
-          <b>A spell runs its shards in order</b>, starting from one plain bolt. Order matters: amplify then fork is not fork then
-          amplify.
+          <b>A spell runs its shards in order</b>, starting from one plain bolt. Press <code>{"</>"} Code</code> on a spell to see it as
+          one function, and watch every cast run line by line.
         </li>
         <li>
           <b>Every bolt a shard handles costs mana</b>, and bolts past the cap fizzle, so a loop that makes a thousand bolts wins nothing.
         </li>
         <li>
-          <b>Runs are short.</b> Fall, and you start again, knowing a little more.
+          <b>Relics</b> bend the rules for the rest of a run. Guardians guard the best of them.
         </li>
       </ul>
     </section>
@@ -196,13 +260,13 @@ function StartPanel({ run, languages }: { run: ShardrunView | undefined; languag
 }
 
 function EndSummary({ run }: { run: ShardrunView }) {
-  const title = run.status === "won" ? "The Salvage is cleared" : run.status === "lost" ? "Kernel panic" : "You climbed back out";
+  const title = run.status === "won" ? "The Machine is cleared" : run.status === "lost" ? "Kernel panic" : "You climbed back out";
   return (
     <div className={`shr-end ${run.status}`}>
       <h2 className="crt-title">{title}</h2>
       <p className="meta">
-        {run.stats.fights} fights · {run.stats.turns} turns · {run.stats.casts} casts · {run.stats.damage} damage ·{" "}
-        {run.stats.shards} shards salvaged
+        {run.stats.layers} layers · {run.stats.fights} fights · {run.stats.turns} turns · {run.stats.casts} casts · {run.stats.damage} damage ·{" "}
+        {run.stats.shards} shards · {run.stats.relics} relics
       </p>
     </div>
   );

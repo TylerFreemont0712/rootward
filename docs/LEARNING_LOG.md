@@ -224,3 +224,29 @@ language feature took more than a minute to understand.
 - **Positions without measuring.** The arena places the Maintainer and foes at fixed percentages, so projectile
   animations interpolate between CSS variables and never read the DOM during render.
 
+## Shardrun v2 and modes (ADR-0013)
+
+- **Measure before optimizing.** A short script timed raw sandbox jobs and the Shardrun routes. The lag was not
+  JavaScript being slow: a fresh QuickJS worker per job (about 125 ms) and a single Python spare that took about 2 s to
+  replace. The fixes followed the numbers: batch, reuse cached runs, answer before previewing, and keep spares warm.
+- **Warm without sharing.** A warm worker is started before its job exists and receives it with `postMessage`, so it has
+  already loaded QuickJS when the job arrives (`packages/runners/src/wasm-js/runner.ts`). It still runs exactly one job.
+  `worker.unref()` keeps an idle spare from holding the process open.
+- **Generating maps with invariants.** `generateLayerMap` draws paths that move up one row and at most one column, and
+  refuses a step that mirrors a neighbor's (which would cross). Property tests walk fifty seeds and check that no paths
+  cross and every room reaches the boss.
+- **Answer first, compute after.** `ShardrunService.command` responds, then starts the next previews without awaiting
+  them (`warm`), reporting any failure instead of swallowing it. The previews route awaits the same in-flight promises,
+  so nothing runs twice.
+- **Honest animation.** The code view (`apps/client/src/shardrun/source.ts`) separates what is measured (bolts after
+  each shard, from the harness trace) from what is presentation (the cursor walking lines). Values change only at
+  measured frames, and a unit test checks that.
+- **Composing source for display.** A spell becomes one function by printing each shard's code once, then a cast
+  function with one `bolts = shard(bolts, battle)` line per slot. The same composition in two languages is plain string
+  building, with no parser needed.
+- **Server-side difficulty.** Hiding a prediction in the client would still send it over the wire. On Programmer the
+  server leaves summaries and predictions out of the view entirely (`ShardrunService.view`).
+- **Versioned snapshots.** The snapshot moved to `version: 2`. `ShardrunService.load` closes a snapshot that no longer
+  parses instead of crashing every request that touches it.
+- **Content status, not code flags.** Planned classes are ordinary class files with `status: planned`, so the picker,
+  the API check, and future unlocking all read one field.

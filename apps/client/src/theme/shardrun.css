@@ -18,6 +18,8 @@
   overflow: auto;
 }
 .shr-screen > :not(.shr-backdrop) { position: relative; z-index: 1; }
+/* The header's Options popover must open over the battle below it, so the header stacks above its siblings. */
+.shr-screen > .shr-header { z-index: 5; }
 .shr-backdrop {
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background-size: cover; background-position: center; image-rendering: pixelated; opacity: 0.16;
@@ -251,3 +253,97 @@
 @media (prefers-reduced-motion: reduce) {
   .shr-screen *, .shr-screen *::before, .shr-screen *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition: none !important; }
 }
+
+/* ---- Shardrun v2 (ADR-0013): layer map, code view, relics, options, difficulties ---- */
+
+.shr-difficulties { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; width: 100%; text-align: left; }
+.shr-difficulty { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; }
+.shr-difficulty b { font-family: var(--font-crt); font-size: 24px; font-weight: 400; color: var(--amber); line-height: 1; }
+.shr-difficulty span { font-size: 11px; color: var(--muted); }
+.shr-difficulty.chosen { border-color: var(--shard); box-shadow: 0 0 14px var(--shard-glow); background: var(--panel-3); }
+
+.shr-header { position: relative; }
+.shr-relic-bar { display: flex; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.shr-relic-bar li { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line); background: var(--panel-3); }
+.shr-options { position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; width: min(560px, 90vw); padding: 12px; border: 1px solid var(--line); background: var(--panel); box-shadow: 0 10px 30px rgb(0 0 0 / 60%); }
+.shr-option { display: flex; flex-direction: column; gap: 6px; }
+.shr-option > span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.shr-icon.glyph.relic { color: var(--warn); }
+.shr-relic-card.relic-uncommon { border-color: var(--teal-dim); }
+.shr-relic-card.relic-rare { border-color: var(--shard-dim); }
+.shr-relic-card.relic-boss { border-color: var(--warn); box-shadow: 0 0 16px rgb(233 196 106 / 25%); }
+.shr-relic-card h3 { color: var(--warn); }
+.shr-flavor { font-size: 11px; color: var(--muted); font-style: italic; }
+.shr-reward-part { display: flex; flex-direction: column; gap: 6px; padding: 8px 0 12px; border-bottom: 1px solid var(--line-soft); margin-bottom: 8px; }
+.shr-reward-part h3 { margin: 0; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.shr-new-spell b { color: var(--shard); font-weight: 500; }
+
+/* The layer map: bottom to top */
+.shr-map-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.shr-map-scroll {
+  position: relative; height: min(66vh, 620px); overflow-y: auto; border: 1px solid var(--line-soft);
+  background: radial-gradient(ellipse at 50% 10%, rgb(180 140 255 / 10%), transparent 60%), linear-gradient(0deg, #0d0a08, #16110c);
+}
+.shr-map-svg { display: block; width: 100%; }
+.shr-map-edge { stroke-width: 3; stroke-linecap: round; }
+.shr-map-edge.edge-idle { stroke: #4a3c2c; stroke-dasharray: 2 9; }
+.shr-map-edge.edge-taken { stroke: var(--teal); stroke-width: 4; opacity: 0.8; }
+.shr-map-edge.edge-open { stroke: var(--amber); stroke-dasharray: 8 7; animation: shr-march 0.9s linear infinite; }
+.shr-map-disc { fill: #1c1510; stroke: #5a4632; stroke-width: 2; }
+.shr-map-node image { image-rendering: pixelated; }
+.shr-map-node.kind-elite .shr-map-disc { stroke: var(--warn); }
+.shr-map-node.kind-boss .shr-map-disc { fill: #241018; stroke: var(--fail); stroke-width: 3; }
+.shr-map-node.kind-treasure .shr-map-disc { stroke: #c9a24a; }
+.shr-map-node.state-passed, .shr-map-node.state-ahead { opacity: 0.55; }
+.shr-map-node.state-passed { opacity: 0.25; }
+.shr-map-node.state-visited .shr-map-disc { stroke: var(--teal-dim); }
+.shr-map-node.state-open { cursor: pointer; }
+.shr-map-node.state-open .shr-map-disc { stroke: var(--amber); stroke-width: 3; }
+.shr-map-node.state-open:hover .shr-map-disc, .shr-map-node.state-open:focus-visible .shr-map-disc { fill: #33261a; }
+.shr-map-node:focus-visible { outline: none; }
+/* The ring pulses in brightness only: a ring that grew and shrank would keep the room's box moving, and pointers and tools
+   need a target that holds still. */
+.shr-map-pulse { fill: none; stroke: var(--amber); stroke-width: 3; animation: shr-pulse 1.6s ease-in-out infinite; }
+.shr-map-you { fill: none; stroke: var(--teal); stroke-width: 3; stroke-dasharray: 4 4; }
+.shr-map-check { fill: var(--teal); font-size: 16px; }
+.shr-map-glyph { fill: var(--amber-dim); font-family: var(--font-crt); font-size: 26px; text-anchor: middle; }
+.shr-map-legend { display: flex; flex-wrap: wrap; gap: 12px; list-style: none; margin: 8px 0 0; padding: 0; font-size: 11px; color: var(--muted); }
+.shr-map-legend li { display: inline-flex; align-items: center; gap: 4px; }
+.shr-map-legend img { width: 20px; height: 20px; image-rendering: pixelated; }
+
+/* The whole spell as code */
+.shr-code-view {
+  position: absolute; z-index: 8; left: 2%; top: 4%; bottom: 4%; width: min(46%, 620px);
+  display: flex; flex-direction: column; gap: 8px; padding: 10px 12px;
+  border: 1px solid var(--shard-dim); background: rgb(12 9 16 / 94%); box-shadow: 0 0 30px rgb(0 0 0 / 70%), 0 0 18px var(--shard-glow);
+}
+.shr-code-view header { display: flex; align-items: baseline; gap: 10px; }
+.shr-code-view h3 { margin: 0; font-family: var(--font-crt); font-weight: 400; font-size: 26px; color: var(--shard); line-height: 1; }
+.shr-code-actions { margin-left: auto; display: flex; gap: 6px; }
+.shr-code-hint { margin: 0; }
+.shr-scoreboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.shr-score { display: flex; flex-direction: column; align-items: center; padding: 4px; border: 1px solid var(--line); background: #0b0806; }
+.shr-score span { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.shr-score b { font-family: var(--font-crt); font-weight: 400; font-size: 40px; line-height: 1; animation: shr-count-pop 0.35s ease-out; }
+.shr-score.damage b { color: var(--amber); text-shadow: 0 0 12px var(--amber-glow); }
+.shr-score.block b { color: var(--teal); text-shadow: 0 0 12px var(--teal-glow); }
+.shr-score.bolts b { color: var(--shard); text-shadow: 0 0 12px var(--shard-glow); }
+.shr-bolt-row { display: flex; flex-wrap: wrap; gap: 4px; max-height: 58px; overflow: auto; }
+.shr-bolt-chip { padding: 0 6px; font-size: 11px; border: 1px solid currentColor; border-radius: 8px; background: rgb(0 0 0 / 40%); animation: shr-count-pop 0.3s ease-out; }
+.shr-bolt-chip.ward { border-style: dashed; }
+.shr-code-lines { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 6px 0; list-style: none; background: #070508; border: 1px solid var(--line-soft); font-size: 12px; line-height: 1.55; }
+.shr-code-lines li { display: grid; grid-template-columns: 34px minmax(0, auto) 1fr; align-items: baseline; gap: 8px; padding: 0 8px 0 0; white-space: pre; }
+.shr-code-lines code { background: none; padding: 0; color: var(--text); }
+.shr-gutter { text-align: right; color: var(--faint); font-size: 10px; user-select: none; }
+.shr-code-lines li.kind-comment code { color: var(--faint); }
+.shr-code-lines li.kind-def code { color: var(--shard); }
+.shr-code-lines li.kind-call code, .shr-code-lines li.kind-start code, .shr-code-lines li.kind-return code { color: var(--amber); }
+.shr-code-lines li.active-fn { background: rgb(180 140 255 / 7%); }
+.shr-code-lines li.current { background: rgb(242 165 65 / 22%); box-shadow: inset 3px 0 0 var(--amber); }
+.shr-code-lines li.error { background: rgb(226 88 79 / 25%); box-shadow: inset 3px 0 0 var(--fail); }
+.shr-annotation { justify-self: end; font-size: 11px; color: var(--teal); white-space: nowrap; animation: shr-count-pop 0.3s ease-out; }
+.shr-spell-actions { display: grid; grid-template-columns: auto 1fr; gap: 6px; }
+
+@keyframes shr-march { to { stroke-dashoffset: -30; } }
+@keyframes shr-pulse { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.9; } }
+@keyframes shr-count-pop { from { transform: scale(1.35); filter: brightness(1.6); } to { transform: scale(1); filter: none; } }

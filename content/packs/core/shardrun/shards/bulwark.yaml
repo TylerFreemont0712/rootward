@@ -1,0 +1,23 @@
+id: bulwark
+name: Bulwark
+rarity: uncommon
+cost: 1
+function: bulwark
+summary: "Turns every bolt into a ward at 75% power. All defense, no attack."
+tags: [lists, dictionaries]
+code:
+  python: |
+    def bulwark(bolts, battle):
+        return [{**bolt, "ward": True, "power": bolt["power"] * 0.75} for bolt in bolts]
+  javascript: |
+    function bulwark(bolts, battle) {
+      return bolts.map((bolt) => ({ ...bolt, ward: true, power: bolt.power * 0.75 }));
+    }
+examples:
+  - name: everything becomes block
+    bolts:
+      - { power: 8, element: none, target: front, pierce: false, ward: false }
+      - { power: 4, element: fire, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 6, element: none, target: front, pierce: false, ward: true }
+      - { power: 3, element: fire, target: front, pierce: false, ward: true }

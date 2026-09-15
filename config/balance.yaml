@@ -80,6 +80,13 @@ shardrun:                                    # the roguelite mode (ADR-0012)
   pattern_off_multiplier: 0.25
   rest_heal_fraction: 0.3
   reward_choices: 3
+  elite_relic_choices: 1
+  treasure_relic_choices: 2
+  boss_relic_choices: 3
+  max_spells: 5
+  max_spell_capacity: 6
+  layer_heal_fraction: 0.5
+  trace_bolts: 16
 
 sandbox_defaults:
   wall_ms: 10000

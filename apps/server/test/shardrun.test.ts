@@ -2,14 +2,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WasmJsRunner } from "@rootward/runners";
 import type { ShardrunView } from "@rootward/shared";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type GameContent, loadGameContent } from "../src/content.ts";
 import { MEMORY, openDatabase } from "../src/db/database.ts";
 import { ProfileService } from "../src/profiles/service.ts";
 import { Sandbox } from "../src/sandbox.ts";
 import { ShardrunService } from "../src/shardrun/service.ts";
 
-// Shardrun (ADR-0012) against the real content pack, with spells run in the real JavaScript sandbox.
+// Shardrun (ADR-0012, ADR-0013) against the real content pack, with spells run in the real JavaScript sandbox.
 const rootDir = path.resolve(fileURLToPath(import.meta.url), "../../../..");
 const SLOW = { timeout: 60_000 };
 
@@ -18,14 +18,24 @@ let sandbox: Sandbox;
 
 beforeAll(async () => {
   content = await loadGameContent(rootDir);
-  sandbox = new Sandbox(content.balance, [new WasmJsRunner()]);
+  sandbox = new Sandbox(content.balance, [new WasmJsRunner({ warm: true })]);
+});
+afterAll(async () => {
+  await sandbox.dispose();
 });
 
 async function character(using: GameContent = content) {
   const db = openDatabase(MEMORY);
-  const service = new ShardrunService({ db, content: using, sandbox });
+  const service = new ShardrunService({
+    db,
+    content: using,
+    sandbox,
+    onBackgroundError: (error) => {
+      throw error;
+    },
+  });
   const profile = await new ProfileService({ db }).create("Ada", "artificer");
-  return { service, id: profile.id };
+  return { db, service, id: profile.id };
 }
 
 /** The real content with one shard's JavaScript replaced. */
@@ -37,72 +47,119 @@ function withJavascript(shardId: string, source: string): GameContent {
   return { ...content, index: { ...content.index, shards } };
 }
 
-async function firstFight(service: ShardrunService, id: string): Promise<ShardrunView> {
-  const run = await service.start(id, "javascript");
-  const node = run.floors[0]?.[0];
-  if (!node) throw new Error("the first floor has no room");
-  return service.command(id, { type: "enter", nodeId: node.id });
+function openRoom(run: ShardrunView) {
+  const node = run.map.nodes.find((candidate) => candidate.state === "open");
+  if (!node) throw new Error("no open room on the map");
+  return node;
+}
+
+async function firstFight(service: ShardrunService, id: string, difficulty = "beginner"): Promise<ShardrunView> {
+  const run = await service.start(id, "javascript", difficulty);
+  return service.command(id, { type: "enter", nodeId: openRoom(run).id });
 }
 
 const totalHp = (view: ShardrunView) => (view.battle?.foes ?? []).reduce((sum, foe) => sum + foe.hp, 0);
 
 describe("ShardrunService", () => {
-  it("offers the languages this machine can run, and has no run until one starts", async () => {
+  it("offers the languages and difficulties it can run, and has no run until one starts", async () => {
     const { service, id } = await character();
     expect(await service.languages()).toEqual(["javascript"]);
+    expect(service.difficulties().map((difficulty) => difficulty.id)).toEqual(["beginner", "programmer"]);
     expect(await service.latest(id)).toBeNull();
-    await expect(service.start(id, "python")).rejects.toThrow("cannot be played in python");
+    await expect(service.start(id, "python", "beginner")).rejects.toThrow("cannot be played in python");
+    await expect(service.start(id, "javascript", "nightmare")).rejects.toThrow("no nightmare difficulty");
   });
 
-  it("previews every spell from a real run of its shards", SLOW, async () => {
+  it("starts on a layer map whose bottom row is open, with its foes shown in advance", async () => {
     const { service, id } = await character();
-    const run = await service.start(id, "javascript");
-    expect(run.status).toBe("map");
-    expect(run.floors[0]?.[0]).toMatchObject({ state: "open" });
-    expect(run.floors[0]?.[0]?.foes.length).toBeGreaterThan(0);
+    const run = await service.start(id, "javascript", "beginner");
+    expect(run.layer).toMatchObject({ index: 0, count: 3, name: "The Salvage" });
+    const open = run.map.nodes.filter((node) => node.state === "open");
+    expect(open.length).toBeGreaterThan(1);
+    expect(open.every((node) => node.row === 0 && node.kind === "fight" && node.foes.length > 0)).toBe(true);
+    expect(run.map.nodes.filter((node) => node.kind === "boss")).toHaveLength(1);
+  });
 
-    const fight = await service.command(id, { type: "enter", nodeId: run.floors[0]?.[0]?.id ?? "" });
+  it("answers a command at once and serves previews, step by step, when they are ready", SLOW, async () => {
+    const { service, id } = await character();
+    const fight = await firstFight(service, id);
     expect(fight.status).toBe("battle");
-    const [bolt, ward, fork] = fight.spells;
-    expect(bolt?.preview).toMatchObject({ cost: 2, bolts: 1, trace: [{ shard: "amplify", given: 1, returned: 1 }] });
-    expect(ward?.preview).toMatchObject({ bolts: 1, block: 6, damage: 0 });
-    expect(fork?.preview).toMatchObject({ bolts: 2 });
-    expect(fight.shards.amplify).toMatchObject({ function: "amplify", forge: { into: "amplify-plus" } });
+    const previews = await service.previews(id);
+    expect(previews.revision).toBe(fight.revision);
+    expect(previews.spells["spell-1"]).toMatchObject({
+      cost: 2,
+      base: { bolts: [{ power: 4 }] },
+      steps: [{ shard: "amplify", given: 1, returned: 1, bolts: [{ power: 7 }] }],
+      result: { bolts: 1 },
+    });
+    expect(previews.spells["spell-2"]?.result).toMatchObject({ bolts: 1, block: 6, damage: 0 });
+    expect(previews.spells["spell-3"]?.steps[0]).toMatchObject({ shard: "fork", returned: 2 });
+    // Once the previews exist, the view carries them too.
+    const again = await service.latest(id);
+    expect(again?.previews).toBe("ready");
+    expect(again?.shards.amplify?.summary).toBe("Adds 3 power to every bolt.");
   });
 
-  it("casts exactly what the preview promised, once per turn, with one run at a time", SLOW, async () => {
+  it("casts exactly what the preview promised, and replays the cast step by step", SLOW, async () => {
     const { service, id } = await character();
-    const fight = await firstFight(service, id);
-    const preview = fight.spells[1]?.preview;
-    if (!preview) throw new Error("no preview for Ward");
-    const cast = await service.command(id, { type: "cast", spellId: "spell-2" });
-    expect(cast.battle).toMatchObject({ mana: (fight.battle?.manaMax ?? 0) - preview.cost, block: preview.block });
-    expect(cast.log[0]).toMatchObject({ kind: "cast", amount: preview.cost });
-    await expect(service.command(id, { type: "cast", spellId: "spell-2" })).rejects.toThrow("spent until your next turn");
-    await expect(service.start(id, "javascript")).rejects.toThrow("already underway");
-
-    const struck = fight.spells[0]?.preview;
-    const hit = await service.command(id, { type: "cast", spellId: "spell-1" });
-    expect(totalHp(cast) - totalHp(hit)).toBe(struck?.damage);
-
-    const abandoned = await service.command(id, { type: "abandon" });
-    expect(abandoned.status).toBe("abandoned");
-    expect((await service.start(id, "javascript")).status).toBe("map");
+    await firstFight(service, id);
+    const { spells } = await service.previews(id);
+    const before = await service.latest(id);
+    const cast = await service.command(id, { type: "cast", spellId: "spell-1" });
+    expect(cast.replay).toMatchObject({ spellId: "spell-1", run: { steps: [{ shard: "amplify" }] } });
+    expect(cast.battle?.mana).toBe((before?.battle?.mana ?? 0) - (spells["spell-1"]?.cost ?? 0));
+    expect(before && totalHp(before) - totalHp(cast)).toBe(spells["spell-1"]?.result?.damage);
+    await expect(service.command(id, { type: "cast", spellId: "spell-1" })).rejects.toThrow("spent until your next turn");
+    await expect(service.start(id, "javascript", "beginner")).rejects.toThrow("already underway");
+    expect((await service.command(id, { type: "abandon" })).status).toBe("abandoned");
   });
 
-  it("fizzles a spell whose code throws, charging only the base cost", SLOW, async () => {
-    const { service, id } = await character(withJavascript("amplify", 'function amplify(bolts, battle) { throw new Error("boom"); }'));
+  it("on Programmer, shows only code: no summaries and no predictions until a cast", SLOW, async () => {
+    const { service, id } = await character();
+    const fight = await firstFight(service, id, "programmer");
+    expect(fight.difficulty).toMatchObject({ id: "programmer", showSummaries: false, showPredictions: false });
+    expect(fight.shards.amplify?.summary).toBeUndefined();
+    expect(fight.shards.amplify?.code).toContain("function amplify");
+    const { spells } = await service.previews(id);
+    expect(spells["spell-1"]).toMatchObject({ cost: 2, steps: [] });
+    expect(spells["spell-1"]?.result).toBeUndefined();
+    const cast = await service.command(id, { type: "cast", spellId: "spell-1" });
+    expect(cast.replay?.run.result?.bolts).toBe(1);
+  });
+
+  it("names the shard and line of a spell whose code throws, and fizzles it for the base cost", SLOW, async () => {
+    const source = "function amplify(bolts, battle) {\n  const extra = 3;\n  throw new Error(\"boom\");\n}";
+    const { service, id } = await character(withJavascript("amplify", source));
     const fight = await firstFight(service, id);
-    expect(fight.spells[0]?.preview?.misfire).toContain("boom");
+    const { spells } = await service.previews(id);
+    expect(spells["spell-1"]?.misfire).toMatchObject({ shard: "amplify" });
+    expect(spells["spell-1"]?.misfire?.reason).toContain("boom");
     const cast = await service.command(id, { type: "cast", spellId: "spell-1" });
     expect(cast.log[0]?.kind).toBe("fizzle");
     expect(cast.battle?.mana).toBe((fight.battle?.manaMax ?? 0) - content.balance.shardrun.spell_base_cost);
   });
 
-  it("contains a shard that never returns: the spell times out and the run carries on", SLOW, async () => {
+  it("contains a shard that never returns without losing the other spells' previews", SLOW, async () => {
     const { service, id } = await character(withJavascript("fork", "function fork(bolts, battle) { while (true) {} }"));
-    const fight = await firstFight(service, id);
-    expect(fight.spells[2]?.preview?.misfire).toContain("ran out of time");
-    expect(fight.spells[0]?.preview?.misfire).toBeUndefined();
+    await firstFight(service, id);
+    const { spells } = await service.previews(id);
+    expect(spells["spell-3"]?.misfire?.reason).toContain("ran out of time");
+    expect(spells["spell-1"]?.misfire).toBeUndefined();
+    expect(spells["spell-1"]?.result?.bolts).toBe(1);
+  });
+
+  it("closes a run saved under older rules instead of failing on it", async () => {
+    const { db, service, id } = await character();
+    const now = new Date().toISOString();
+    db.prepare("INSERT INTO shardrun_runs (id, profile_id, status, state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run(
+      "old-run",
+      id,
+      "map",
+      JSON.stringify({ version: 1, status: "map" }),
+      now,
+      now,
+    );
+    expect(await service.latest(id)).toBeNull();
+    expect((await service.start(id, "javascript", "beginner")).status).toBe("map");
   });
 });

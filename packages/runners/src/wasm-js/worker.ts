@@ -7,7 +7,8 @@ import type { WorkerMessage } from "./messages.ts";
 import { executeProgram } from "./sandbox.ts";
 
 // Entry point of a wasm-js worker thread. One worker runs one job, then the host terminates it, so nothing a program
-// does can outlive its job.
+// does can outlive its job. A job arrives either as workerData or, for a warm worker started ahead of time, as the
+// first message; a warm worker loads QuickJS while it waits.
 
 function post(message: WorkerMessage): void {
   if (!parentPort) throw new Error("the wasm-js worker must run inside a worker thread");
@@ -21,10 +22,24 @@ function loadQuickJS(): Promise<QuickJSWASMModule> {
   return newQuickJSWASMModuleFromVariant(import("@jitl/quickjs-wasmfile-release-sync"));
 }
 
+function receiveJob(): Promise<unknown> {
+  if (workerData !== null && workerData !== undefined) return Promise.resolve(workerData);
+  return new Promise((resolve, reject) => {
+    if (!parentPort) {
+      reject(new Error("the wasm-js worker must run inside a worker thread"));
+      return;
+    }
+    parentPort.once("message", resolve);
+  });
+}
+
 async function main(): Promise<void> {
-  const job = RunJob.parse(workerData);
+  // LEARN: both start at once. A warm worker spends its idle time loading QuickJS, so a job that arrives later can run
+  // immediately; a cold worker loses nothing, since its job is already there.
+  const [raw, loaded] = await Promise.all([receiveJob(), loadQuickJS()]);
+  const job = RunJob.parse(raw);
   if (job.entry === undefined) throw new Error("wasm-js jobs need an entry file");
-  let quickjs = await loadQuickJS();
+  let quickjs = loaded;
   const base = {
     files: job.files,
     entry: job.entry,
