@@ -89,6 +89,10 @@ export type StepResult = { ok: true; state: ShardrunState } | { ok: false; error
 export interface RelicModifiers {
   boltPower: number;
   boltMult: number;
+  /** Multiplied into every bolt's multiplier after the additions (ADR-0016). */
+  boltMultFactor: number;
+  /** Added to every bolt's multiplier for each spell already cast this fight (ADR-0016). */
+  multPerCast: number;
   damageMultiplier: number;
   weakBonus: number;
   manaPerTurn: number;
@@ -151,6 +155,7 @@ export function startShardrun(catalog: ShardrunCatalog, options: StartOptions): 
       bolts: 0,
       fizzled: 0,
       damageBySpell: {},
+      bestCast: 0,
     },
   };
   for (const relicId of config.start.relics) {
@@ -448,6 +453,7 @@ function devCommand(
         block: relicModifiers(state, catalog).turnBlock,
         foes,
         cast: [],
+        casts: 0,
       };
       beginTurn(battle);
       state.battle = battle;
@@ -508,6 +514,8 @@ export function relicModifiers(
   const modifiers: RelicModifiers = {
     boltPower: 0,
     boltMult: 0,
+    boltMultFactor: 1,
+    multPerCast: 0,
     damageMultiplier: 1,
     weakBonus: 0,
     manaPerTurn: 0,
@@ -525,6 +533,12 @@ export function relicModifiers(
           break;
         case "bolt-mult":
           modifiers.boltMult += effect.add;
+          break;
+        case "bolt-mult-factor":
+          modifiers.boltMultFactor *= effect.factor;
+          break;
+        case "mult-per-cast":
+          modifiers.multPerCast += effect.add;
           break;
         case "damage-multiplier":
           modifiers.damageMultiplier *= effect.factor;
@@ -708,6 +722,8 @@ export interface CastPreview {
   affordable: boolean;
   bolts: number;
   damage: number;
+  /** What it would deal against limitless foes; anything above `damage` is overkill (ADR-0016). */
+  potential: number;
   block: number;
   misfire?: string;
 }
@@ -730,6 +746,7 @@ export function previewCast(
       affordable: !spent && cost <= battle.mana,
       bolts: 0,
       damage: 0,
+      potential: 0,
       block: 0,
       misfire: outcome.reason,
     };
@@ -739,22 +756,24 @@ export function previewCast(
 }
 
 /**
- * What a list of candidate bolts would do if a spell ended with them now: how many survive, the damage they deal, and
- * the block they raise. The code view uses it after every shard, so its numbers are the rules' own.
+ * What a list of candidate bolts would do if a spell ended with them now: how many survive, the damage they deal
+ * (and would deal against limitless foes), and the block they raise. The code view uses it after every shard, so its
+ * numbers are the rules' own.
  */
 export function previewBolts(
   state: ShardrunState,
   raw: readonly unknown[],
   catalog: ShardrunCatalog,
-): { bolts: number; damage: number; block: number } {
+): { bolts: number; damage: number; potential: number; block: number } {
   const copy = structuredClone(state);
   const battle = copy.battle;
-  if (!battle) return { bolts: 0, damage: 0, block: 0 };
+  if (!battle) return { bolts: 0, damage: 0, potential: 0, block: 0 };
   const blockBefore = battle.block;
   const bolts = empower(normalizeBolts(raw, catalog.balance, boltCap(copy, catalog)).bolts, copy, catalog);
   copy.log = [];
-  const damage = resolveBolts(copy, battle, bolts, catalog);
-  return { bolts: bolts.length, damage, block: battle.block - blockBefore };
+  const potential = potentialOf(state, bolts, catalog);
+  const dealt = resolveBolts(copy, battle, bolts, catalog);
+  return { bolts: bolts.length, damage: dealt, potential, block: battle.block - blockBefore };
 }
 
 /** The foes waiting in a battle room, fixed by the run's seed so the map can show them before the room is entered. */
@@ -906,7 +925,7 @@ function foeStates(
   return foeIds.flatMap((foeId, index) => {
     const def = catalog.foes.get(foeId);
     if (!def) return [];
-    const hp = Math.max(1, Math.round(def.hp * layer.foe_hp * difficulty.foe_hp));
+    const hp = foeHp(def.hp * layer.foe_hp * difficulty.foe_hp, catalog.balance);
     return [
       {
         uid: `${prefix}-${index}`,
@@ -948,6 +967,7 @@ function startBattleWith(
     block: modifiers.turnBlock,
     foes,
     cast: [],
+    casts: 0,
   };
   beginTurn(battle);
   state.battle = battle;
@@ -973,6 +993,7 @@ function castSpell(
       return { code: "not-enough-mana", message: `${spell.name} needs mana you do not have.` };
     battle.mana -= cost;
     battle.cast.push(spell.id);
+    battle.casts += 1;
     state.stats.casts += 1;
     state.stats.manaSpent += cost;
     log(state, {
@@ -992,6 +1013,7 @@ function castSpell(
   }
   battle.mana -= cost;
   battle.cast.push(spell.id);
+  battle.casts += 1;
   state.stats.casts += 1;
   state.stats.manaSpent += cost;
 
@@ -1020,26 +1042,35 @@ function castSpell(
     log(state, { kind: "curse", amount: curse, text: `Cursed code burns you for ${curse} Integrity.` });
   }
 
+  const potential = potentialOf(state, bolts, catalog);
   const dealt = resolveBolts(state, battle, bolts, catalog);
   state.stats.damage += dealt;
   state.stats.damageBySpell[spell.id] = (state.stats.damageBySpell[spell.id] ?? 0) + dealt;
+  // The run's own record is the potential, not the dealt: a cast worth ten times a foe only removes its last point
+  // of Integrity once, and "how big did your function get" is the number worth beating (ADR-0016).
+  state.stats.bestCast = Math.max(state.stats.bestCast, potential);
   if (state.integrity <= 0) lose(state);
   else if (battle.foes.every((foe) => foe.hp === 0)) win(state, battle, catalog);
   return undefined;
 }
 
-/** Relics that add power apply after the last shard, before the bolts fly, and stay inside the power cap. */
+/**
+ * Relics apply after the last shard, before the bolts fly, and stay inside the clamps. The multiplier takes its
+ * additions first and its factor second, so a relic that doubles the multiplier doubles everything that raised it —
+ * which is what makes it the tier above adding (ADR-0016).
+ */
 function empower(bolts: readonly Bolt[], state: ShardrunState, catalog: ShardrunCatalog): Bolt[] {
-  const { boltPower: add, boltMult } = relicModifiers(state, catalog);
-  if (add === 0 && boltMult === 0) return [...bolts];
+  const { boltPower: add, boltMult, boltMultFactor, multPerCast } = relicModifiers(state, catalog);
+  const multAdd = boltMult + multPerCast * (state.battle?.casts ?? 0);
+  if (add === 0 && multAdd === 0 && boltMultFactor === 1) return [...bolts];
   return bolts.map((bolt) => ({
     ...bolt,
     power: clampPower(bolt.power + add, catalog.balance),
-    mult: clampMult(bolt.mult + boltMult, catalog.balance),
+    mult: clampMult((bolt.mult + multAdd) * boltMultFactor, catalog.balance),
   }));
 }
 
-/** Fire bolts in order and return the damage dealt. Logs every hit so the client can animate it. */
+/** Fire bolts in order and return the Integrity removed. Logs every hit so the client can animate it. */
 function resolveBolts(
   state: ShardrunState,
   battle: BattleState,
@@ -1112,6 +1143,26 @@ function resolveBolts(
     }
   }
   return dealt;
+}
+
+/**
+ * What a volley is worth, whatever happened to be standing in front of it (ADR-0016): the same rules, against a copy
+ * of the battle whose foes have enough Integrity that none of them can die. Traits, shields, resistances and
+ * targeting all still apply — a volley fired into a resistance really is worth less — and only the two effects that
+ * hide a build's size go: damage cut to what a foe had left, and bolts with nothing left to hit.
+ *
+ * Adding headroom rather than flattening HP keeps the foes in the same order, so a bolt aimed at the weakest or the
+ * strongest still picks the one it would have picked.
+ */
+function potentialOf(state: ShardrunState, bolts: readonly Bolt[], catalog: ShardrunCatalog): number {
+  const copy = structuredClone(state);
+  const shadow = copy.battle;
+  if (!shadow) return 0;
+  const { balance } = catalog;
+  const headroom = balance.bolt_cap.max * balance.max_bolt_power * balance.max_bolt_mult;
+  for (const foe of shadow.foes) foe.hp = foeHp(foe.hp + headroom, balance);
+  copy.log = [];
+  return resolveBolts(copy, shadow, bolts, catalog);
 }
 
 function targetsOf(bolt: Bolt, alive: readonly FoeState[]): FoeState[] {
@@ -1316,6 +1367,16 @@ function draftRelics(
 function discounted(state: ShardrunState, cost: number, catalog: ShardrunCatalog): number {
   const first = (state.battle?.cast.length ?? 0) === 0;
   return first ? Math.max(0, cost - relicModifiers(state, catalog).firstCastDiscount) : cost;
+}
+
+/**
+ * A foe's Integrity, clamped (ADR-0016). Damage dealt is `Math.min(damage, foe.hp)` per hit, so every damage number
+ * the engine carries is bounded by the HP it was dealt to: bound the HP and the whole mode stays inside the exact
+ * integers. `max_foe_hp` leaves six orders of magnitude under 2^53 for a cast's intermediate products.
+ */
+export function foeHp(raw: number, balance: ShardrunBalance): number {
+  if (!Number.isFinite(raw)) return balance.max_foe_hp;
+  return Math.max(1, Math.min(balance.max_foe_hp, Math.round(raw)));
 }
 
 function clampPower(power: number, balance: ShardrunBalance): number {

@@ -1,0 +1,29 @@
+id: compound
+name: Compound
+rarity: rare
+cost: 2
+complexity: linear
+function: compound
+summary: "Squares every bolt's multiplier. On a fresh bolt that does nothing at all; after the shards that raise one, it is everything."
+tags: [lists, dictionaries]
+code:
+  python: |
+    def compound(bolts, battle):
+        return [{**bolt, "mult": bolt["mult"] * bolt["mult"]} for bolt in bolts]
+  javascript: |
+    function compound(bolts, battle) {
+      return bolts.map((bolt) => ({ ...bolt, mult: bolt.mult * bolt.mult }));
+    }
+examples:
+  - name: one squared is one, so order is the whole lesson
+    bolts:
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 6, element: none, target: front, pierce: false, ward: false, mult: 1 }
+  - name: after something raised it
+    bolts:
+      - { power: 6, element: none, target: front, pierce: false, ward: false, mult: 3 }
+      - { power: 2, element: fire, target: all, pierce: false, ward: false, mult: 5 }
+    expect:
+      - { power: 6, element: none, target: front, pierce: false, ward: false, mult: 9 }
+      - { power: 2, element: fire, target: all, pierce: false, ward: false, mult: 25 }

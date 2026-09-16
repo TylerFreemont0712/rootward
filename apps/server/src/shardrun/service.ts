@@ -554,7 +554,12 @@ export class ShardrunService {
       outcome: previewBolts(state, step.bolts, catalog),
     }));
     if (run.ok && preview)
-      view.result = { bolts: preview.bolts, damage: preview.damage, block: preview.block };
+      view.result = {
+        bolts: preview.bolts,
+        damage: preview.damage,
+        potential: preview.potential,
+        block: preview.block,
+      };
     return view;
   }
 
@@ -897,6 +902,18 @@ function modifierViews(state: ShardrunState, catalog: ShardrunCatalog): Shardrun
       base: "0",
       now: `${round(mods.boltPower)}`,
       from: from("bolt-power"),
+    },
+    {
+      label: "Multiplier added to every bolt",
+      base: "0",
+      now: `${round(mods.boltMult + mods.multPerCast * (state.battle?.casts ?? 0))}`,
+      from: [...from("bolt-mult"), ...from("mult-per-cast")],
+    },
+    {
+      label: "Every bolt's multiplier is then times",
+      base: "×1",
+      now: `×${round(mods.boltMultFactor)}`,
+      from: from("bolt-mult-factor"),
     },
     {
       label: "Damage multiplier",

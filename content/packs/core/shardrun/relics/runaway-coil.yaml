@@ -1,0 +1,8 @@
+id: runaway-coil
+name: Runaway Coil
+rarity: boss
+icon: runaway-coil
+summary: "Every bolt's multiplier is doubled after your last shard — including everything your shards did to it."
+flavor: "It was wound to store a little current. Nobody agreed on when it should stop."
+effects:
+  - { kind: bolt-mult-factor, factor: 2 }

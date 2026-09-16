@@ -203,9 +203,18 @@ These three come from the player directly and outrank the generic milestone orde
       96, plus a `bolt-cap` relic effect) and foe HP (x1, x2.6, x6.8) stopped being constants at the same time.
       Measured for real: the 23-mana build Phase 1 could not cast now costs **5**, and an eight-slot
       `echo x7 -> crosslink` costs 46 amortized and 12 with the Ledger.
+      **The big-number question is settled (ADR-0016, 2026-09-16):** float64 forever, bounded by one clamp. Damage is
+      `min(damage, foe.hp)` per hit, so foe HP is the only quantity that can escape; `max_foe_hp` (1e12) bounds it and
+      everything downstream, and the rails are now sized from that budget instead of from taste (`max_bolt_mult`
+      25 -> 1000, so a clamp is no longer the ceiling on a build). BigInt is ruled out - it survives none of the three
+      zod/JSON boundaries a bolt crosses - with log-space named as the successor if one is ever needed, and the
+      exponent tier replaced by a third multiplicative tier. The same ADR fixes the thing that made all of this
+      invisible: damage *dealt* is capped by a foe's Integrity, so a cast is now also scored against foes that cannot
+      die (`potential`, `stats.bestCast`), and the scoreboard shows what the volley was worth with what landed as a
+      footnote.
       Next: Phase 2, higher-order shards (`twice`, `compose`, `repeat`), which needs a sandbox spike first because a
-      shard would receive another shard; and the big-number decision before the exponent tier, since `max_bolt_power`
-      and `max_bolt_mult` are the ceiling again by design.
+      shard would receive another shard; endless layers, which are no longer blocked on anything; and a playtest pass,
+      since `max_bolt_mult` at 1000 is a real balance change.
 - [ ] **The Apprentice class** — a teaching class for young beginners (the player's daughters are the intended
       players). A class is the right shape for this because classes already carry `subjects`, their own fights, and
       their own difficulty of explanation. Wants: a very gentle challenge ladder (one idea per fight, no timers, no

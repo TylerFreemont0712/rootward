@@ -55,6 +55,9 @@ const RELICS = [
   "overclocked-core",
   "second-grimoire",
   "tuning-fork",
+  "amortized-ledger",
+  "wider-aperture",
+  "thread-pool",
 ];
 const SHARD_ICONS = [
   "fork",
@@ -91,6 +94,9 @@ const SHARD_ICONS = [
   "charge",
   "cascade",
   "resonate",
+  "crosslink",
+  "census",
+  "singularity",
 ];
 
 const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {

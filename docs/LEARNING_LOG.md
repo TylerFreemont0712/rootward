@@ -307,3 +307,30 @@ language feature took more than a minute to understand.
   engine bills it: `constant → 1`, `linear → n`, `linearithmic → ⌈n log₂(n+1)⌉`, `quadratic → n²`. Crosslink compares
   every pair of 128 bolts and owes 16 384 units for it. Big-O stops being a fact to recite and becomes a number on the
   line that produced it, in the code view.
+
+## Big numbers, and measuring the right thing (ADR-0016)
+
+- **Find where a quantity is actually bounded before you design for it being unbounded.** The plan was to decide
+  between capping, log-space and `BigInt` for damage. One line settles it: `damage = Math.min(damage, foe.hp)` in
+  `resolveBolts` means damage can never exceed the Integrity in front of it, so the only number that can run away is
+  foe HP. A whole representation question collapsed into one clamp (`foeHp`, `max_foe_hp`). Read the constraint that
+  already exists before adding one.
+- **A representation choice is made by the boundaries, not by the type.** `BigInt` is the obvious answer for exact big
+  integers, and the wrong one here: a bolt crosses three zod/JSON boundaries (the sandbox, the saved snapshot, the
+  client view) and `BigInt` survives none of them. Adopting it would have pushed an encoding onto the *player*, who
+  writes the shards. When a value crosses a serialization boundary, the boundary picks the type.
+- **Leave headroom for intermediates, not just for results.** 2^53 is where exactness ends, but a cast sums 96 bolts of
+  `power x mult`, then applies a damage multiplier, a weakness and a scatter share. The bound has to sit far enough
+  below that no intermediate product crosses it — which is why `max_foe_hp` is 1e12 and not 9e15.
+- **A safety rail that is also the ceiling is not doing its job.** ADR-0015 kept `max_bolt_mult` flat because it
+  guards against player code returning nonsense. True, and it was set at 25, which meant every build hit it. A rail
+  should be sized from what the arithmetic can carry, not from what feels balanced; balance belongs to the numbers
+  content moves.
+- **Measure the thing you want to reward.** Every compounding build reported the same damage, because damage dealt is
+  cut to the target's remaining health — the game was scoring the *fight*, not the volley. Scoring the volley means
+  resolving a second time against foes that cannot die. Note what that pass keeps: traits, shields and resistances
+  still apply, because those are real mitigation, and only "cut to what was left" goes. A metric is a definition, and
+  the definition is where the design lives.
+- **Adding headroom beats flattening.** The shadow battle gives every foe the same *extra* Integrity rather than the
+  same total, so the foes keep their order and a bolt aimed at the weakest still picks the weakest. Perturb a value
+  in a way that preserves the relations the code reads off it.

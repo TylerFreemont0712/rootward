@@ -40,6 +40,7 @@ const BALANCE: ShardrunBalance = {
   max_pipeline_bolts: 16,
   max_bolt_power: 20,
   max_bolt_mult: 25,
+  max_foe_hp: 1_000_000,
   weak_multiplier: 1.5,
   resist_multiplier: 0.5,
   scatter_multiplier: 0.5,
@@ -414,6 +415,30 @@ describe("casting", () => {
     expect(boltCap({ ...state, layer: 9, relics: ["aperture"] }, CATALOG)).toBe(8);
   });
 
+  it("measures a cast by what it could have dealt, not by the part that landed", () => {
+    // The dummy has 20 Integrity. A 50-power bolt removes 20 of it and is worth 50, and the run records the 50:
+    // without that, every build past the first lethal one reads the same (ADR-0016).
+    // Three bolts at the fixture's power cap against a foe holding 20 Integrity: 20 lands, and the volley is worth 60.
+    const volley = [bolt(20), bolt(20), bolt(20)];
+    const state = play(inFight(), [cast(volley)]);
+    expect(state.battle).toBeUndefined();
+    expect(state.stats.damage).toBe(20);
+    expect(state.stats.bestCast).toBe(60);
+    // The preview says the same before the cast, so the number the player watches is the one the rules will record.
+    expect(previewBolts(inFight(), volley, CATALOG)).toEqual({ bolts: 3, damage: 20, potential: 60, block: 0 });
+    // A resisted volley really is worth less: potential keeps every rule except "cut to what was left to hit".
+    expect(previewBolts(inFight(), [bolt(20, "frost")], CATALOG).potential).toBe(10);
+  });
+
+  it("clamps a foe's Integrity into the exact integers, however a layer multiplies it", () => {
+    const absurd = catalog({ firstLayer: { foe_hp: 1e9 } });
+    const hp = inFight(absurd).battle?.foes[0]?.hp ?? 0;
+    expect(hp).toBe(BALANCE.max_foe_hp);
+    expect(Number.isSafeInteger(hp)).toBe(true);
+    // Damage is bounded by HP per hit, so bounding HP is what bounds every number the engine carries.
+    expect(BALANCE.bolt_cap.max * BALANCE.max_bolt_power * BALANCE.max_bolt_mult).toBeLessThan(Number.MAX_SAFE_INTEGER);
+  });
+
   it("lets shields absorb bolts unless they pierce, and halves resisted elements", () => {
     const state = inFight();
     const target = state.battle?.foes[0];
@@ -447,11 +472,13 @@ describe("casting", () => {
       affordable: true,
       bolts: 1,
       damage: 10,
+      potential: 10,
       block: 0,
     });
     expect(previewBolts(state, [bolt(4), bolt(3, "none", { ward: true })], CATALOG)).toEqual({
       bolts: 2,
       damage: 4,
+      potential: 4,
       block: 3,
     });
     expect(state).toEqual(before);

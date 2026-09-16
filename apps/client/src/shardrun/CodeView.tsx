@@ -101,7 +101,13 @@ export function CodeView(props: {
           </div>
           <div className="shr-score damage">
             <span>damage</span>
-            <b key={`d-${outcome?.damage ?? 0}`}>{outcome?.damage ?? 0}</b>
+            <b key={`d-${outcome?.potential ?? 0}`}>{outcome?.potential ?? 0}</b>
+            {/* What the volley is worth is the score; how much of it the foes could absorb is a footnote (ADR-0016). */}
+            {outcome !== undefined && outcome.potential > outcome.damage && (
+              <i className="shr-overkill">
+                {outcome.damage} lands · ×{Math.round((outcome.potential / Math.max(1, outcome.damage)) * 10) / 10} over
+              </i>
+            )}
           </div>
           <div className="shr-score block">
             <span>block</span>
@@ -152,7 +158,7 @@ export function CodeView(props: {
               {step?.outcome && (
                 <span className="shr-annotation">
                   → {step.outcome.bolts} {step.outcome.bolts === 1 ? "bolt" : "bolts"}
-                  {step.outcome.damage > 0 && ` · ${step.outcome.damage} dmg`}
+                  {step.outcome.potential > 0 && ` · ${step.outcome.potential} dmg`}
                   {step.outcome.block > 0 && ` · ${step.outcome.block} block`}
                   {billed !== undefined && (
                     <i className="shr-work" title="Work units this line was billed">{` · ${billed} work`}</i>

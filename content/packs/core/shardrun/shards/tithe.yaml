@@ -1,0 +1,27 @@
+id: tithe
+name: Tithe
+rarity: rare
+cost: 1
+complexity: linear
+function: tithe
+summary: "Halves every bolt's power and doubles its multiplier. The same damage today, on the axis that has room to grow."
+tags: [lists, dictionaries]
+code:
+  python: |
+    def tithe(bolts, battle):
+        return [{**bolt, "power": bolt["power"] // 2, "mult": bolt["mult"] * 2} for bolt in bolts]
+  javascript: |
+    function tithe(bolts, battle) {
+      return bolts.map((bolt) => ({ ...bolt, power: Math.floor(bolt.power / 2), mult: bolt.mult * 2 }));
+    }
+examples:
+  - name: an even trade
+    bolts:
+      - { power: 8, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 4, element: none, target: front, pierce: false, ward: false, mult: 2 }
+  - name: odd power rounds down, so it is a trade and not a free lunch
+    bolts:
+      - { power: 7, element: fire, target: front, pierce: false, ward: false, mult: 3 }
+    expect:
+      - { power: 3, element: fire, target: front, pierce: false, ward: false, mult: 6 }

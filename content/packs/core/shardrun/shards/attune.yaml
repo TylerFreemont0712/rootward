@@ -1,0 +1,34 @@
+id: attune
+name: Attune
+rarity: uncommon
+cost: 1
+complexity: linear
+function: attune
+summary: "Finds the best multiplier in the volley and gives it to every bolt. Raise one bolt high, then spread it."
+tags: [min-max, lists]
+code:
+  python: |
+    def attune(bolts, battle):
+        if not bolts:
+            return bolts
+        best = max(bolt["mult"] for bolt in bolts)
+        return [{**bolt, "mult": best} for bolt in bolts]
+  javascript: |
+    function attune(bolts, battle) {
+      if (bolts.length === 0) return bolts;
+      const best = Math.max(...bolts.map((bolt) => bolt.mult));
+      return bolts.map((bolt) => ({ ...bolt, mult: best }));
+    }
+examples:
+  - name: nothing to spread
+    bolts: []
+    expect: []
+  - name: the best one becomes everyone's
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false, mult: 1 }
+      - { power: 4, element: none, target: front, pierce: false, ward: false, mult: 7 }
+      - { power: 4, element: frost, target: back, pierce: false, ward: false, mult: 2 }
+    expect:
+      - { power: 4, element: none, target: front, pierce: false, ward: false, mult: 7 }
+      - { power: 4, element: none, target: front, pierce: false, ward: false, mult: 7 }
+      - { power: 4, element: frost, target: back, pierce: false, ward: false, mult: 7 }

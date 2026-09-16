@@ -102,6 +102,10 @@ and service tests. Not yet played by hand end to end: balance across three layer
 - **Shardrun work cost.** Replaced in ADR-0015: a cast is one bill on a curve (`work_billing`), each step priced by
   its shard's complexity class plus its own cost. Open questions now: is `sqrt` too generous on a narrow spell (a
   three-slot starting spell costs 2 mana), and does `quadratic` bite hard enough before the Amortized Ledger?
+- **Shardrun multipliers (ADR-0016).** `max_bolt_mult` went 25 -> 1000, so Resonate, Compound and the Runaway Coil
+  can compound for real. Does a mult build now trivialise the Salvage, and does the Kernel still need one?
+- **Does the new score read right?** The scoreboard shows what a volley was worth, with what landed as a footnote.
+  Is "4 096 · 170 lands · x24 over" satisfying, or does the dealt number want to stay primary in a close fight?
 - **Shardrun scaling (ADR-0015).** Mana per turn grows +3 a layer, the bolt cap +12 a layer, foe HP x1 / x2.6 / x6.8.
   All three are guesses. Does the Heap feel like a step up or a wall, and does the Kernel need the Ledger to clear?
 - **Guardian difficulty.** The Kiln Warden has 95 HP, ignores bolts under 5 power, resists fire, and hits up to 12 a

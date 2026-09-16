@@ -39,6 +39,8 @@ export const BattleState = z.strictObject({
   foes: z.array(FoeState).min(1),
   /** Spell ids already cast this turn, in order. */
   cast: z.array(z.string()),
+  /** Spells cast so far in this whole fight, fizzles included. Relics that grow within a fight read it (ADR-0016). */
+  casts: z.int().min(0).default(0),
 });
 export type BattleState = z.infer<typeof BattleState>;
 
@@ -154,6 +156,8 @@ export const ShardrunState = z.strictObject({
     fizzled: z.int().min(0).default(0),
     /** Spell id -> damage it has dealt this run. */
     damageBySpell: z.record(z.string(), z.int().min(0)).default({}),
+    /** The biggest single cast of the run, measured before any of it was cut to a foe's remaining HP (ADR-0016). */
+    bestCast: z.int().min(0).default(0),
   }),
 });
 export type ShardrunState = z.infer<typeof ShardrunState>;

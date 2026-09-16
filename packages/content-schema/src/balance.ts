@@ -113,6 +113,12 @@ export const Balance = z.strictObject({
     max_bolt_power: PositiveInt,
     /** A bolt's multiplier is player code's number too, so it is clamped exactly as its power is (ADR-0014). */
     max_bolt_mult: z.number().min(1),
+    /**
+     * The most Integrity a foe can be given, however a layer and a difficulty multiply it (ADR-0016). Damage is
+     * bounded by foe HP by construction, so this one number is what keeps every number the engine carries an exact
+     * integer: it must leave room under 2^53 for the intermediate products of a whole cast.
+     */
+    max_foe_hp: PositiveInt,
     weak_multiplier: z.number().min(1),
     resist_multiplier: Ratio,
     /** A bolt aimed at every foe hits each for this fraction of its power. */

@@ -662,7 +662,13 @@ export const ShardrunMapNodeView = z.strictObject({
 export type ShardrunMapNodeView = z.infer<typeof ShardrunMapNodeView>;
 
 /** What a list of bolts would do if the spell ended with it: present only when predictions are shown (or after casting). */
-export const BoltOutcomeView = z.strictObject({ bolts: z.int(), damage: z.int(), block: z.int() });
+export const BoltOutcomeView = z.strictObject({
+  bolts: z.int(),
+  damage: z.int(),
+  /** What it would deal against foes that cannot die; anything above `damage` is overkill (ADR-0016). */
+  potential: z.int(),
+  block: z.int(),
+});
 export type BoltOutcomeView = z.infer<typeof BoltOutcomeView>;
 
 export const SpellStepView = z.strictObject({
@@ -861,6 +867,8 @@ export const ShardrunView = z.strictObject({
     fizzled: z.int(),
     /** Spell id -> damage dealt this run. */
     damageBySpell: z.record(z.string(), z.int()),
+    /** The run's biggest single cast, measured before any of it was cut to a foe's remaining HP (ADR-0016). */
+    bestCast: z.int(),
   }),
   /** Every rule this run plays by, before relics. */
   rules: ShardrunRulesView,

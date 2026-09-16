@@ -1,6 +1,7 @@
 # POSSIBILITIES.md — making the numbers get out of hand
 
-Ideas. **Phases 1 and 3 of section 7 have since shipped (ADR-0014, ADR-0015);** everything else here is still a
+Ideas. **Phases 1 and 3 of section 7 have shipped (ADR-0014, ADR-0015), and the big-number question §6 left open
+is settled (ADR-0016);** everything else here is still a
 proposal, and each piece needs an ADR first, because most of it changes the Shardrun damage contract (ADR-0012,
 ADR-0013). Written 2026-09-16 from the player's note: *the fun of a Balatro-like
 is the insane final number, and in a programming game the functions themselves should be what compound.*
@@ -91,7 +92,7 @@ Ordered roughly by how much they multiply, and each is a thing worth learning.
 | 6 | **Memoize** — casting the same spell twice in a turn is cheaper the second time | Enables repeat-spam builds | Caching, purity, why a cache needs a key |
 | 7 | **Parallel lanes** — split the volley into k lanes, run them independently, merge | Multiplicative width | map / reduce, independence |
 | 8 | **Tag synergies** — relics pay per shard *kind* in a spell ("+2 mult per list shard") | Rewards coherent builds | Classification, composition over chance |
-| 9 | **Exponent tier** — rare relics add to an exponent: `damage = (Σ power × mult) ^ e` | Tetration-ish top end | Exponentiation, growth rates |
+| 9 | ~~**Exponent tier**~~ — **do not build (ADR-0016)**: an exponent on a player-controlled base is uncontrollable (`e = 3` on a base of 10 000 is 1e12 in one step). A third *multiplicative* tier is bounded by the slot budget and just as exciting; the Runaway Coil relic is its first piece | | |
 | 10 | **Endless layers** — after the Kernel, foe HP grows geometrically per layer | Forces the build to compound | — (this is the ante, and it is what makes the rest matter) |
 
 ### The two that matter most
@@ -111,15 +112,20 @@ Big numbers are only fun against big requirements. Today foe HP is roughly linea
   three layers. Whether that is the right growth is a playtest question, and it is an edit to `run.yaml`.
 - **Endless mode** past the Kernel: layers keep coming, HP keeps compounding, and the run ends when you finally
   cannot keep up. "How deep did your function go" is the score, and it is a far better long-term hook than "you won."
-- A per-run **best cast** record in the Stats panel, and a personal all-time best. Balatro's real loop is beating your
-  own number.
+- ~~A per-run **best cast** record in the Stats panel~~ — shipped in ADR-0016 as `stats.bestCast`, and it needed a
+  new measurement to be worth anything: damage *dealt* is cut to a foe's remaining Integrity, so every build past the
+  first lethal one read the same. A cast is now scored against foes that cannot die. A personal all-time best across
+  runs is still open, and wants the profile store rather than the run snapshot.
 
 ## 6. Engineering notes (the unglamorous, load-bearing part)
 
-- **JavaScript runs out of integers at 2^53.** Past ~9e15, `number` silently loses precision — which would make the
-  engine lie, and that is not acceptable under the "real execution" rule. Options: cap the fantasy below 1e15; or
-  score in log-space internally and render e-notation; or move damage to `BigInt` in the engine while shards keep
-  returning ordinary numbers. Decide *before* building the exponent tier, not after.
+- ~~**JavaScript runs out of integers at 2^53.**~~ **Settled in ADR-0016: float64 forever, bounded by one number.**
+  Damage is `Math.min(damage, foe.hp)` per hit, so the only quantity that can escape is *foe HP* — clamping it with
+  `max_foe_hp` (1e12) bounds everything downstream, and the rails are now sized from that budget rather than from
+  taste (`max_bolt_mult` 25 → 1000). `BigInt` is ruled out for this codebase specifically: it survives none of the
+  three zod/JSON boundaries a bolt crosses (sandbox, snapshot, view), so it would mean an encoding the *player* has to
+  learn to write a shard. Log-space is the named successor if one is ever needed. And the exponent tier, which is what
+  would force it, should be replaced by a third multiplicative tier — see the note in §4 #9.
 - **The clamps become balance, not constants.** `max_bolts` / `max_bolt_power` should scale per layer and per relic
   rather than being fixed. They stay as safety rails against a shard returning nonsense; they stop being the ceiling.
 - **Determinism must hold.** Previews are cached and reused as the cast (ADR-0013), so a shard that used randomness

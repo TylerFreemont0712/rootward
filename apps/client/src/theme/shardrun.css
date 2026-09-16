@@ -417,3 +417,7 @@
 .shr-complexity.cx-linearithmic { color: #ffd166; }
 .shr-complexity.cx-quadratic { color: #ff8f6b; }
 .shr-work { font-style: normal; color: var(--muted); }
+
+/* Overkill (ADR-0016): the score is what the volley was worth, with what the foes could absorb as a footnote. */
+.shr-score .shr-overkill { display: block; margin-top: 2px; font-style: normal; font-size: 10px; color: var(--muted); letter-spacing: 0.04em; }
+.shr-spell .dmg .over { font-style: normal; color: var(--muted); }

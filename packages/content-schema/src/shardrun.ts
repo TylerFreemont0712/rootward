@@ -169,6 +169,10 @@ export const RelicEffect = z.discriminatedUnion("kind", [
   /** Block gained at the start of every turn. */
   z.strictObject({ kind: z.literal("turn-block"), amount: PositiveInt }),
   z.strictObject({ kind: z.literal("heal-after-fight"), amount: PositiveInt }),
+  /** Every bolt's multiplier is multiplied by this after the last shard: the rare third tier (ADR-0016). */
+  z.strictObject({ kind: z.literal("bolt-mult-factor"), factor: z.number().positive() }),
+  /** Added to every bolt's multiplier for each spell already cast this fight (ADR-0016). */
+  z.strictObject({ kind: z.literal("mult-per-cast"), add: z.number().positive() }),
   /** Bills this cast's work on a cheaper curve; the cheapest curve any relic offers wins (ADR-0015). */
   z.strictObject({ kind: z.literal("work-billing"), curve: WorkCurve }),
   /** Added to the number of bolts that land after the last shard. */

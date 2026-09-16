@@ -56,6 +56,7 @@ export function RunTotals({ run }: { run: ShardrunView }) {
     ["Turns", stats.turns],
     ["Casts", stats.casts],
     ["Damage dealt", stats.damage],
+    ["Biggest cast", stats.bestCast],
     ["Bolts fired", stats.bolts],
     ["Bolts fizzled", stats.fizzled],
     ["Mana spent", stats.manaSpent],

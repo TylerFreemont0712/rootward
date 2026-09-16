@@ -38,7 +38,7 @@ function run(extra: Partial<SpellRunView> = {}): SpellRunView {
   return {
     cost: 3,
     affordable: true,
-    base: { bolts: [bolt(4)], outcome: { bolts: 1, damage: 4, block: 0 } },
+    base: { bolts: [bolt(4)], outcome: { bolts: 1, damage: 4, potential: 4, block: 0 } },
     steps: [
       {
         shard: "amplify",
@@ -46,7 +46,7 @@ function run(extra: Partial<SpellRunView> = {}): SpellRunView {
         returned: 1,
         work: 1,
         bolts: [bolt(7)],
-        outcome: { bolts: 1, damage: 7, block: 0 },
+        outcome: { bolts: 1, damage: 7, potential: 7, block: 0 },
       },
       {
         shard: "fork",
@@ -54,10 +54,10 @@ function run(extra: Partial<SpellRunView> = {}): SpellRunView {
         returned: 1,
         work: 1,
         bolts: [bolt(7)],
-        outcome: { bolts: 1, damage: 7, block: 0 },
+        outcome: { bolts: 1, damage: 7, potential: 7, block: 0 },
       },
     ],
-    result: { bolts: 1, damage: 7, block: 0 },
+    result: { bolts: 1, damage: 7, potential: 7, block: 0 },
     console: "",
     ...extra,
   };

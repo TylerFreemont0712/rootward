@@ -76,7 +76,10 @@ shardrun:                                    # the roguelite mode (ADR-0012)
   bolt_cap: { base: 16, per_layer: 12, max: 96 }   # bolts that land; grows per layer and per relic (ADR-0015)
   max_pipeline_bolts: 128
   max_bolt_power: 40
-  max_bolt_mult: 25                           # damage is power x mult; this clamps the second axis (ADR-0014)
+  # The two rails on what a shard may compute. They are sized from the safe-integer budget, not from taste (ADR-0016):
+  # a whole cast is at most bolt_cap.max x max_bolt_power x max_bolt_mult = 3 840 000, six orders under max_foe_hp.
+  max_bolt_mult: 1000
+  max_foe_hp: 1000000000000                   # 1e12: damage is bounded by HP, so this bounds every number the engine carries
   weak_multiplier: 1.5
   resist_multiplier: 0.5
   scatter_multiplier: 0.5

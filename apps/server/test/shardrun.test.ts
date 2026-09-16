@@ -298,9 +298,16 @@ describe("ShardrunService", () => {
       // Only the first 16 bolts land on the opening layer; the other 112 fizzle.
       expect(cast.stats.bolts).toBe(16);
       expect(cast.stats.fizzled).toBe(112);
-      // One cast of found code kills the last layer's guardian outright: damage dealt is capped only by its HP.
+      // One cast of found code kills the last layer's guardian outright: damage *dealt* is capped by its HP.
       expect(cast.stats.damage).toBe(bossHp);
       expect(cast.battle).toBeUndefined();
+      // And the run records what the volley was actually worth, which is the whole point of ADR-0016: sixteen bolts
+      // of 4 power at x128, halved because the Root Daemon resists plain bolts - a resistance is real mitigation and
+      // potential keeps it. It is still twenty-four times what the guardian could absorb, and without this number
+      // every build past the first lethal one reads as exactly 170.
+      expect(cast.stats.bestCast).toBe(16 * 4 * 128 * 0.5);
+      expect(cast.stats.bestCast).toBeGreaterThan(bossHp * 20);
+      expect(billed?.result?.potential).toBe(cast.stats.bestCast);
     },
   );
 
