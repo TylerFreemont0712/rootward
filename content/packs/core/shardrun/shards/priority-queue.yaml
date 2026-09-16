@@ -2,6 +2,7 @@ id: priority-queue
 name: Priority Queue
 rarity: rare
 cost: 1
+complexity: linearithmic
 function: priority_queue
 summary: "Sorts bolts from strongest to weakest, and sends the strongest at the foe with the most HP."
 tags: [sorting, lambda]

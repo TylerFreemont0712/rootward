@@ -1,11 +1,23 @@
-import type { Bolt, Element, Relic, Shard, ShardrunConfig, ShardrunFoe, ShardrunLayer } from "@rootward/content-schema";
+import type {
+  Bolt,
+  Element,
+  Relic,
+  Shard,
+  ShardrunConfig,
+  ShardrunFoe,
+  ShardrunLayer,
+} from "@rootward/content-schema";
 import { describe, expect, it } from "vitest";
 import {
+  billWork,
+  boltCap,
   bossId,
   encounterFor,
+  manaPerTurn,
   generateLayerMap,
   nextRooms,
   normalizeBolts,
+  pipelineWork,
   previewBolts,
   previewCast,
   type ShardrunBalance,
@@ -14,15 +26,17 @@ import {
   type ShardrunState,
   startShardrun,
   stepShardrun,
+  workUnits,
 } from "../src/index.ts";
 
 const BALANCE: ShardrunBalance = {
   integrity_start: 30,
-  mana_per_turn: 6,
+  mana_per_turn: { base: 6, per_layer: 3 },
   spell_base_cost: 1,
-  work_per_mana: 8,
+  // Linear billing in the fixture, so a cost is easy to read by hand; the curves get their own test.
+  work_billing: { curve: "linear", per_mana: 8, log_base: 2 },
   base_bolt_power: 4,
-  max_bolts: 4,
+  bolt_cap: { base: 4, per_layer: 2, max: 8 },
   max_pipeline_bolts: 16,
   max_bolt_power: 20,
   max_bolt_mult: 25,
@@ -47,6 +61,7 @@ function shard(id: string, extra: Partial<Shard> = {}): Shard {
     name: id,
     rarity: "common",
     cost: 1,
+    complexity: "linear",
     summary: "A test shard.",
     function: id.replaceAll("-", "_"),
     code: { python: "def f(bolts, battle):\n    return bolts\n" },
@@ -58,7 +73,17 @@ function shard(id: string, extra: Partial<Shard> = {}): Shard {
 }
 
 function foe(id: string, extra: Partial<ShardrunFoe> = {}): ShardrunFoe {
-  return { id, name: id, sprite: id, hp: 20, weak: [], resist: [], intents: [{ kind: "strike", power: 5 }], flavor: "A test foe.", ...extra };
+  return {
+    id,
+    name: id,
+    sprite: id,
+    hp: 20,
+    weak: [],
+    resist: [],
+    intents: [{ kind: "strike", power: 5 }],
+    flavor: "A test foe.",
+    ...extra,
+  };
 }
 
 function relic(id: string, effects: Relic["effects"], rarity: Relic["rarity"] = "common"): Relic {
@@ -71,6 +96,8 @@ const SHARDS = [
   shard("fork"),
   shard("chill", { rarity: "uncommon" }),
   shard("overclock", { rarity: "rare", cost: 0, curse: { integrity: 2 } }),
+  shard("dedupe", { rarity: "rare", complexity: "quadratic" }),
+  shard("spark", { complexity: "constant" }),
 ];
 
 const RELICS = [
@@ -81,6 +108,8 @@ const RELICS = [
   relic("capacitor", [{ kind: "mana-per-turn", add: 1 }], "boss"),
   relic("core", [{ kind: "damage-multiplier", factor: 2 }], "boss"),
   relic("grimoire", [{ kind: "spell-slot", add: 1 }], "rare"),
+  relic("ledger", [{ kind: "work-billing", curve: "log" }], "rare"),
+  relic("aperture", [{ kind: "bolt-cap", add: 3 }], "uncommon"),
 ];
 
 function layer(id: string, extra: Partial<ShardrunLayer> = {}): ShardrunLayer {
@@ -112,12 +141,23 @@ const CONFIG: ShardrunConfig = {
   },
   spell_slots: { names: ["Volley", "Requiem"], capacity: 2 },
   difficulties: [
-    { id: "normal", name: "Normal", summary: "Test.", show_summaries: true, show_predictions: true, foe_hp: 1 },
+    {
+      id: "normal",
+      name: "Normal",
+      summary: "Test.",
+      show_summaries: true,
+      show_predictions: true,
+      foe_hp: 1,
+    },
     { id: "soft", name: "Soft", summary: "Test.", show_summaries: true, show_predictions: true, foe_hp: 0.5 },
   ],
   layers: [layer("first", { boss_spell: { name: "Surge", capacity: 2 } }), layer("second")],
   rewards: {
-    shards: { fight: { common: 1, uncommon: 1, rare: 0 }, elite: { common: 1, uncommon: 1, rare: 1 }, boss: { common: 1, uncommon: 1, rare: 1 } },
+    shards: {
+      fight: { common: 1, uncommon: 1, rare: 0 },
+      elite: { common: 1, uncommon: 1, rare: 1 },
+      boss: { common: 1, uncommon: 1, rare: 1 },
+    },
     relics: {
       elite: { common: 1, uncommon: 0, rare: 0, boss: 0 },
       treasure: { common: 1, uncommon: 1, rare: 1, boss: 0 },
@@ -126,9 +166,12 @@ const CONFIG: ShardrunConfig = {
   },
 };
 
-function catalog(overrides: { config?: Partial<ShardrunConfig>; firstLayer?: Partial<ShardrunLayer> } = {}): ShardrunCatalog {
+function catalog(
+  overrides: { config?: Partial<ShardrunConfig>; firstLayer?: Partial<ShardrunLayer> } = {},
+): ShardrunCatalog {
   const config: ShardrunConfig = { ...CONFIG, ...overrides.config };
-  if (overrides.firstLayer) config.layers = [layer("first", { ...overrides.firstLayer }), ...CONFIG.layers.slice(1)];
+  if (overrides.firstLayer)
+    config.layers = [layer("first", { ...overrides.firstLayer }), ...CONFIG.layers.slice(1)];
   return {
     config,
     shards: new Map(SHARDS.map((s) => [s.id, s])),
@@ -136,7 +179,11 @@ function catalog(overrides: { config?: Partial<ShardrunConfig>; firstLayer?: Par
       [
         foe("dummy", { weak: ["fire"], resist: ["frost"] }),
         foe("wraith", { hp: 10, trait: { kind: "nullify-first" }, intents: [{ kind: "shield", amount: 3 }] }),
-        foe("brick", { hp: 30, trait: { kind: "thick-hide", threshold: 5 }, intents: [{ kind: "strike", power: 2 }] }),
+        foe("brick", {
+          hp: 30,
+          trait: { kind: "thick-hide", threshold: 5 },
+          intents: [{ kind: "strike", power: 2 }],
+        }),
       ].map((f) => [f.id, f]),
     ),
     relics: new Map(RELICS.map((r) => [r.id, r])),
@@ -157,7 +204,11 @@ function bolt(power: number, element: Element = "none", extra: Partial<Bolt> = {
 }
 
 /** Apply commands in order, failing the test on any refusal. */
-function play(state: ShardrunState, commands: ShardrunCommand[], using: ShardrunCatalog = CATALOG): ShardrunState {
+function play(
+  state: ShardrunState,
+  commands: ShardrunCommand[],
+  using: ShardrunCatalog = CATALOG,
+): ShardrunState {
   return commands.reduce((current, command) => {
     const result = stepShardrun(current, command, using);
     if (!result.ok) throw new Error(`${command.type} refused: ${result.error.code}`);
@@ -165,8 +216,14 @@ function play(state: ShardrunState, commands: ShardrunCommand[], using: Shardrun
   }, state);
 }
 
-const cast = (bolts: Bolt[], spellId = "spell-1", work = 0): ShardrunCommand => ({ type: "cast", spellId, outcome: { ok: true, bolts, work } });
-const start = (using: ShardrunCatalog = CATALOG, difficulty = "normal") => startShardrun(using, { seed: "seed-1", language: "python", difficulty });
+/** `work` is the bolts one linear shard (Amplify, which costs 1) was handed; 0 means no shard ran at all. */
+const cast = (bolts: Bolt[], spellId = "spell-1", work = 0): ShardrunCommand => ({
+  type: "cast",
+  spellId,
+  outcome: { ok: true, bolts, work: work === 0 ? [] : [{ shard: "amplify", given: work }] },
+});
+const start = (using: ShardrunCatalog = CATALOG, difficulty = "normal") =>
+  startShardrun(using, { seed: "seed-1", language: "python", difficulty });
 
 function firstRoom(state: ShardrunState): string {
   const room = nextRooms(state.map, state.position)[0];
@@ -189,7 +246,14 @@ function standingAt(state: ShardrunState, kind: string, using: ShardrunCatalog =
 }
 
 describe("layer maps", () => {
-  const CHECKED = catalog({ firstLayer: { rows: 8, columns: 5, paths: 5, fixed_rows: { "0": "fight", "3": "treasure", "-1": "rest" } } });
+  const CHECKED = catalog({
+    firstLayer: {
+      rows: 8,
+      columns: 5,
+      paths: 5,
+      fixed_rows: { "0": "fight", "3": "treasure", "-1": "rest" },
+    },
+  });
 
   it("climbs one row per step without crossing, and every room reaches the boss", () => {
     for (let seed = 0; seed < 50; seed++) {
@@ -213,7 +277,9 @@ describe("layer maps", () => {
       }
       // Walk up from the bottom row: every room is reachable and the boss is at the top.
       const reached = new Set(map.nodes.filter((node) => node.row === 0).map((node) => node.id));
-      for (const [from, to] of [...map.edges].sort((x, y) => (rows.get(x[0])?.row ?? 0) - (rows.get(y[0])?.row ?? 0))) {
+      for (const [from, to] of [...map.edges].sort(
+        (x, y) => (rows.get(x[0])?.row ?? 0) - (rows.get(y[0])?.row ?? 0),
+      )) {
         if (reached.has(from)) reached.add(to);
       }
       expect(reached.size).toBe(map.nodes.length);
@@ -227,7 +293,9 @@ describe("layer maps", () => {
     expect(map.nodes.filter((node) => node.row === 0).every((node) => node.kind === "fight")).toBe(true);
     expect(map.nodes.filter((node) => node.row === 3).every((node) => node.kind === "treasure")).toBe(true);
     expect(map.nodes.filter((node) => node.row === 7).every((node) => node.kind === "rest")).toBe(true);
-    expect(map.nodes.filter((node) => node.kind === "elite").every((node) => node.row >= layerDef.elite_from_row)).toBe(true);
+    expect(
+      map.nodes.filter((node) => node.kind === "elite").every((node) => node.row >= layerDef.elite_from_row),
+    ).toBe(true);
     expect(generateLayerMap("seed-7", 0, layerDef)).toEqual(map);
   });
 
@@ -271,9 +339,79 @@ describe("casting", () => {
   });
 
   it("clamps power, caps the bolt count, and drops malformed bolts", () => {
-    const { bolts, fizzled } = normalizeBolts([bolt(99), { power: "lots" }, bolt(2.6), bolt(-3), bolt(1), bolt(1)], BALANCE);
+    const { bolts, fizzled } = normalizeBolts(
+      [bolt(99), { power: "lots" }, bolt(2.6), bolt(-3), bolt(1), bolt(1)],
+      BALANCE,
+      4,
+    );
     expect(bolts.map((b) => b.power)).toEqual([20, 3, 0, 1]);
     expect(fizzled).toBe(2);
+  });
+
+  it("prices a step by its shard's complexity class", () => {
+    expect(workUnits("constant", 16)).toBe(1);
+    expect(workUnits("linear", 16)).toBe(16);
+    // 16 * log2(17), rounded up: a sort is dearer than a walk and far cheaper than a pairwise pass.
+    expect(workUnits("linearithmic", 16)).toBe(66);
+    expect(workUnits("quadratic", 16)).toBe(256);
+    // An unknown shard is billed as one pass, so a snapshot naming a retired shard still costs something sane.
+    // Each known shard also bills its own cost as work: 1 mana is 8 units here. The unknown one bills a pass and nothing else.
+    expect(
+      pipelineWork(
+        [
+          { shard: "dedupe", given: 8 },
+          { shard: "spark", given: 8 },
+          { shard: "gone", given: 8 },
+        ],
+        CATALOG,
+      ),
+    ).toBe(64 + 8 + (1 + 8) + 8);
+  });
+
+  it("bills work on a curve, and a relic buys a cheaper one", () => {
+    // 2 048 units, 8 to the mana: 256 linear, 16 amortized, 8 logarithmic. The curve is the whole difference.
+    expect(billWork(2048, "linear", BALANCE)).toBe(256);
+    expect(billWork(2048, "sqrt", BALANCE)).toBe(16);
+    expect(billWork(2048, "log", BALANCE)).toBe(8);
+    expect(billWork(0, "linear", BALANCE)).toBe(0);
+
+    // The same quadratic pipeline, priced without and with the ledger.
+    const heavy: ShardrunCommand = {
+      type: "cast",
+      spellId: "spell-1",
+      outcome: { ok: true, bolts: [bolt(4)], work: [{ shard: "dedupe", given: 16 }] },
+    };
+    const plain = previewCast(
+      inFight(),
+      "spell-1",
+      { ok: true, bolts: [bolt(4)], work: [{ shard: "dedupe", given: 16 }] },
+      CATALOG,
+    );
+    expect(plain?.cost).toBe(1 + 33);
+    const withLedger = inFight();
+    withLedger.relics.push("ledger");
+    expect(
+      previewCast(
+        withLedger,
+        "spell-1",
+        { ok: true, bolts: [bolt(4)], work: [{ shard: "dedupe", given: 16 }] },
+        CATALOG,
+      )?.cost,
+    ).toBe(1 + 5);
+    // And the engine charges what the preview promised.
+    expect(stepShardrun(inFight(), heavy, CATALOG).ok).toBe(false);
+  });
+
+  it("grows the mana a turn gives and the bolts that land as the run descends", () => {
+    const state = inFight();
+    expect(manaPerTurn(state, CATALOG)).toBe(6);
+    expect(boltCap(state, CATALOG)).toBe(4);
+    const deeper = { ...state, layer: 1 };
+    expect(manaPerTurn(deeper, CATALOG)).toBe(9);
+    expect(boltCap(deeper, CATALOG)).toBe(6);
+    // Relics stack on top, and the cap never passes its maximum.
+    expect(boltCap({ ...deeper, relics: ["aperture"] }, CATALOG)).toBe(8);
+    expect(boltCap({ ...state, layer: 9, relics: ["aperture"] }, CATALOG)).toBe(8);
   });
 
   it("lets shields absorb bolts unless they pierce, and halves resisted elements", () => {
@@ -286,28 +424,43 @@ describe("casting", () => {
   });
 
   it("swallows the first bolt against nullify, and ignores weak bolts against thick hide", () => {
-    const wraiths = catalog({ firstLayer: { encounters: { fight: [["wraith"]], elite: [["wraith"]], boss: [["brick"]] } } });
+    const wraiths = catalog({
+      firstLayer: { encounters: { fight: [["wraith"]], elite: [["wraith"]], boss: [["brick"]] } },
+    });
     expect(play(inFight(wraiths), [cast([bolt(3), bolt(3)])], wraiths).battle?.foes[0]?.hp).toBe(7);
-    const bricks = catalog({ firstLayer: { encounters: { fight: [["brick"]], elite: [["brick"]], boss: [["brick"]] } } });
+    const bricks = catalog({
+      firstLayer: { encounters: { fight: [["brick"]], elite: [["brick"]], boss: [["brick"]] } },
+    });
     expect(play(inFight(bricks), [cast([bolt(4), bolt(5)])], bricks).battle?.foes[0]?.hp).toBe(25);
   });
 
   it("predicts casts and intermediate bolts without changing the state", () => {
     const state = inFight();
     const before = structuredClone(state);
-    expect(previewCast(state, "spell-1", { ok: true, bolts: [bolt(7, "fire")], work: 0 }, CATALOG)).toEqual({
+    // One linear shard handed one bolt: 1 unit of work plus the 8 that its own 1 mana of cost is priced at, billed
+    // linearly in the fixture, so 1 mana on top of the base.
+    const oneStep = [{ shard: "amplify", given: 1 }];
+    expect(
+      previewCast(state, "spell-1", { ok: true, bolts: [bolt(7, "fire")], work: oneStep }, CATALOG),
+    ).toEqual({
       cost: 2,
       affordable: true,
       bolts: 1,
       damage: 10,
       block: 0,
     });
-    expect(previewBolts(state, [bolt(4), bolt(3, "none", { ward: true })], CATALOG)).toEqual({ bolts: 2, damage: 4, block: 3 });
+    expect(previewBolts(state, [bolt(4), bolt(3, "none", { ward: true })], CATALOG)).toEqual({
+      bolts: 2,
+      damage: 4,
+      block: 3,
+    });
     expect(state).toEqual(before);
   });
 
   it("charges only the base cost when a spell's code fails, and burns Integrity for curses", () => {
-    const fizzled = play(inFight(), [{ type: "cast", spellId: "spell-1", outcome: { ok: false, reason: "NameError" } }]);
+    const fizzled = play(inFight(), [
+      { type: "cast", spellId: "spell-1", outcome: { ok: false, reason: "NameError" } },
+    ]);
     expect(fizzled.battle?.mana).toBe(5);
     const cursed = inFight();
     const spell = cursed.spells[1];
@@ -330,10 +483,11 @@ describe("relics", () => {
     const using = withRelics(["duck", "wall", "cache", "capacitor"]);
     const fight = inFight(using);
     expect(fight.battle).toMatchObject({ mana: 7, block: 3 });
-    const first = play(fight, [cast([bolt(4)])], using);
-    // Cost 2 minus the first-cast discount; the duck makes the bolt 5.
+    const first = play(fight, [cast([bolt(4)], "spell-1", 1)], using);
+    // Cost 2 (the base, plus Amplify's own cost billed as work) minus the first-cast discount; the duck makes the bolt 5.
     expect(first.battle?.mana).toBe(6);
     expect(first.battle?.foes[0]?.hp).toBe(15);
+    // spell-2 holds no shards at all, so there is nothing to bill beyond the base and no discount left.
     const second = play(first, [cast([bolt(4)], "spell-2")], using);
     expect(second.battle?.mana).toBe(5);
   });
@@ -398,7 +552,11 @@ describe("rooms and rewards", () => {
     const won = play(boss, [cast([bolt(20), bolt(20)])]);
     expect(won.status).toBe("reward");
     expect(won.reward?.spell).toEqual({ name: "Surge", capacity: 2 });
-    const next = play(won, [{ type: "claim-spell" }, { type: "claim-relic", relicId: won.reward?.relics?.[0] ?? "" }, { type: "take", shardId: null }]);
+    const next = play(won, [
+      { type: "claim-spell" },
+      { type: "claim-relic", relicId: won.reward?.relics?.[0] ?? "" },
+      { type: "take", shardId: null },
+    ]);
     expect(next).toMatchObject({ status: "map", layer: 1, position: null, visited: [] });
     expect(next.spells.map((spell) => spell.name)).toEqual(["Bolt", "Ward", "Surge"]);
     expect(next.integrity).toBe(25);
@@ -419,11 +577,42 @@ describe("rooms and rewards", () => {
 
   it("rearranges shards between fights but never creates or destroys them", () => {
     const state = start();
-    const moved = play(state, [{ type: "arrange", spells: [{ id: "spell-1", shards: ["amplify", "fork"] }, { id: "spell-2", shards: [] }], inventory: [] }]);
+    const moved = play(state, [
+      {
+        type: "arrange",
+        spells: [
+          { id: "spell-1", shards: ["amplify", "fork"] },
+          { id: "spell-2", shards: [] },
+        ],
+        inventory: [],
+      },
+    ]);
     expect(moved.spells[0]?.shards).toEqual(["amplify", "fork"]);
-    const duplicated = stepShardrun(state, { type: "arrange", spells: [{ id: "spell-1", shards: ["amplify", "amplify"] }, { id: "spell-2", shards: [] }], inventory: [] }, CATALOG);
+    const duplicated = stepShardrun(
+      state,
+      {
+        type: "arrange",
+        spells: [
+          { id: "spell-1", shards: ["amplify", "amplify"] },
+          { id: "spell-2", shards: [] },
+        ],
+        inventory: [],
+      },
+      CATALOG,
+    );
     expect(duplicated.ok ? undefined : duplicated.error.code).toBe("shards-changed");
-    const midFight = stepShardrun(inFight(), { type: "arrange", spells: [{ id: "spell-1", shards: [] }, { id: "spell-2", shards: ["amplify"] }], inventory: ["fork"] }, CATALOG);
+    const midFight = stepShardrun(
+      inFight(),
+      {
+        type: "arrange",
+        spells: [
+          { id: "spell-1", shards: [] },
+          { id: "spell-2", shards: ["amplify"] },
+        ],
+        inventory: ["fork"],
+      },
+      CATALOG,
+    );
     expect(midFight.ok ? undefined : midFight.error.code).toBe("cannot-arrange");
   });
 });
@@ -443,7 +632,10 @@ describe("the dev sandbox", () => {
       { type: "dev-set", integrity: 1 },
       { type: "dev-goto-layer", layer: 1 },
     ] satisfies ShardrunCommand[]) {
-      expect(stepShardrun(state, command, CATALOG)).toMatchObject({ ok: false, error: { code: "not-a-sandbox" } });
+      expect(stepShardrun(state, command, CATALOG)).toMatchObject({
+        ok: false,
+        error: { code: "not-a-sandbox" },
+      });
     }
   });
 
@@ -475,11 +667,21 @@ describe("the dev sandbox", () => {
 
   it("refuses what the content does not have", () => {
     const state = sandbox();
-    expect(stepShardrun(state, { type: "dev-grant-shard", shardId: "nope" }, CATALOG)).toMatchObject({ error: { code: "unknown-shard" } });
-    expect(stepShardrun(state, { type: "dev-grant-relic", relicId: "nope" }, CATALOG)).toMatchObject({ error: { code: "unknown-relic" } });
-    expect(stepShardrun(state, { type: "dev-goto-layer", layer: 9 }, CATALOG)).toMatchObject({ error: { code: "unknown-layer" } });
-    expect(stepShardrun(state, { type: "dev-spawn", kind: "fight", foes: ["nope"] }, CATALOG)).toMatchObject({ error: { code: "unknown-foe" } });
-    expect(stepShardrun(state, { type: "dev-end-battle", outcome: "win" }, CATALOG)).toMatchObject({ error: { code: "not-in-battle" } });
+    expect(stepShardrun(state, { type: "dev-grant-shard", shardId: "nope" }, CATALOG)).toMatchObject({
+      error: { code: "unknown-shard" },
+    });
+    expect(stepShardrun(state, { type: "dev-grant-relic", relicId: "nope" }, CATALOG)).toMatchObject({
+      error: { code: "unknown-relic" },
+    });
+    expect(stepShardrun(state, { type: "dev-goto-layer", layer: 9 }, CATALOG)).toMatchObject({
+      error: { code: "unknown-layer" },
+    });
+    expect(stepShardrun(state, { type: "dev-spawn", kind: "fight", foes: ["nope"] }, CATALOG)).toMatchObject({
+      error: { code: "unknown-foe" },
+    });
+    expect(stepShardrun(state, { type: "dev-end-battle", outcome: "win" }, CATALOG)).toMatchObject({
+      error: { code: "not-in-battle" },
+    });
   });
 
   it("sets Integrity within the run's own limits, and mana only in a fight", () => {
@@ -487,7 +689,10 @@ describe("the dev sandbox", () => {
     expect(hurt.integrity).toBe(5);
     expect(play(hurt, [{ type: "dev-set", integrity: 9999 }]).integrity).toBe(hurt.integrityMax);
 
-    const fight = play(sandbox(), [{ type: "dev-spawn", kind: "fight", foes: ["dummy"] }, { type: "dev-set", mana: 40 }]);
+    const fight = play(sandbox(), [
+      { type: "dev-spawn", kind: "fight", foes: ["dummy"] },
+      { type: "dev-set", mana: 40 },
+    ]);
     expect(fight.battle?.mana).toBe(40);
   });
 
@@ -509,7 +714,10 @@ describe("the dev sandbox", () => {
     const withSpell = play(sandbox(), [{ type: "dev-grant-spell", name: "Scratch", capacity: 4 }]);
     expect(withSpell.spells.at(-1)).toMatchObject({ name: "Scratch", capacity: 4, shards: [] });
 
-    const jumped = play(withSpell, [{ type: "dev-spawn", kind: "fight", foes: ["dummy"] }, { type: "dev-goto-layer", layer: 1 }]);
+    const jumped = play(withSpell, [
+      { type: "dev-spawn", kind: "fight", foes: ["dummy"] },
+      { type: "dev-goto-layer", layer: 1 },
+    ]);
     expect(jumped.layer).toBe(1);
     expect(jumped.status).toBe("map");
     expect(jumped.battle).toBeUndefined();
@@ -546,11 +754,19 @@ describe("spell slots", () => {
   });
 
   it("refuses a bind anywhere but a forge", () => {
-    expect(stepShardrun(start(), { type: "bind" }, CATALOG)).toMatchObject({ ok: false, error: { code: "no-forge" } });
+    expect(stepShardrun(start(), { type: "bind" }, CATALOG)).toMatchObject({
+      ok: false,
+      error: { code: "no-forge" },
+    });
   });
 
   it("grants a spell the moment a spell-slot relic is claimed", () => {
-    const state = startShardrun(CATALOG, { seed: "seed-1", language: "python", difficulty: "normal", sandbox: true });
+    const state = startShardrun(CATALOG, {
+      seed: "seed-1",
+      language: "python",
+      difficulty: "normal",
+      sandbox: true,
+    });
     const granted = play(state, [{ type: "dev-grant-relic", relicId: "grimoire" }]);
     expect(granted.spells.map((spell) => spell.name)).toEqual(["Bolt", "Ward", "Volley"]);
     expect(granted.spells.at(-1)).toMatchObject({ capacity: 2, shards: [] });
@@ -576,9 +792,13 @@ describe("the multiplier axis (ADR-0014)", () => {
     const fight = inFight();
     // Measured as ward block, not damage: damage *dealt* is capped by the foe's remaining HP, so a working clamp and a
     // missing one would both report 20 here and the test would prove nothing.
-    expect(previewBolts(fight, [bolt(2, "none", { ward: true, mult: 1000 })], CATALOG).block).toBe(2 * BALANCE.max_bolt_mult);
+    expect(previewBolts(fight, [bolt(2, "none", { ward: true, mult: 1000 })], CATALOG).block).toBe(
+      2 * BALANCE.max_bolt_mult,
+    );
     expect(previewBolts(fight, [bolt(4, "none", { ward: true, mult: -5 })], CATALOG).block).toBe(0);
-    expect(previewBolts(fight, [bolt(4, "none", { ward: true, mult: Number.POSITIVE_INFINITY })], CATALOG).block).toBe(0);
+    expect(
+      previewBolts(fight, [bolt(4, "none", { ward: true, mult: Number.POSITIVE_INFINITY })], CATALOG).block,
+    ).toBe(0);
   });
 
   it("raises a ward's block by the multiplier too", () => {
@@ -590,7 +810,12 @@ describe("the multiplier axis (ADR-0014)", () => {
     // relic the seeded elite and treasure draws pick, which other tests assert by id.
     const tuner = relic("tuner", [{ kind: "bolt-mult", add: 1 }]);
     const using: ShardrunCatalog = { ...CATALOG, relics: new Map([...CATALOG.relics, [tuner.id, tuner]]) };
-    const state = startShardrun(using, { seed: "seed-1", language: "python", difficulty: "normal", sandbox: true });
+    const state = startShardrun(using, {
+      seed: "seed-1",
+      language: "python",
+      difficulty: "normal",
+      sandbox: true,
+    });
     const armed = play(
       state,
       [

@@ -67,12 +67,14 @@ character_version:                           # the Maintainer's semver "level" (
 
 shardrun:                                    # the roguelite mode (ADR-0012)
   integrity_start: 60
-  mana_per_turn: 6
+  mana_per_turn: { base: 6, per_layer: 3 }   # income grows with the layer, so wider spells stay castable (ADR-0015)
   spell_base_cost: 1
-  work_per_mana: 8                           # +1 mana per 8 bolts handed to shards across a pipeline
+  # Work is billed on a curve, not per bolt: units come from each shard's complexity class and the bolts it was handed,
+  # `per_mana` units cost 1 mana on the linear curve, and `sqrt` amortizes the rest. A relic can buy the `log` curve.
+  work_billing: { curve: sqrt, per_mana: 8, log_base: 2 }
   base_bolt_power: 4
-  max_bolts: 16
-  max_pipeline_bolts: 64
+  bolt_cap: { base: 16, per_layer: 12, max: 96 }   # bolts that land; grows per layer and per relic (ADR-0015)
+  max_pipeline_bolts: 128
   max_bolt_power: 40
   max_bolt_mult: 25                           # damage is power x mult; this clamps the second axis (ADR-0014)
   weak_multiplier: 1.5

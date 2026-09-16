@@ -58,6 +58,20 @@ export const DEFAULT_SHARD_BATTLE: ShardBattle = {
   foes: [{ name: "Training Dummy", hp: 20, max: 20, shield: 0, weak: [], resist: [] }],
 };
 
+/**
+ * How a shard's mana bill grows with the bolts it is handed (ADR-0015). The class is the shard's own claim about its
+ * code, checked by eye rather than measured: `constant` ignores the list, `linear` walks it once, `linearithmic` sorts
+ * it, `quadratic` compares every bolt with every other. It is what the cast is billed for, so Big-O is felt.
+ */
+export const SHARD_COMPLEXITIES = ["constant", "linear", "linearithmic", "quadratic"] as const;
+export const ShardComplexity = z.enum(SHARD_COMPLEXITIES);
+export type ShardComplexity = z.infer<typeof ShardComplexity>;
+
+/** How total work units become mana (ADR-0015). Cheapest first: a log bill makes a wide build payable. */
+export const WORK_CURVES = ["log", "sqrt", "linear"] as const;
+export const WorkCurve = z.enum(WORK_CURVES);
+export type WorkCurve = z.infer<typeof WorkCurve>;
+
 export const SHARD_RARITIES = ["common", "uncommon", "rare"] as const;
 export const ShardRarity = z.enum(SHARD_RARITIES);
 export type ShardRarity = z.infer<typeof ShardRarity>;
@@ -78,6 +92,8 @@ export const Shard = z.strictObject({
   rarity: ShardRarity,
   /** Mana added to every cast of a spell holding this shard. */
   cost: z.int().min(0).max(9),
+  /** How its bill grows with the bolts it handles. Defaults to one pass, which is what every shard did before ADR-0015. */
+  complexity: ShardComplexity.default("linear"),
   /** Plain words for what the code does. Beginner runs show it; harder runs show only the code. */
   summary: NonEmptyString,
   /** The function the code defines; the pipeline calls it with (bolts, battle). */
@@ -137,7 +153,7 @@ export const RELIC_RARITIES = ["common", "uncommon", "rare", "boss"] as const;
 export const RelicRarity = z.enum(RELIC_RARITIES);
 export type RelicRarity = z.infer<typeof RelicRarity>;
 
-/** What a relic changes. The first seven apply all run long; the last three apply once, when the relic is claimed. */
+/** What a relic changes. All of them apply all run long except the last three, which apply once, when it is claimed. */
 export const RelicEffect = z.discriminatedUnion("kind", [
   /** Added to every bolt after its spell's last shard. */
   z.strictObject({ kind: z.literal("bolt-power"), add: z.number() }),
@@ -153,6 +169,10 @@ export const RelicEffect = z.discriminatedUnion("kind", [
   /** Block gained at the start of every turn. */
   z.strictObject({ kind: z.literal("turn-block"), amount: PositiveInt }),
   z.strictObject({ kind: z.literal("heal-after-fight"), amount: PositiveInt }),
+  /** Bills this cast's work on a cheaper curve; the cheapest curve any relic offers wins (ADR-0015). */
+  z.strictObject({ kind: z.literal("work-billing"), curve: WorkCurve }),
+  /** Added to the number of bolts that land after the last shard. */
+  z.strictObject({ kind: z.literal("bolt-cap"), add: PositiveInt }),
   z.strictObject({ kind: z.literal("spell-capacity"), add: PositiveInt }),
   z.strictObject({ kind: z.literal("max-integrity"), add: PositiveInt }),
   /** Binds this many new, empty spells at once, from the run's pool of spell names. */
@@ -228,7 +248,10 @@ export type ShardrunDifficulty = z.infer<typeof ShardrunDifficulty>;
 /** `shardrun/run.yaml`: the loadout a run starts with, its difficulties, its layers, and its rewards. */
 export const ShardrunConfig = z.strictObject({
   start: z.strictObject({
-    spells: z.array(z.strictObject({ name: NonEmptyString, capacity: z.int().min(1).max(8), shards: z.array(Id) })).min(1).max(4),
+    spells: z
+      .array(z.strictObject({ name: NonEmptyString, capacity: z.int().min(1).max(8), shards: z.array(Id) }))
+      .min(1)
+      .max(4),
     inventory: z.array(Id).default([]),
     relics: z.array(Id).default([]),
   }),
@@ -236,7 +259,9 @@ export const ShardrunConfig = z.strictObject({
    * Empty spells a forge can bind, or a spell-slot relic can grant, in order. Each name is used at most once in a run,
    * and `max_spells` in the balance still caps the spellbook.
    */
-  spell_slots: z.strictObject({ names: z.array(NonEmptyString).min(1), capacity: z.int().min(1).max(8) }).optional(),
+  spell_slots: z
+    .strictObject({ names: z.array(NonEmptyString).min(1), capacity: z.int().min(1).max(8) })
+    .optional(),
   difficulties: z.array(ShardrunDifficulty).min(1),
   layers: z.array(ShardrunLayer).min(1),
   rewards: z.strictObject({

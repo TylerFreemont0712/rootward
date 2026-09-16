@@ -9,10 +9,12 @@ import {
   type RelicEffect,
   SHARD_RARITIES,
   type Shard,
+  type WorkCurve,
 } from "@rootward/content-schema";
 import {
   baseBolt,
   bindableSpell,
+  boltCap,
   difficultyOf,
   encounterFor,
   type FoeState,
@@ -30,6 +32,8 @@ import {
   type SpellState,
   startShardrun,
   stepShardrun,
+  workUnits,
+  type WorkStep,
 } from "@rootward/core";
 import {
   isShardrunLanguage,
@@ -126,7 +130,9 @@ export class ShardrunService {
 
   /** Languages a new run can be played in: the Shardrun languages this machine has a sandbox for. */
   async languages(): Promise<string[]> {
-    const usable = await Promise.all(SHARDRUN_LANGUAGES.map(async (language) => ((await this.sandbox.canRun(language)) ? [language] : [])));
+    const usable = await Promise.all(
+      SHARDRUN_LANGUAGES.map(async (language) => ((await this.sandbox.canRun(language)) ? [language] : [])),
+    );
     return usable.flat();
   }
 
@@ -136,41 +142,68 @@ export class ShardrunService {
   }
 
   difficulties(): ShardrunDifficultyView[] {
-    return (this.catalog?.config.difficulties ?? []).map((difficulty) => ({ id: difficulty.id, name: difficulty.name, summary: difficulty.summary }));
+    return (this.catalog?.config.difficulties ?? []).map((difficulty) => ({
+      id: difficulty.id,
+      name: difficulty.name,
+      summary: difficulty.summary,
+    }));
   }
 
   /** The profile's latest run, finished or not; null before their first. */
   async latest(profileId: string): Promise<ShardrunView | null> {
     this.requireProfile(profileId);
     const row = await settle(() =>
-      this.db.prepare("SELECT id, state FROM shardrun_runs WHERE profile_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1").get(profileId),
+      this.db
+        .prepare(
+          "SELECT id, state FROM shardrun_runs WHERE profile_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
+        )
+        .get(profileId),
     );
     if (row === undefined) return null;
     const loaded = this.load(RunRow.parse(row));
     return loaded ? this.view(loaded) : null;
   }
 
-  async start(profileId: string, language: string, difficulty: string, sandbox = false): Promise<ShardrunView> {
+  async start(
+    profileId: string,
+    language: string,
+    difficulty: string,
+    sandbox = false,
+  ): Promise<ShardrunView> {
     return this.serialize(profileId, async () => {
       const catalog = this.requireCatalog();
       this.requireProfile(profileId);
       if (!isShardrunLanguage(language) || !(await this.sandbox.canRun(language))) {
-        throw new ServiceError(400, "unsupported-language", `Shardrun cannot be played in ${language} on this machine.`);
+        throw new ServiceError(
+          400,
+          "unsupported-language",
+          `Shardrun cannot be played in ${language} on this machine.`,
+        );
       }
       if (!catalog.config.difficulties.some((candidate) => candidate.id === difficulty)) {
         throw new ServiceError(400, "unknown-difficulty", `There is no ${difficulty} difficulty.`);
       }
       if (sandbox && !this.devEnabledFlag) {
-        throw new ServiceError(403, "dev-disabled", "Sandbox runs need a server started with ROOTWARD_DEV=1.");
+        throw new ServiceError(
+          403,
+          "dev-disabled",
+          "Sandbox runs need a server started with ROOTWARD_DEV=1.",
+        );
       }
       if (this.active(profileId)) {
-        throw new ServiceError(409, "run-in-progress", "A run is already underway. Finish or abandon it first.");
+        throw new ServiceError(
+          409,
+          "run-in-progress",
+          "A run is already underway. Finish or abandon it first.",
+        );
       }
       const id = randomUUID();
       const state = startShardrun(catalog, { seed: randomUUID(), language, difficulty, sandbox });
       const now = new Date().toISOString();
       this.db
-        .prepare("INSERT INTO shardrun_runs (id, profile_id, status, state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
+        .prepare(
+          "INSERT INTO shardrun_runs (id, profile_id, status, state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+        )
         .run(id, profileId, state.status, JSON.stringify(state), now, now);
       return this.view({ id, state });
     });
@@ -206,7 +239,10 @@ export class ShardrunService {
         .run(result.state.status, JSON.stringify(result.state), new Date().toISOString(), run.id);
 
       if (result.state.battle) this.warm(result.state);
-      const replay = cast && { spellId: cast.spell.id, run: this.spellRunView(before, cast.spell, cast.run, true) };
+      const replay = cast && {
+        spellId: cast.spell.id,
+        run: this.spellRunView(before, cast.spell, cast.run, true),
+      };
       return this.view({ id: run.id, state: result.state }, replay);
     });
   }
@@ -216,10 +252,12 @@ export class ShardrunService {
     return this.serialize(profileId, () => {
       const catalog = this.requireCatalog();
       this.requireProfile(profileId);
-      if (!this.devEnabledFlag) throw new ServiceError(403, "dev-disabled", "This server was not started with ROOTWARD_DEV=1.");
+      if (!this.devEnabledFlag)
+        throw new ServiceError(403, "dev-disabled", "This server was not started with ROOTWARD_DEV=1.");
       const run = this.active(profileId);
       if (!run) throw new ServiceError(404, "no-run", "There is no run underway.");
-      if (!run.state.sandbox) throw new ServiceError(409, "not-a-sandbox", "Dev tools only work in a sandbox run.");
+      if (!run.state.sandbox)
+        throw new ServiceError(409, "not-a-sandbox", "Dev tools only work in a sandbox run.");
       const result = stepShardrun(run.state, devToCommand(request), catalog);
       if (!result.ok) throw new ServiceError(409, result.error.code, result.error.message);
       this.db
@@ -241,10 +279,14 @@ export class ShardrunService {
     const runs = await this.spellRuns(state, state.spells);
     return {
       revision: state.revision,
-      spells: Object.fromEntries(state.spells.map((spell) => [spell.id, this.spellRunView(state, spell, runs.get(spell.id) ?? NO_RESULT, reveal)])),
+      spells: Object.fromEntries(
+        state.spells.map((spell) => [
+          spell.id,
+          this.spellRunView(state, spell, runs.get(spell.id) ?? NO_RESULT, reveal),
+        ]),
+      ),
     };
   }
-
 
   /** Everything Shardrun content holds, for the Codex: shards, relics, foes, layers, and the rules they play by. */
   codex(language: string): ShardrunCodexResponse {
@@ -272,15 +314,27 @@ export class ShardrunService {
     for (const id of config.start.inventory) sources.get(id)?.push("your starting spare shards");
 
     const shards = [...catalog.shards.values()]
-      .sort((a, b) => SHARD_RARITIES.indexOf(a.rarity) - SHARD_RARITIES.indexOf(b.rarity) || a.name.localeCompare(b.name))
-      .map((shard) => ({ shard: shardView(shard, lang, catalog, true), draftable: shard.draftable, found: sources.get(shard.id) ?? [] }));
+      .sort(
+        (a, b) =>
+          SHARD_RARITIES.indexOf(a.rarity) - SHARD_RARITIES.indexOf(b.rarity) || a.name.localeCompare(b.name),
+      )
+      .map((shard) => ({
+        shard: shardView(shard, lang, catalog, true),
+        draftable: shard.draftable,
+        found: sources.get(shard.id) ?? [],
+      }));
 
     const relicLabels = { elite: "elites", treasure: "treasure rooms", boss: "guardians" } as const;
     const relics = [...catalog.relics.values()]
-      .sort((a, b) => RELIC_RARITIES.indexOf(a.rarity) - RELIC_RARITIES.indexOf(b.rarity) || a.name.localeCompare(b.name))
+      .sort(
+        (a, b) =>
+          RELIC_RARITIES.indexOf(a.rarity) - RELIC_RARITIES.indexOf(b.rarity) || a.name.localeCompare(b.name),
+      )
       .map((relic) => ({
         relic: relicView(relic),
-        found: (["elite", "treasure", "boss"] as const).flatMap((where) => (config.rewards.relics[where][relic.rarity] > 0 ? [relicLabels[where]] : [])),
+        found: (["elite", "treasure", "boss"] as const).flatMap((where) =>
+          config.rewards.relics[where][relic.rarity] > 0 ? [relicLabels[where]] : [],
+        ),
       }));
 
     const foes: CodexFoeView[] = [...catalog.foes.values()]
@@ -296,7 +350,9 @@ export class ShardrunService {
         flavor: foe.flavor,
         layers: config.layers.flatMap((layer) =>
           (["fight", "elite", "boss"] as const).flatMap((role) =>
-            layer.encounters[role].some((group) => group.includes(foe.id)) ? [{ id: layer.id, name: layer.name, role }] : [],
+            layer.encounters[role].some((group) => group.includes(foe.id))
+              ? [{ id: layer.id, name: layer.name, role }]
+              : [],
           ),
         ),
       }))
@@ -325,7 +381,11 @@ export class ShardrunService {
     const reward = state.reward;
     const bind = bindableSpell(state, catalog);
 
-    const mentioned = new Set([...state.spells.flatMap((spell) => spell.shards), ...state.inventory, ...(reward?.shards ?? [])]);
+    const mentioned = new Set([
+      ...state.spells.flatMap((spell) => spell.shards),
+      ...state.inventory,
+      ...(reward?.shards ?? []),
+    ]);
     for (const shardId of [...mentioned]) {
       const into = catalog.shards.get(shardId)?.forge?.into;
       if (into !== undefined) mentioned.add(into);
@@ -342,14 +402,22 @@ export class ShardrunService {
     }
 
     const spells = state.spells.map((spell): SpellView => {
-      const view: SpellView = { id: spell.id, name: spell.name, capacity: spell.capacity, shards: [...spell.shards], spent: battle?.cast.includes(spell.id) ?? false };
+      const view: SpellView = {
+        id: spell.id,
+        name: spell.name,
+        capacity: spell.capacity,
+        shards: [...spell.shards],
+        spent: battle?.cast.includes(spell.id) ?? false,
+      };
       if (!battle) return view;
       const run = this.finishedRun(state, spell);
       if (!run) return view;
       return { ...view, preview: this.spellRunView(state, spell, run, difficulty.show_predictions) };
     });
 
-    const open = new Set(state.status === "map" ? nextRooms(state.map, state.position).map((node) => node.id) : []);
+    const open = new Set(
+      state.status === "map" ? nextRooms(state.map, state.position).map((node) => node.id) : [],
+    );
     const currentRow = state.map.nodes.find((node) => node.id === state.position)?.row ?? -1;
     const nodes = state.map.nodes.map((node): ShardrunMapNodeView => {
       const nodeState: ShardrunMapNodeView["state"] =
@@ -375,7 +443,12 @@ export class ShardrunService {
       id,
       status: state.status,
       language: state.language,
-      difficulty: { id: difficulty.id, name: difficulty.name, showSummaries: difficulty.show_summaries, showPredictions: difficulty.show_predictions },
+      difficulty: {
+        id: difficulty.id,
+        name: difficulty.name,
+        showSummaries: difficulty.show_summaries,
+        showPredictions: difficulty.show_predictions,
+      },
       revision: state.revision,
       integrity: state.integrity,
       integrityMax: state.integrityMax,
@@ -419,13 +492,20 @@ export class ShardrunService {
         ? {
             forge: {
               shards: owned.filter((shardId) => catalog.shards.get(shardId)?.forge !== undefined),
-              spells: state.spells.filter((spell) => spell.capacity < balance.max_spell_capacity).map((spell) => spell.id),
+              spells: state.spells
+                .filter((spell) => spell.capacity < balance.max_spell_capacity)
+                .map((spell) => spell.id),
               ...(bind ? { bind } : {}),
             },
           }
         : {}),
       ...(state.status === "rest"
-        ? { restHeal: Math.min(state.integrityMax - state.integrity, Math.ceil(state.integrityMax * balance.rest_heal_fraction)) }
+        ? {
+            restHeal: Math.min(
+              state.integrityMax - state.integrity,
+              Math.ceil(state.integrityMax * balance.rest_heal_fraction),
+            ),
+          }
         : {}),
       ...(replay ? { replay } : {}),
       sandbox: state.sandbox,
@@ -440,7 +520,12 @@ export class ShardrunService {
    * A spell run for the client. With `reveal`, every step says what its bolts would do if the spell ended there, using
    * the rules' own resolution against this battle; without it, only the cost and any error are shown.
    */
-  private spellRunView(state: ShardrunState, spell: SpellState, run: PipelineRun, reveal: boolean): SpellRunView {
+  private spellRunView(
+    state: ShardrunState,
+    spell: SpellState,
+    run: PipelineRun,
+    reveal: boolean,
+  ): SpellRunView {
     const catalog = this.requireCatalog();
     const base = baseBolt(catalog.balance);
     const preview = previewCast(state, spell.id, toOutcome(run), catalog);
@@ -452,7 +537,11 @@ export class ShardrunService {
       console: run.console,
     };
     if (!run.ok) {
-      view.misfire = { reason: run.reason, ...(run.shard === undefined ? {} : { shard: run.shard }), ...(run.line === undefined ? {} : { line: run.line }) };
+      view.misfire = {
+        reason: run.reason,
+        ...(run.shard === undefined ? {} : { shard: run.shard }),
+        ...(run.line === undefined ? {} : { line: run.line }),
+      };
     }
     if (!reveal) return view;
     view.base = { bolts: [base], outcome: previewBolts(state, [base], catalog) };
@@ -460,10 +549,12 @@ export class ShardrunService {
       shard: step.shard,
       given: step.given,
       returned: step.returned,
+      work: workUnits(catalog.shards.get(step.shard)?.complexity ?? "linear", step.given),
       bolts: displayBolts(step.bolts),
       outcome: previewBolts(state, step.bolts, catalog),
     }));
-    if (run.ok && preview) view.result = { bolts: preview.bolts, damage: preview.damage, block: preview.block };
+    if (run.ok && preview)
+      view.result = { bolts: preview.bolts, damage: preview.damage, block: preview.block };
     return view;
   }
 
@@ -483,7 +574,10 @@ export class ShardrunService {
   }
 
   /** Runs for these spells against the current battle: cached ones at once, running ones awaited, the rest in one job. */
-  private async spellRuns(state: ShardrunState, spells: readonly SpellState[]): Promise<Map<string, PipelineRun>> {
+  private async spellRuns(
+    state: ShardrunState,
+    spells: readonly SpellState[],
+  ): Promise<Map<string, PipelineRun>> {
     const input = this.inputFor(state);
     const results = new Map<string, PipelineRun>();
     if (!input) return results;
@@ -529,30 +623,59 @@ export class ShardrunService {
   }
 
   /** Run spells together in one sandbox job. If the job stops early, each spell runs alone to find the one to blame. */
-  private async runBatch(language: ShardrunLanguage, spells: readonly SpellState[], input: PipelineInput): Promise<Map<string, PipelineRun>> {
+  private async runBatch(
+    language: ShardrunLanguage,
+    spells: readonly SpellState[],
+    input: PipelineInput,
+  ): Promise<Map<string, PipelineRun>> {
     const catalog = this.requireCatalog();
     const runs = new Map<string, PipelineRun>();
     const programs: { id: string; shards: Shard[] }[] = [];
     for (const spell of spells) {
       const shards = spell.shards.flatMap((shardId) => catalog.shards.get(shardId) ?? []);
-      if (shards.length !== spell.shards.length) runs.set(spell.id, { ok: false, reason: "one of its shards no longer exists", trace: [], console: "" });
+      if (shards.length !== spell.shards.length)
+        runs.set(spell.id, {
+          ok: false,
+          reason: "one of its shards no longer exists",
+          trace: [],
+          console: "",
+        });
       else programs.push({ id: spell.id, shards });
     }
     if (programs.length === 0) return runs;
     const job = spellsJob(language, [{ spells: programs, input }], this.sandbox.limits);
     if (!job) {
-      for (const program of programs) runs.set(program.id, { ok: false, reason: `a shard has no ${language} code`, trace: [], console: "" });
+      for (const program of programs)
+        runs.set(program.id, {
+          ok: false,
+          reason: `a shard has no ${language} code`,
+          trace: [],
+          console: "",
+        });
       return runs;
     }
     const result = await this.sandbox.runJob(job);
     if (stoppedEarly(result, 0) && programs.length > 1) {
       // LEARN: one endless loop stops the whole job, and the spells after it never report. Running each spell alone
       // costs more, but only in that rare case, and it pins the timeout on the spell that caused it.
-      const alone = await Promise.all(programs.map((program) => this.runBatch(language, spells.filter((spell) => spell.id === program.id), input)));
+      const alone = await Promise.all(
+        programs.map((program) =>
+          this.runBatch(
+            language,
+            spells.filter((spell) => spell.id === program.id),
+            input,
+          ),
+        ),
+      );
       for (const map of alone) for (const [spellId, run] of map) runs.set(spellId, run);
       return runs;
     }
-    for (const [spellId, run] of readSpellRuns(result, 0, programs.map((program) => program.id))) runs.set(spellId, run);
+    for (const [spellId, run] of readSpellRuns(
+      result,
+      0,
+      programs.map((program) => program.id),
+    ))
+      runs.set(spellId, run);
     return runs;
   }
 
@@ -603,7 +726,9 @@ export class ShardrunService {
   private active(profileId: string): LoadedRun | undefined {
     const placeholders = ENDED.map(() => "?").join(", ");
     const row = this.db
-      .prepare(`SELECT id, state FROM shardrun_runs WHERE profile_id = ? AND status NOT IN (${placeholders}) ORDER BY created_at DESC LIMIT 1`)
+      .prepare(
+        `SELECT id, state FROM shardrun_runs WHERE profile_id = ? AND status NOT IN (${placeholders}) ORDER BY created_at DESC LIMIT 1`,
+      )
       .get(profileId, ...ENDED);
     return row === undefined ? undefined : this.load(RunRow.parse(row));
   }
@@ -613,7 +738,9 @@ export class ShardrunService {
     const parsed = ShardrunState.safeParse(JSON.parse(row.state));
     if (parsed.success) return { id: row.id, state: parsed.data };
     this.db
-      .prepare("UPDATE shardrun_runs SET status = 'abandoned', updated_at = ? WHERE id = ? AND status NOT IN ('won', 'lost', 'abandoned')")
+      .prepare(
+        "UPDATE shardrun_runs SET status = 'abandoned', updated_at = ? WHERE id = ? AND status NOT IN ('won', 'lost', 'abandoned')",
+      )
       .run(new Date().toISOString(), row.id);
     return undefined;
   }
@@ -625,7 +752,8 @@ export class ShardrunService {
   }
 
   private requireCatalog(): ShardrunCatalog {
-    if (!this.catalog) throw new ServiceError(404, "shardrun-unavailable", "No content pack defines Shardrun.");
+    if (!this.catalog)
+      throw new ServiceError(404, "shardrun-unavailable", "No content pack defines Shardrun.");
     return this.catalog;
   }
 }
@@ -671,7 +799,12 @@ function emptyRun(input: PipelineInput): PipelineRun {
 }
 
 function toOutcome(run: PipelineRun): PipelineOutcome {
-  return run.ok ? { ok: true, bolts: run.bolts, work: run.work } : { ok: false, reason: run.reason };
+  // The rules bill the work, so they get the steps rather than a total: only they know each shard's complexity class.
+  return run.ok ? { ok: true, bolts: run.bolts, work: workSteps(run) } : { ok: false, reason: run.reason };
+}
+
+function workSteps(run: PipelineRun): WorkStep[] {
+  return run.trace.map((step) => ({ shard: step.shard, given: step.given }));
 }
 
 /** Bolts as the code view shows them: well-formed ones only, power to two decimals. */
@@ -679,18 +812,30 @@ function displayBolts(raw: readonly unknown[]): BoltView[] {
   return raw.flatMap((candidate) => {
     const parsed = Bolt.safeParse(candidate);
     return parsed.success
-      ? [{ ...parsed.data, power: Math.round(parsed.data.power * 100) / 100, mult: Math.round(parsed.data.mult * 100) / 100 }]
+      ? [
+          {
+            ...parsed.data,
+            power: Math.round(parsed.data.power * 100) / 100,
+            mult: Math.round(parsed.data.mult * 100) / 100,
+          },
+        ]
       : [];
   });
 }
 
-function shardView(shard: Shard, language: ShardrunLanguage, catalog: ShardrunCatalog, showSummary: boolean): ShardView {
+function shardView(
+  shard: Shard,
+  language: ShardrunLanguage,
+  catalog: ShardrunCatalog,
+  showSummary: boolean,
+): ShardView {
   const into = shard.forge && catalog.shards.get(shard.forge.into);
   return {
     id: shard.id,
     name: shard.name,
     rarity: shard.rarity,
     cost: shard.cost,
+    complexity: shard.complexity,
     ...(showSummary ? { summary: shard.summary } : {}),
     function: shardFunctionName(shard, language),
     code: shard.code[language] ?? "",
@@ -699,6 +844,13 @@ function shardView(shard: Shard, language: ShardrunLanguage, catalog: ShardrunCa
     ...(shard.forge && into ? { forge: { into: into.id, intoName: into.name, verb: shard.forge.verb } } : {}),
   };
 }
+
+/** How much of a pipeline's work a cast actually pays for, in words (ADR-0015). */
+const WORK_CURVE_LABELS: Record<WorkCurve, string> = {
+  linear: "all of it",
+  sqrt: "its square root",
+  log: "its logarithm",
+};
 
 /** Every rule as it stands now: what it started as, what it is, and which relics moved it (ADR-0013, the Stats panel). */
 function modifierViews(state: ShardrunState, catalog: ShardrunCatalog): ShardrunModifierView[] {
@@ -711,14 +863,47 @@ function modifierViews(state: ShardrunState, catalog: ShardrunCatalog): Shardrun
     });
   const capacityAdded = state.relics.reduce(
     (sum, id) =>
-      sum + (catalog.relics.get(id)?.effects.reduce((inner, effect) => inner + (effect.kind === "spell-capacity" ? effect.add : 0), 0) ?? 0),
+      sum +
+      (catalog.relics
+        .get(id)
+        ?.effects.reduce((inner, effect) => inner + (effect.kind === "spell-capacity" ? effect.add : 0), 0) ??
+        0),
     0,
   );
   const round = (value: number) => Math.round(value * 100) / 100;
+  // Descending a layer raises the mana a turn gives and the bolts that land (ADR-0015), so it belongs in `from` too.
+  const deeper = state.layer > 0 ? [`layer ${state.layer + 1}`] : [];
   return [
-    { label: "Mana each turn", base: `${balance.mana_per_turn}`, now: `${manaPerTurn(state, catalog)}`, from: from("mana-per-turn") },
-    { label: "Power added to every bolt", base: "0", now: `${round(mods.boltPower)}`, from: from("bolt-power") },
-    { label: "Damage multiplier", base: "×1", now: `×${round(mods.damageMultiplier)}`, from: from("damage-multiplier") },
+    {
+      label: "Mana each turn",
+      base: `${balance.mana_per_turn.base}`,
+      now: `${manaPerTurn(state, catalog)}`,
+      from: [...from("mana-per-turn"), ...deeper],
+    },
+    {
+      label: "Bolts that land",
+      base: `${balance.bolt_cap.base}`,
+      now: `${boltCap(state, catalog)}`,
+      from: [...from("bolt-cap"), ...deeper],
+    },
+    {
+      label: "Work billed as",
+      base: WORK_CURVE_LABELS[balance.work_billing.curve],
+      now: WORK_CURVE_LABELS[mods.workCurve],
+      from: from("work-billing"),
+    },
+    {
+      label: "Power added to every bolt",
+      base: "0",
+      now: `${round(mods.boltPower)}`,
+      from: from("bolt-power"),
+    },
+    {
+      label: "Damage multiplier",
+      base: "×1",
+      now: `×${round(mods.damageMultiplier)}`,
+      from: from("damage-multiplier"),
+    },
     {
       label: "Weakness multiplier",
       base: `×${balance.weak_multiplier}`,
@@ -726,9 +911,24 @@ function modifierViews(state: ShardrunState, catalog: ShardrunCatalog): Shardrun
       from: from("weak-bonus"),
     },
     { label: "Block at the start of a turn", base: "0", now: `${mods.turnBlock}`, from: from("turn-block") },
-    { label: "First cast each turn costs less", base: "0", now: `${mods.firstCastDiscount}`, from: from("first-cast-discount") },
-    { label: "Integrity healed after a fight", base: "0", now: `${mods.healAfterFight}`, from: from("heal-after-fight") },
-    { label: "Maximum Integrity", base: `${balance.integrity_start}`, now: `${state.integrityMax}`, from: from("max-integrity") },
+    {
+      label: "First cast each turn costs less",
+      base: "0",
+      now: `${mods.firstCastDiscount}`,
+      from: from("first-cast-discount"),
+    },
+    {
+      label: "Integrity healed after a fight",
+      base: "0",
+      now: `${mods.healAfterFight}`,
+      from: from("heal-after-fight"),
+    },
+    {
+      label: "Maximum Integrity",
+      base: `${balance.integrity_start}`,
+      now: `${state.integrityMax}`,
+      from: from("max-integrity"),
+    },
     { label: "Slots added to every spell", base: "0", now: `${capacityAdded}`, from: from("spell-capacity") },
   ];
 }
@@ -737,12 +937,17 @@ function modifierViews(state: ShardrunState, catalog: ShardrunCatalog): Shardrun
 function rulesView(catalog: ShardrunCatalog): ShardrunRulesView {
   const { balance } = catalog;
   return {
-    manaPerTurn: balance.mana_per_turn,
+    manaPerTurn: balance.mana_per_turn.base,
     baseBoltPower: balance.base_bolt_power,
     spellBaseCost: balance.spell_base_cost,
-    workPerMana: balance.work_per_mana,
-    maxBolts: balance.max_bolts,
+    manaPerLayer: balance.mana_per_turn.per_layer,
+    workPerMana: balance.work_billing.per_mana,
+    workCurve: balance.work_billing.curve,
+    maxBolts: balance.bolt_cap.base,
+    boltsPerLayer: balance.bolt_cap.per_layer,
+    maxBoltsEver: balance.bolt_cap.max,
     maxBoltPower: balance.max_bolt_power,
+    maxBoltMult: balance.max_bolt_mult,
     maxSpells: balance.max_spells,
     maxSpellCapacity: balance.max_spell_capacity,
     weakMultiplier: balance.weak_multiplier,
@@ -755,7 +960,14 @@ function rulesView(catalog: ShardrunCatalog): ShardrunRulesView {
 }
 
 function relicView(relic: Relic): RelicView {
-  return { id: relic.id, name: relic.name, rarity: relic.rarity, icon: relic.icon, summary: relic.summary, flavor: relic.flavor };
+  return {
+    id: relic.id,
+    name: relic.name,
+    rarity: relic.rarity,
+    icon: relic.icon,
+    summary: relic.summary,
+    flavor: relic.flavor,
+  };
 }
 
 function foeView(foe: FoeState): ShardrunFoeView {
@@ -771,7 +983,9 @@ function foeView(foe: FoeState): ShardrunFoeView {
     resist: [...foe.resist],
     ...(foe.trait ? { trait: traitView(foe.trait) } : {}),
     ...(foe.pattern ? { pattern: foe.pattern } : {}),
-    intent: intent ? { kind: intent.kind, text: intentText(intent, foe.stoked) } : { kind: "strike", text: "Watching" },
+    intent: intent
+      ? { kind: intent.kind, text: intentText(intent, foe.stoked) }
+      : { kind: "strike", text: "Watching" },
     stoked: foe.stoked,
     flavor: foe.flavor,
   };
@@ -795,12 +1009,28 @@ function intentText(intent: FoeIntent, stoked: boolean): string {
 function traitView(trait: FoeTrait): { kind: string; name: string; text: string } {
   switch (trait.kind) {
     case "nullify-first":
-      return { kind: trait.kind, name: "Nullify", text: "The first bolt that hits it each turn does nothing." };
+      return {
+        kind: trait.kind,
+        name: "Nullify",
+        text: "The first bolt that hits it each turn does nothing.",
+      };
     case "thick-hide":
-      return { kind: trait.kind, name: "Thick hide", text: `Bolts under ${trait.threshold} power glance off.` };
+      return {
+        kind: trait.kind,
+        name: "Thick hide",
+        text: `Bolts under ${trait.threshold} power glance off.`,
+      };
     case "shifting-weakness":
-      return { kind: trait.kind, name: "Shifting", text: `Its weakness moves each turn: ${trait.cycle.join(", then ")}.` };
+      return {
+        kind: trait.kind,
+        name: "Shifting",
+        text: `Its weakness moves each turn: ${trait.cycle.join(", then ")}.`,
+      };
     case "pattern-ward":
-      return { kind: trait.kind, name: "Pattern ward", text: `Only this turn's element in ${trait.pattern.join(", ")} hits at full strength.` };
+      return {
+        kind: trait.kind,
+        name: "Pattern ward",
+        text: `Only this turn's element in ${trait.pattern.join(", ")} hits at full strength.`,
+      };
   }
 }

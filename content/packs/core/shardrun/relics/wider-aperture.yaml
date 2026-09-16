@@ -1,0 +1,8 @@
+id: wider-aperture
+name: Wider Aperture
+rarity: uncommon
+icon: wider-aperture
+summary: "Eight more bolts land before the rest fizzle."
+flavor: "The lens the first Maintainers ground, before anyone thought to stop at sixteen."
+effects:
+  - { kind: bolt-cap, add: 8 }

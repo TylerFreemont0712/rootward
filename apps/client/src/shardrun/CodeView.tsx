@@ -22,8 +22,13 @@ export function CodeView(props: {
     [run.language, run.shards, run.rules.baseBoltPower, spell.name, spell.shards],
   );
   // A hidden prediction has no measured steps, so there is nothing to play: the code is shown still.
-  const playable = spellRun !== undefined && (spellRun.steps.length > 0 || spellRun.result !== undefined || spellRun.misfire !== undefined);
-  const frames = useMemo(() => (spellRun !== undefined && playable ? playbackFrames(source, spellRun, playSpeed) : []), [playable, spellRun, source, playSpeed]);
+  const playable =
+    spellRun !== undefined &&
+    (spellRun.steps.length > 0 || spellRun.result !== undefined || spellRun.misfire !== undefined);
+  const frames = useMemo(
+    () => (spellRun !== undefined && playable ? playbackFrames(source, spellRun, playSpeed) : []),
+    [playable, spellRun, source, playSpeed],
+  );
   const [take, setTake] = useState(0);
   const [index, setIndex] = useState(-1);
 
@@ -41,14 +46,22 @@ export function CodeView(props: {
   }, [frames, mode, onDone, playSpeed, take]);
 
   useEffect(() => {
-    document.getElementById(`shr-line-${spell.id}-${frames[index]?.line ?? 0}`)?.scrollIntoView({ block: "nearest" });
+    document
+      .getElementById(`shr-line-${spell.id}-${frames[index]?.line ?? 0}`)
+      ?.scrollIntoView({ block: "nearest" });
   }, [index, frames, spell.id]);
 
+  // The pipeline's whole bill, for the header: the same units the rules charged, summed over the steps.
+  const work = (spellRun?.steps ?? []).reduce((sum, step) => sum + step.work, 0);
   const shown = frames.slice(0, index + 1);
   const current = frames[index];
   const outcome = [...shown].reverse().find((frame) => frame.outcome)?.outcome;
   const bolts = [...shown].reverse().find((frame) => frame.bolts)?.bolts ?? [];
-  const reached = new Map(shown.filter((frame) => frame.mark === "step" && frame.step !== undefined).map((frame) => [frame.line, frame]));
+  const reached = new Map(
+    shown
+      .filter((frame) => frame.mark === "step" && frame.step !== undefined)
+      .map((frame) => [frame.line, frame]),
+  );
   const errored = current?.mark === "error";
   const activeShard = current ? source.lines[current.line - 1]?.shard : undefined;
 
@@ -59,6 +72,7 @@ export function CodeView(props: {
         <span className="meta">
           {run.language} · {spell.shards.length} {spell.shards.length === 1 ? "shard" : "shards"}
           {spellRun && ` · ${spellRun.cost} mana`}
+          {work > 0 && ` · ${work} work`}
         </span>
         <span className="shr-code-actions">
           {mode === "explore" && playable && (
@@ -96,14 +110,20 @@ export function CodeView(props: {
         </div>
       ) : (
         <p className="meta shr-code-hint">
-          {run.difficulty.showPredictions ? "Reading the shards…" : "No predictions on this difficulty: read the code, then cast it to watch it run."}
+          {run.difficulty.showPredictions
+            ? "Reading the shards…"
+            : "No predictions on this difficulty: read the code, then cast it to watch it run."}
         </p>
       )}
 
       {bolts.length > 0 && (
         <div className="shr-bolt-row" aria-label="Bolts at this point">
           {bolts.map((bolt, i) => (
-            <span key={i} className={`shr-bolt-chip el-${bolt.element}${bolt.ward ? " ward" : ""}`} title={`${bolt.target}${bolt.pierce ? ", pierces" : ""}`}>
+            <span
+              key={i}
+              className={`shr-bolt-chip el-${bolt.element}${bolt.ward ? " ward" : ""}`}
+              title={`${bolt.target}${bolt.pierce ? ", pierces" : ""}`}
+            >
               {bolt.ward ? "⛨" : "◆"} {bolt.power}
               {bolt.mult !== 1 && <b className="shr-bolt-mult">×{bolt.mult}</b>}
             </span>
@@ -114,13 +134,19 @@ export function CodeView(props: {
       <ol className="shr-code-lines">
         {source.lines.map((line) => {
           const step = reached.get(line.number);
+          // A frame only knows which call returned; the work it was billed comes from the run's own step.
+          const billed = step?.step === undefined ? undefined : spellRun?.steps[step.step]?.work;
           const classes = [
             `kind-${line.kind}`,
             current?.line === line.number ? (errored ? "error" : "current") : "",
             activeShard !== undefined && line.shard === activeShard ? "active-fn" : "",
           ];
           return (
-            <li key={line.number} id={`shr-line-${spell.id}-${line.number}`} className={classes.filter(Boolean).join(" ")}>
+            <li
+              key={line.number}
+              id={`shr-line-${spell.id}-${line.number}`}
+              className={classes.filter(Boolean).join(" ")}
+            >
               <span className="shr-gutter">{line.number}</span>
               <code>{line.text || " "}</code>
               {step?.outcome && (
@@ -128,6 +154,9 @@ export function CodeView(props: {
                   → {step.outcome.bolts} {step.outcome.bolts === 1 ? "bolt" : "bolts"}
                   {step.outcome.damage > 0 && ` · ${step.outcome.damage} dmg`}
                   {step.outcome.block > 0 && ` · ${step.outcome.block} block`}
+                  {billed !== undefined && (
+                    <i className="shr-work" title="Work units this line was billed">{` · ${billed} work`}</i>
+                  )}
                 </span>
               )}
             </li>

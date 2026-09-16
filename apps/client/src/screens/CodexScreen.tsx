@@ -3,7 +3,7 @@ import type { CodexFoeView, CodexRelicView, CodexShardView, ShardrunCodexRespons
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.ts";
 import { assetUrl } from "../assets/AssetRegistry.ts";
-import { ElementTag, RelicCard, ShardCard, ShardIcon } from "../shardrun/parts.tsx";
+import { ElementTag, RelicCard, ShardCard, ShardIcon, WORK_CURVE_WORDS } from "../shardrun/parts.tsx";
 import { useShardrun } from "../state/shardrun.ts";
 import { useGame } from "../state/store.ts";
 
@@ -60,16 +60,27 @@ export function CodexScreen() {
   }, [run]);
 
   const needle = search.trim().toLowerCase();
-  const matches = (...fields: (string | undefined)[]) => needle === "" || fields.some((field) => field?.toLowerCase().includes(needle));
+  const matches = (...fields: (string | undefined)[]) =>
+    needle === "" || fields.some((field) => field?.toLowerCase().includes(needle));
   const shards = (codex?.shards ?? []).filter(
     (entry) =>
       (!mine || held?.shards.has(entry.shard.id) === true) &&
-      matches(entry.shard.name, entry.shard.summary, entry.shard.code, entry.shard.tags.join(" "), entry.shard.rarity),
+      matches(
+        entry.shard.name,
+        entry.shard.summary,
+        entry.shard.code,
+        entry.shard.tags.join(" "),
+        entry.shard.rarity,
+      ),
   );
   const relics = (codex?.relics ?? []).filter(
-    (entry) => (!mine || held?.relics.has(entry.relic.id) === true) && matches(entry.relic.name, entry.relic.summary, entry.relic.flavor, entry.relic.rarity),
+    (entry) =>
+      (!mine || held?.relics.has(entry.relic.id) === true) &&
+      matches(entry.relic.name, entry.relic.summary, entry.relic.flavor, entry.relic.rarity),
   );
-  const foes = (codex?.foes ?? []).filter((foe) => matches(foe.name, foe.flavor, foe.trait?.name, foe.layers.map((layer) => layer.name).join(" ")));
+  const foes = (codex?.foes ?? []).filter((foe) =>
+    matches(foe.name, foe.flavor, foe.trait?.name, foe.layers.map((layer) => layer.name).join(" ")),
+  );
 
   return (
     <div className="shr-screen codex-screen">
@@ -131,7 +142,14 @@ export function CodexScreen() {
           ))}
         </div>
         {held && (
-          <button type="button" className={mine ? "btn primary" : "btn"} aria-pressed={mine} onClick={() => { setMine((value) => !value); }}>
+          <button
+            type="button"
+            className={mine ? "btn primary" : "btn"}
+            aria-pressed={mine}
+            onClick={() => {
+              setMine((value) => !value);
+            }}
+          >
             Only what this run carries
           </button>
         )}
@@ -190,7 +208,9 @@ function CodexShard({ entry }: { entry: CodexShardView }) {
 function CodexRelic({ entry }: { entry: CodexRelicView }) {
   return (
     <RelicCard relic={entry.relic}>
-      <p className="meta">{entry.found.length > 0 ? `Found in ${entry.found.join(", ")}.` : "Not found in runs."}</p>
+      <p className="meta">
+        {entry.found.length > 0 ? `Found in ${entry.found.join(", ")}.` : "Not found in runs."}
+      </p>
     </RelicCard>
   );
 }
@@ -200,7 +220,11 @@ function CodexFoe({ foe }: { foe: CodexFoeView }) {
   return (
     <article className="shr-card codex-foe">
       <header>
-        {sprite !== undefined ? <img className="codex-foe-sprite" src={sprite} alt="" /> : <ShardIcon shardId={foe.id} size={48} />}
+        {sprite !== undefined ? (
+          <img className="codex-foe-sprite" src={sprite} alt="" />
+        ) : (
+          <ShardIcon shardId={foe.id} size={48} />
+        )}
         <div>
           <h3>{foe.name}</h3>
           <span className="meta">
@@ -235,11 +259,21 @@ function CodexFoe({ foe }: { foe: CodexFoeView }) {
 function CodexRules({ codex }: { codex: ShardrunCodexResponse }) {
   const { rules } = codex;
   const lines: [string, string][] = [
-    ["Mana each turn", `${rules.manaPerTurn}`],
+    [
+      "Mana each turn",
+      `${rules.manaPerTurn}, and ${rules.manaPerLayer} more for every layer below the first`,
+    ],
     ["Every spell starts from", `one ${rules.baseBoltPower}-power bolt`],
-    ["A cast costs", `${rules.spellBaseCost} mana, plus each shard's cost, plus 1 per ${rules.workPerMana} bolts its shards handle`],
-    ["Bolts that land", `the first ${rules.maxBolts}; the rest fizzle`],
-    ["Strongest a bolt can be", `${rules.maxBoltPower} power`],
+    [
+      "A cast costs",
+      `${rules.spellBaseCost} mana, plus one bill for its work: every shard is charged by its complexity for the bolts it handles, plus its own cost, at ${rules.workPerMana} units to the mana`,
+    ],
+    ["Work is billed as", `${WORK_CURVE_WORDS[rules.workCurve]} — a relic can buy a cheaper curve`],
+    [
+      "Bolts that land",
+      `the first ${rules.maxBolts}, plus ${rules.boltsPerLayer} per layer below, up to ${rules.maxBoltsEver}; the rest fizzle`,
+    ],
+    ["Strongest a bolt can be", `${rules.maxBoltPower} power, ×${rules.maxBoltMult}`],
     ["Hitting a weakness", `×${rules.weakMultiplier}`],
     ["Hitting a resistance", `×${rules.resistMultiplier}`],
     ["A bolt aimed at everyone", `×${rules.scatterMultiplier} each`],
@@ -251,7 +285,9 @@ function CodexRules({ codex }: { codex: ShardrunCodexResponse }) {
   return (
     <section className="shr-room codex-rules" aria-label="Rules">
       <h2 className="crt-title">The rules every run plays by</h2>
-      <p className="meta">Relics change these during a run; the run's own Stats panel shows what yours are now.</p>
+      <p className="meta">
+        Relics change these during a run; the run's own Stats panel shows what yours are now.
+      </p>
       <dl>
         {lines.map(([term, value]) => (
           <div key={term}>
@@ -264,7 +300,8 @@ function CodexRules({ codex }: { codex: ShardrunCodexResponse }) {
       <ul className="codex-layers">
         {codex.layers.map((layer) => (
           <li key={layer.id}>
-            <b>{layer.name}</b> — {layer.rows} rows, guarded by {layer.bosses.join(", ")}. <span className="shr-flavor">{layer.flavor}</span>
+            <b>{layer.name}</b> — {layer.rows} rows, guarded by {layer.bosses.join(", ")}.{" "}
+            <span className="shr-flavor">{layer.flavor}</span>
           </li>
         ))}
       </ul>

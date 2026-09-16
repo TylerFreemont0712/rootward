@@ -1,0 +1,46 @@
+id: crosslink
+name: Crosslink
+rarity: rare
+cost: 2
+complexity: quadratic
+function: crosslink
+summary: "Every bolt gains 1 to its multiplier for each other bolt of the same element. Compares every pair, and is billed for it."
+tags: [nested-loops, lists]
+code:
+  python: |
+    def crosslink(bolts, battle):
+        linked = []
+        for bolt in bolts:
+            kin = 0
+            for other in bolts:
+                if other is not bolt and other["element"] == bolt["element"]:
+                    kin += 1
+            linked.append({**bolt, "mult": bolt["mult"] + kin})
+        return linked
+  javascript: |
+    function crosslink(bolts, battle) {
+      return bolts.map((bolt, index) => {
+        let kin = 0;
+        for (let other = 0; other < bolts.length; other += 1) {
+          if (other !== index && bolts[other].element === bolt.element) kin += 1;
+        }
+        return { ...bolt, mult: bolt.mult + kin };
+      });
+    }
+examples:
+  - name: one bolt has no kin
+    bolts:
+      - { power: 6, element: fire, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 6, element: fire, target: front, pierce: false, ward: false, mult: 1 }
+  - name: three of a kind, and an outsider
+    bolts:
+      - { power: 4, element: fire, target: front, pierce: false, ward: false }
+      - { power: 4, element: fire, target: front, pierce: false, ward: false }
+      - { power: 4, element: fire, target: front, pierce: false, ward: false }
+      - { power: 4, element: frost, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 4, element: fire, target: front, pierce: false, ward: false, mult: 3 }
+      - { power: 4, element: fire, target: front, pierce: false, ward: false, mult: 3 }
+      - { power: 4, element: fire, target: front, pierce: false, ward: false, mult: 3 }
+      - { power: 4, element: frost, target: front, pierce: false, ward: false, mult: 1 }

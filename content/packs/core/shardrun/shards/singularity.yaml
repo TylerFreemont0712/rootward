@@ -1,0 +1,33 @@
+id: singularity
+name: Singularity
+rarity: rare
+cost: 2
+complexity: constant
+function: singularity
+summary: "Collapses the whole volley into one bolt: 4 power for every bolt it swallowed, and a multiplier to match. It never walks the volley, so it is billed almost nothing."
+tags: [len, lists]
+code:
+  python: |
+    def singularity(bolts, battle):
+        count = len(bolts)
+        if count == 0:
+            return bolts
+        return [{"power": 4 * count, "element": "none", "target": "strongest", "pierce": True, "ward": False, "mult": count}]
+  javascript: |
+    function singularity(bolts, battle) {
+      const count = bolts.length;
+      if (count === 0) return bolts;
+      return [{ power: 4 * count, element: "none", target: "strongest", pierce: true, ward: false, mult: count }];
+    }
+examples:
+  - name: nothing collapses into nothing
+    bolts: []
+    expect: []
+  - name: four bolts become one that pierces
+    bolts:
+      - { power: 2, element: fire, target: front, pierce: false, ward: false }
+      - { power: 9, element: frost, target: back, pierce: false, ward: false }
+      - { power: 1, element: none, target: front, pierce: false, ward: false }
+      - { power: 1, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 16, element: none, target: strongest, pierce: true, ward: false, mult: 4 }

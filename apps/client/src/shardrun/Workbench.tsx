@@ -2,7 +2,7 @@ import type { ShardrunView } from "@rootward/shared";
 import { type DragEvent, Fragment, useState } from "react";
 import { useShardrun } from "../state/shardrun.ts";
 import { arrangementOf, moveShard, type Place, samePlace, shardAt } from "./arrange.ts";
-import { ManaCost, ShardCard, ShardIcon } from "./parts.tsx";
+import { CostRules, ManaCost, ShardCard, ShardIcon } from "./parts.tsx";
 
 /**
  * The spellbook: each spell's slots, the spare shards, and the code of whichever shard is being looked at. Between
@@ -12,7 +12,9 @@ export function Workbench({ run, locked }: { run: ShardrunView; locked: boolean 
   const command = useShardrun((s) => s.command);
   const busy = useShardrun((s) => s.busy);
   const [selected, setSelected] = useState<Place | undefined>();
-  const [inspected, setInspected] = useState<string | undefined>(run.spells[0]?.shards[0] ?? run.inventory[0]);
+  const [inspected, setInspected] = useState<string | undefined>(
+    run.spells[0]?.shards[0] ?? run.inventory[0],
+  );
   const arrangement = arrangementOf(run);
   const frozen = locked || busy;
   const inspectedShard = inspected === undefined ? undefined : run.shards[inspected];
@@ -79,7 +81,7 @@ export function Workbench({ run, locked }: { run: ShardrunView; locked: boolean 
       >
         <ShardIcon shardId={shardId} size={24} />
         <span>{shard?.name ?? shardId}</span>
-        <ManaCost cost={shard?.cost ?? 0} />
+        <ManaCost cost={shard?.cost ?? 0} of="shard" />
       </button>
     );
   };
@@ -96,18 +98,23 @@ export function Workbench({ run, locked }: { run: ShardrunView; locked: boolean 
       </p>
 
       {run.spells.map((spell) => {
-        const base = run.rules.spellBaseCost + spell.shards.reduce((sum, shardId) => sum + (run.shards[shardId]?.cost ?? 0), 0);
+        // A cast's cost is one bill on a curve now (ADR-0015), so it cannot be added up from the slots: the only
+        // honest number is the measured preview, when there is one.
         const end: Place = { kind: "spell", spellId: spell.id, index: spell.shards.length };
         return (
           <div className="shr-spellrow" key={spell.id}>
             <div className="shr-spellname">
               <b>{spell.name}</b>
               <span className="meta">
-                {spell.shards.length}/{spell.capacity} slots · from {base} mana
+                {spell.shards.length}/{spell.capacity} slots
+                {spell.preview && ` · ${spell.preview.cost} mana`}
               </span>
             </div>
             <div className="shr-slots">
-              <span className="shr-source" title={`Every spell starts from one ${run.rules.baseBoltPower}-power bolt`}>
+              <span
+                className="shr-source"
+                title={`Every spell starts from one ${run.rules.baseBoltPower}-power bolt`}
+              >
                 bolt
               </span>
               {Array.from({ length: spell.capacity }, (_, index) => {
@@ -142,7 +149,9 @@ export function Workbench({ run, locked }: { run: ShardrunView; locked: boolean 
 
       <div className="shr-inventory" {...dropTarget({ kind: "inventory", index: run.inventory.length })}>
         <h3>Spare shards</h3>
-        {run.inventory.length === 0 && <span className="meta">Nothing spare. Win fights to salvage more.</span>}
+        {run.inventory.length === 0 && (
+          <span className="meta">Nothing spare. Win fights to salvage more.</span>
+        )}
         {run.inventory.map((shardId, index) => (
           <Fragment key={`${shardId}-${index}`}>{chip(shardId, { kind: "inventory", index })}</Fragment>
         ))}
@@ -161,8 +170,7 @@ export function Workbench({ run, locked }: { run: ShardrunView; locked: boolean 
 
       {inspectedShard && <ShardCard shard={inspectedShard} showCode />}
       <p className="meta shr-rules">
-        A cast costs {run.rules.spellBaseCost} mana, plus each shard&apos;s cost, plus 1 for every {run.rules.workPerMana} bolts its
-        shards handle. Past {run.rules.maxBolts} bolts, the rest fizzle.
+        <CostRules rules={run.rules} />
       </p>
     </section>
   );

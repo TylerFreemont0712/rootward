@@ -2,7 +2,14 @@ import type { ShardView, SpellRunView } from "@rootward/shared";
 import { describe, expect, it } from "vitest";
 import { composeSpell, playbackFrames } from "../src/shardrun/source.ts";
 
-const bolt = (power: number) => ({ power, element: "none" as const, target: "front" as const, pierce: false, ward: false, mult: 1 });
+const bolt = (power: number) => ({
+  power,
+  element: "none" as const,
+  target: "front" as const,
+  pierce: false,
+  ward: false,
+  mult: 1,
+});
 
 const SHARDS: Record<string, ShardView> = {
   amplify: {
@@ -10,6 +17,7 @@ const SHARDS: Record<string, ShardView> = {
     name: "Amplify",
     rarity: "common",
     cost: 1,
+    complexity: "linear",
     function: "amplify",
     code: 'def amplify(bolts, battle):\n    return [{**bolt, "power": bolt["power"] + 3} for bolt in bolts]\n',
     tags: [],
@@ -19,6 +27,7 @@ const SHARDS: Record<string, ShardView> = {
     name: "Fork",
     rarity: "common",
     cost: 1,
+    complexity: "linear",
     function: "fork",
     code: "def fork(bolts, battle):\n    split = []\n    for bolt in bolts:\n        split.append(bolt)\n    return split\n",
     tags: [],
@@ -31,8 +40,22 @@ function run(extra: Partial<SpellRunView> = {}): SpellRunView {
     affordable: true,
     base: { bolts: [bolt(4)], outcome: { bolts: 1, damage: 4, block: 0 } },
     steps: [
-      { shard: "amplify", given: 1, returned: 1, bolts: [bolt(7)], outcome: { bolts: 1, damage: 7, block: 0 } },
-      { shard: "fork", given: 1, returned: 1, bolts: [bolt(7)], outcome: { bolts: 1, damage: 7, block: 0 } },
+      {
+        shard: "amplify",
+        given: 1,
+        returned: 1,
+        work: 1,
+        bolts: [bolt(7)],
+        outcome: { bolts: 1, damage: 7, block: 0 },
+      },
+      {
+        shard: "fork",
+        given: 1,
+        returned: 1,
+        work: 1,
+        bolts: [bolt(7)],
+        outcome: { bolts: 1, damage: 7, block: 0 },
+      },
     ],
     result: { bolts: 1, damage: 7, block: 0 },
     console: "",
@@ -56,7 +79,11 @@ describe("the whole spell as code", () => {
       "bolts = amplify(bolts, battle)",
     ]);
     expect(source.functions.get("fork")?.body).toHaveLength(4);
-    expect(composeSpell("javascript", "Big Bolt", ["amplify"], SHARDS, 4).lines.some((line) => line.text === "function castBigBolt(battle) {")).toBe(true);
+    expect(
+      composeSpell("javascript", "Big Bolt", ["amplify"], SHARDS, 4).lines.some(
+        (line) => line.text === "function castBigBolt(battle) {",
+      ),
+    ).toBe(true);
   });
 
   it("plays values only where they were measured: the base, after each shard, and the result", () => {
@@ -65,12 +92,17 @@ describe("the whole spell as code", () => {
     const measured = frames.filter((frame) => frame.outcome);
     expect(measured.map((frame) => frame.mark)).toEqual(["start", "step", "step", "result"]);
     expect(measured.map((frame) => frame.outcome?.damage)).toEqual([4, 7, 7, 7]);
-    expect(frames.map((frame) => frame.at)).toEqual([...frames.map((frame) => frame.at)].sort((a, b) => a - b));
+    expect(frames.map((frame) => frame.at)).toEqual(
+      [...frames.map((frame) => frame.at)].sort((a, b) => a - b),
+    );
   });
 
   it("stops on the failing line of the shard that raised", () => {
     const source = composeSpell("python", "Bolt", ["amplify", "fork"], SHARDS, 4);
-    const failed = run({ steps: run().steps.slice(0, 1), misfire: { reason: "TypeError", shard: "fork", line: 3 } });
+    const failed = run({
+      steps: run().steps.slice(0, 1),
+      misfire: { reason: "TypeError", shard: "fork", line: 3 },
+    });
     delete failed.result;
     const frames = playbackFrames(source, failed, "fast");
     const last = frames.at(-1);

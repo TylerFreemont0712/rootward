@@ -409,3 +409,11 @@
 
 /* The second damage axis (ADR-0014): shown on a bolt chip only when a shard actually moved it. */
 .shr-bolt-mult { margin-left: 3px; font-weight: 500; color: #ffd166; }
+
+/* Complexity pricing (ADR-0015): what a shard is billed per bolt it handles, and what a line of a cast cost. */
+.shr-complexity { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.shr-complexity.cx-constant { color: #6ddf9a; }
+.shr-complexity.cx-linear { color: var(--muted); }
+.shr-complexity.cx-linearithmic { color: #ffd166; }
+.shr-complexity.cx-quadratic { color: #ff8f6b; }
+.shr-work { font-style: normal; color: var(--muted); }

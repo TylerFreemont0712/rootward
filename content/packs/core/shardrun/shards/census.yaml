@@ -1,0 +1,33 @@
+id: census
+name: Census
+rarity: uncommon
+cost: 1
+complexity: linearithmic
+function: census
+summary: "Sorts the volley weakest first, then adds each bolt's place in the line to its power. Sorting costs more than a walk."
+tags: [sorting, enumerate]
+code:
+  python: |
+    def census(bolts, battle):
+        ordered = sorted(bolts, key=lambda bolt: bolt["power"])
+        return [{**bolt, "power": bolt["power"] + place} for place, bolt in enumerate(ordered)]
+  javascript: |
+    function census(bolts, battle) {
+      const ordered = [...bolts].sort((a, b) => a.power - b.power);
+      return ordered.map((bolt, place) => ({ ...bolt, power: bolt.power + place }));
+    }
+examples:
+  - name: the only bolt is first in line, and first gains nothing
+    bolts:
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+  - name: weakest first, and the line pays by place
+    bolts:
+      - { power: 5, element: none, target: front, pierce: false, ward: false }
+      - { power: 1, element: frost, target: back, pierce: false, ward: false }
+      - { power: 3, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 1, element: frost, target: back, pierce: false, ward: false }
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+      - { power: 7, element: none, target: front, pierce: false, ward: false }

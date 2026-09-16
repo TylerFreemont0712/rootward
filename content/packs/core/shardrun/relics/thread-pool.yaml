@@ -1,0 +1,8 @@
+id: thread-pool
+name: Thread Pool
+rarity: uncommon
+icon: thread-pool
+summary: "Gain 2 more mana every turn."
+flavor: "Workers that were never joined, still waiting to be given something to do."
+effects:
+  - { kind: mana-per-turn, add: 2 }

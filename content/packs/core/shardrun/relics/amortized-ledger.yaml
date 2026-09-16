@@ -1,0 +1,8 @@
+id: amortized-ledger
+name: Amortized Ledger
+rarity: rare
+icon: amortized-ledger
+summary: "A cast is billed the logarithm of the work it did, instead of its square root. Wide and quadratic spells become payable."
+flavor: "Someone kept the books for the whole Machine, and rounded every page down."
+effects:
+  - { kind: work-billing, curve: log }

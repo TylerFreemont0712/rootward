@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Semver } from "./primitives.ts";
+import { WorkCurve } from "./shardrun.ts";
 
 const PositiveInt = z.int().positive();
 const NonNegativeInt = z.int().min(0);
@@ -21,7 +22,11 @@ export const Balance = z.strictObject({
     cycles_start: NonNegativeInt,
   }),
   encounter: z.strictObject({
-    test_weights: z.strictObject({ visible: NonNegativeInt, hidden: NonNegativeInt, adversary: NonNegativeInt }),
+    test_weights: z.strictObject({
+      visible: NonNegativeInt,
+      hidden: NonNegativeInt,
+      adversary: NonNegativeInt,
+    }),
     regression_heals_enemy: z.boolean(),
     suggest_retreat_after_failed_casts: PositiveInt,
     hint_costs_cycles: z.tuple([NonNegativeInt, NonNegativeInt, NonNegativeInt, NonNegativeInt]),
@@ -90,14 +95,19 @@ export const Balance = z.strictObject({
   /** Shardrun, the roguelite mode (ADR-0012). */
   shardrun: z.strictObject({
     integrity_start: PositiveInt,
-    mana_per_turn: PositiveInt,
+    /** Mana a turn gives: the base, plus `per_layer` for every layer descended (ADR-0015). Income grows with the bill. */
+    mana_per_turn: z.strictObject({ base: PositiveInt, per_layer: NonNegativeInt }),
     /** Every cast pays this before its shards' own costs. */
     spell_base_cost: NonNegativeInt,
-    /** One extra mana per this many bolts handed to shards over the whole pipeline. */
-    work_per_mana: PositiveInt,
+    /**
+     * How the work a pipeline did is billed in mana (ADR-0015). Work units come from each shard's complexity class and
+     * the bolts it was handed; `per_mana` is the units one mana buys on the linear curve, and the curve decides how
+     * that bill grows. A sublinear curve is what makes a wide build payable at all.
+     */
+    work_billing: z.strictObject({ curve: WorkCurve, per_mana: PositiveInt, log_base: z.number().min(1.1) }),
     base_bolt_power: PositiveInt,
-    /** Bolts past this many, after the last shard, fizzle. */
-    max_bolts: PositiveInt,
+    /** Bolts that land after the last shard: the base, plus `per_layer` for each layer descended, never past `max`. */
+    bolt_cap: z.strictObject({ base: PositiveInt, per_layer: NonNegativeInt, max: PositiveInt }),
     /** Inside the pipeline, a shard's output is cut to this many before the next shard sees it. */
     max_pipeline_bolts: PositiveInt,
     max_bolt_power: PositiveInt,

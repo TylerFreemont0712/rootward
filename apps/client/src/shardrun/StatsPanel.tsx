@@ -1,4 +1,5 @@
 import type { ShardrunView } from "@rootward/shared";
+import { CostRules } from "./parts.tsx";
 
 // The Stats panel: the rules this run plays by (and what its relics changed), plus what the run has done so far.
 // Everything here is the server's own numbers; nothing is recomputed in the client.
@@ -27,9 +28,9 @@ export function StatsPanel({ run }: { run: ShardrunView }) {
           ))}
         </dl>
         <p className="meta">
-          A cast costs {rules.spellBaseCost} mana, plus each shard&apos;s cost, plus 1 for every {rules.workPerMana} bolts its shards handle.
-          The first {rules.maxBolts} bolts land and the rest fizzle; a bolt caps at {rules.maxBoltPower} power. Resting restores{" "}
-          {Math.round(rules.restHealFraction * 100)}% of your Integrity, and reaching a layer {Math.round(rules.layerHealFraction * 100)}%.
+          <CostRules rules={rules} /> A bolt caps at {rules.maxBoltPower} power and ×{rules.maxBoltMult}.
+          Resting restores {Math.round(rules.restHealFraction * 100)}% of your Integrity, and reaching a layer{" "}
+          {Math.round(rules.layerHealFraction * 100)}%.
         </p>
       </section>
 

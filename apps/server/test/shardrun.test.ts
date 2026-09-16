@@ -44,7 +44,10 @@ function withJavascript(shardId: string, source: string): GameContent {
   const shard = content.index.shards.get(shardId);
   if (!shard) throw new Error(`no shard ${shardId}`);
   const shards = new Map(content.index.shards);
-  shards.set(shardId, { ...shard, value: { ...shard.value, code: { ...shard.value.code, javascript: source } } });
+  shards.set(shardId, {
+    ...shard,
+    value: { ...shard.value, code: { ...shard.value.code, javascript: source } },
+  });
   return { ...content, index: { ...content.index, shards } };
 }
 
@@ -54,7 +57,11 @@ function openRoom(run: ShardrunView) {
   return node;
 }
 
-async function firstFight(service: ShardrunService, id: string, difficulty = "beginner"): Promise<ShardrunView> {
+async function firstFight(
+  service: ShardrunService,
+  id: string,
+  difficulty = "beginner",
+): Promise<ShardrunView> {
   const run = await service.start(id, "javascript", difficulty);
   return service.command(id, { type: "enter", nodeId: openRoom(run).id });
 }
@@ -110,7 +117,9 @@ describe("ShardrunService", () => {
     expect(cast.replay).toMatchObject({ spellId: "spell-1", run: { steps: [{ shard: "amplify" }] } });
     expect(cast.battle?.mana).toBe((before?.battle?.mana ?? 0) - (spells["spell-1"]?.cost ?? 0));
     expect(before && totalHp(before) - totalHp(cast)).toBe(spells["spell-1"]?.result?.damage);
-    await expect(service.command(id, { type: "cast", spellId: "spell-1" })).rejects.toThrow("spent until your next turn");
+    await expect(service.command(id, { type: "cast", spellId: "spell-1" })).rejects.toThrow(
+      "spent until your next turn",
+    );
     await expect(service.start(id, "javascript", "beginner")).rejects.toThrow("already underway");
     expect((await service.command(id, { type: "abandon" })).status).toBe("abandoned");
   });
@@ -118,7 +127,11 @@ describe("ShardrunService", () => {
   it("on Programmer, shows only code: no summaries and no predictions until a cast", SLOW, async () => {
     const { service, id } = await character();
     const fight = await firstFight(service, id, "programmer");
-    expect(fight.difficulty).toMatchObject({ id: "programmer", showSummaries: false, showPredictions: false });
+    expect(fight.difficulty).toMatchObject({
+      id: "programmer",
+      showSummaries: false,
+      showPredictions: false,
+    });
     expect(fight.shards.amplify?.summary).toBeUndefined();
     expect(fight.shards.amplify?.code).toContain("function amplify");
     const { spells } = await service.previews(id);
@@ -128,20 +141,26 @@ describe("ShardrunService", () => {
     expect(cast.replay?.run.result?.bolts).toBe(1);
   });
 
-  it("names the shard and line of a spell whose code throws, and fizzles it for the base cost", SLOW, async () => {
-    const source = "function amplify(bolts, battle) {\n  const extra = 3;\n  throw new Error(\"boom\");\n}";
-    const { service, id } = await character(withJavascript("amplify", source));
-    const fight = await firstFight(service, id);
-    const { spells } = await service.previews(id);
-    expect(spells["spell-1"]?.misfire).toMatchObject({ shard: "amplify" });
-    expect(spells["spell-1"]?.misfire?.reason).toContain("boom");
-    const cast = await service.command(id, { type: "cast", spellId: "spell-1" });
-    expect(cast.log[0]?.kind).toBe("fizzle");
-    expect(cast.battle?.mana).toBe((fight.battle?.manaMax ?? 0) - content.balance.shardrun.spell_base_cost);
-  });
+  it(
+    "names the shard and line of a spell whose code throws, and fizzles it for the base cost",
+    SLOW,
+    async () => {
+      const source = 'function amplify(bolts, battle) {\n  const extra = 3;\n  throw new Error("boom");\n}';
+      const { service, id } = await character(withJavascript("amplify", source));
+      const fight = await firstFight(service, id);
+      const { spells } = await service.previews(id);
+      expect(spells["spell-1"]?.misfire).toMatchObject({ shard: "amplify" });
+      expect(spells["spell-1"]?.misfire?.reason).toContain("boom");
+      const cast = await service.command(id, { type: "cast", spellId: "spell-1" });
+      expect(cast.log[0]?.kind).toBe("fizzle");
+      expect(cast.battle?.mana).toBe((fight.battle?.manaMax ?? 0) - content.balance.shardrun.spell_base_cost);
+    },
+  );
 
   it("contains a shard that never returns without losing the other spells' previews", SLOW, async () => {
-    const { service, id } = await character(withJavascript("fork", "function fork(bolts, battle) { while (true) {} }"));
+    const { service, id } = await character(
+      withJavascript("fork", "function fork(bolts, battle) { while (true) {} }"),
+    );
     await firstFight(service, id);
     const { spells } = await service.previews(id);
     expect(spells["spell-3"]?.misfire?.reason).toContain("ran out of time");
@@ -152,7 +171,12 @@ describe("ShardrunService", () => {
   it("carries the rules a run plays by, and what its relics changed", SLOW, async () => {
     const { service, id } = await character();
     const fight = await firstFight(service, id);
-    expect(fight.rules).toMatchObject({ manaPerTurn: 6, baseBoltPower: 4, maxBolts: 16, weakMultiplier: 1.5 });
+    expect(fight.rules).toMatchObject({
+      manaPerTurn: 6,
+      baseBoltPower: 4,
+      maxBolts: 16,
+      weakMultiplier: 1.5,
+    });
     const mana = fight.modifiers.find((modifier) => modifier.label === "Mana each turn");
     expect(mana).toEqual({ label: "Mana each turn", base: "6", now: "6", from: [] });
     const cast = await service.command(id, { type: "cast", spellId: "spell-1" });
@@ -195,15 +219,21 @@ describe("ShardrunService", () => {
     const plain = await character();
     expect(plain.service.devEnabled()).toBe(false);
     // Without ROOTWARD_DEV there is no way in at all: not a sandbox run, and not a single dev command.
-    await expect(plain.service.start(plain.id, "javascript", "beginner", true)).rejects.toThrow("ROOTWARD_DEV=1");
+    await expect(plain.service.start(plain.id, "javascript", "beginner", true)).rejects.toThrow(
+      "ROOTWARD_DEV=1",
+    );
     expect((await plain.service.start(plain.id, "javascript", "beginner")).sandbox).toBe(false);
-    await expect(plain.service.dev(plain.id, { type: "grant-relic", relicId: "debugger-duck" })).rejects.toThrow("ROOTWARD_DEV=1");
+    await expect(
+      plain.service.dev(plain.id, { type: "grant-relic", relicId: "debugger-duck" }),
+    ).rejects.toThrow("ROOTWARD_DEV=1");
 
     // With the flag, an ordinary run is still an ordinary run.
     const devd = await character(content, true);
     expect(devd.service.devEnabled()).toBe(true);
     expect((await devd.service.start(devd.id, "javascript", "beginner")).sandbox).toBe(false);
-    await expect(devd.service.dev(devd.id, { type: "grant-relic", relicId: "debugger-duck" })).rejects.toThrow("sandbox run");
+    await expect(
+      devd.service.dev(devd.id, { type: "grant-relic", relicId: "debugger-duck" }),
+    ).rejects.toThrow("sandbox run");
     await devd.service.command(devd.id, { type: "abandon" });
 
     const box = await devd.service.start(devd.id, "javascript", "beginner", true);
@@ -217,17 +247,101 @@ describe("ShardrunService", () => {
     expect((await devd.service.previews(devd.id)).spells["spell-1"]?.cost).toBeGreaterThan(0);
   });
 
+  it(
+    "bills a wide quadratic build on a curve, and a ledger relic makes it payable (ADR-0015)",
+    SLOW,
+    async () => {
+      // The whole point of ADR-0015, measured through the real service and the real sandbox: eight slots of found code
+      // that hands 128 bolts to a shard comparing every pair, priced first amortized and then logarithmically.
+      const devd = await character(content, true);
+      await devd.service.start(devd.id, "javascript", "beginner", true);
+      const granted = await devd.service.dev(devd.id, { type: "grant-spell", name: "Cascade", capacity: 8 });
+      const spellId = granted.spells.at(-1)?.id ?? "";
+      const build = ["echo", "echo", "echo", "echo", "echo", "echo", "echo", "crosslink"];
+      let held = granted;
+      for (const shardId of build) {
+        held = await devd.service.dev(devd.id, { type: "grant-shard", shardId });
+      }
+      // Arranging is all-or-nothing and conserves shards: every spell is listed, and the rest stay in the inventory.
+      const spare = [...held.inventory];
+      for (const shardId of build) spare.splice(spare.indexOf(shardId), 1);
+      await devd.service.command(devd.id, {
+        type: "arrange",
+        spells: held.spells.map((spell) => ({
+          id: spell.id,
+          shards: spell.id === spellId ? build : spell.shards,
+        })),
+        inventory: spare,
+      });
+      const spawned = await devd.service.dev(devd.id, { type: "spawn", kind: "boss", foes: ["root-daemon"] });
+      const bossHp = totalHp(spawned);
+
+      const { spells } = await devd.service.previews(devd.id);
+      const wide = spells[spellId];
+      // Seven doublings hand 1 + 2 + ... + 64 bolts to Echo, and 128 to Crosslink, which pays the square of them.
+      const work = (wide?.steps ?? []).reduce((sum, step) => sum + step.work, 0);
+      expect(work).toBe(127 + 128 * 128);
+      // The bill is that work plus the 16 mana of shard cost priced as work (8 units each), amortized: √(16 639/8) = 45.
+      expect(wide?.cost).toBe(1 + 45);
+
+      await devd.service.dev(devd.id, { type: "grant-relic", relicId: "amortized-ledger" });
+      const billed = (await devd.service.previews(devd.id)).spells[spellId];
+      // The same measured pipeline, now billed log2(16 639/8 + 1) = 11. Nothing about the bolts changed.
+      expect(billed?.cost).toBe(1 + 11);
+      expect(billed?.result?.bolts).toBe(wide?.result?.bolts);
+
+      // And it can actually be cast, which is what all of this was for.
+      const funded = await devd.service.dev(devd.id, { type: "set", mana: 30 });
+      expect(funded.battle?.mana).toBe(30);
+      const cast = await devd.service.command(devd.id, { type: "cast", spellId });
+      expect(cast.stats.damage).toBe(billed?.result?.damage);
+      // Only the first 16 bolts land on the opening layer; the other 112 fizzle.
+      expect(cast.stats.bolts).toBe(16);
+      expect(cast.stats.fizzled).toBe(112);
+      // One cast of found code kills the last layer's guardian outright: damage dealt is capped only by its HP.
+      expect(cast.stats.damage).toBe(bossHp);
+      expect(cast.battle).toBeUndefined();
+    },
+  );
+
+  it("makes the build ADR-0014 could not afford castable on the first layer", SLOW, async () => {
+    // ADR-0014 measured `echo x4 -> amplify-plus x2 -> charge -> resonate` at 23 mana against an income of 6: it
+    // compounded and could not be cast. The same eight shards, under one bill on a curve, are the check on ADR-0015.
+    const devd = await character(content, true);
+    await devd.service.start(devd.id, "javascript", "beginner", true);
+    const granted = await devd.service.dev(devd.id, { type: "grant-spell", name: "Cascade", capacity: 8 });
+    const spellId = granted.spells.at(-1)?.id ?? "";
+    const build = ["echo", "echo", "echo", "echo", "amplify-plus", "amplify-plus", "charge", "resonate"];
+    let held = granted;
+    for (const shardId of build) {
+      held = await devd.service.dev(devd.id, { type: "grant-shard", shardId });
+    }
+    const spare = [...held.inventory];
+    for (const shardId of build) spare.splice(spare.indexOf(shardId), 1);
+    await devd.service.command(devd.id, {
+      type: "arrange",
+      spells: held.spells.map((spell) => ({
+        id: spell.id,
+        shards: spell.id === spellId ? build : spell.shards,
+      })),
+      inventory: spare,
+    });
+    const fight = await devd.service.dev(devd.id, { type: "spawn", kind: "fight", foes: ["tally-wisp"] });
+
+    const wide = (await devd.service.previews(devd.id)).spells[spellId];
+    // 79 units of complexity plus 13 mana of shard cost at 8 units each: 183, amortized to 4, plus the base.
+    expect((wide?.steps ?? []).reduce((sum, step) => sum + step.work, 0)).toBe(79);
+    expect(wide?.cost).toBe(5);
+    expect(wide?.cost).toBeLessThanOrEqual(fight.battle?.mana ?? 0);
+    expect(wide?.affordable).toBe(true);
+  });
+
   it("closes a run saved under older rules instead of failing on it", async () => {
     const { db, service, id } = await character();
     const now = new Date().toISOString();
-    db.prepare("INSERT INTO shardrun_runs (id, profile_id, status, state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run(
-      "old-run",
-      id,
-      "map",
-      JSON.stringify({ version: 1, status: "map" }),
-      now,
-      now,
-    );
+    db.prepare(
+      "INSERT INTO shardrun_runs (id, profile_id, status, state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+    ).run("old-run", id, "map", JSON.stringify({ version: 1, status: "map" }), now, now);
     expect(await service.latest(id)).toBeNull();
     expect((await service.start(id, "javascript", "beginner")).status).toBe("map");
   });

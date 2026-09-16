@@ -41,6 +41,8 @@ layers:
     fixed_rows: { "0": fight, "4": treasure, "-1": rest }
     weights: { fight: 52, elite: 14, rest: 12, forge: 12, treasure: 0 }
     elite_from_row: 3
+    # Foe HP compounds per layer (ADR-0015): standing still is losing, so the build has to compound too.
+    foe_hp: 1.0
     encounters:
       fight:
         - [tally-wisp]
@@ -64,6 +66,7 @@ layers:
     fixed_rows: { "0": fight, "4": treasure, "-1": rest }
     weights: { fight: 50, elite: 16, rest: 12, forge: 12, treasure: 0 }
     elite_from_row: 2
+    foe_hp: 2.6
     encounters:
       fight:
         - [memory-leak-ooze]
@@ -87,6 +90,7 @@ layers:
     fixed_rows: { "0": fight, "4": treasure, "-1": rest }
     weights: { fight: 48, elite: 18, rest: 12, forge: 12, treasure: 0 }
     elite_from_row: 2
+    foe_hp: 6.8
     encounters:
       fight:
         - [stack-overflow-serpent]

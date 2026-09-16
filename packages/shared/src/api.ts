@@ -4,7 +4,14 @@ import { z } from "zod";
 // (which also strips anything the schema does not list), the client when a response arrives. This file must stay
 // browser-safe: zod only, no Node imports.
 
-export const RUN_STATUSES = ["ok", "compile-error", "runtime-error", "timeout", "oom", "sandbox-error"] as const;
+export const RUN_STATUSES = [
+  "ok",
+  "compile-error",
+  "runtime-error",
+  "timeout",
+  "oom",
+  "sandbox-error",
+] as const;
 export const RunStatus = z.enum(RUN_STATUSES);
 export type RunStatus = z.infer<typeof RunStatus>;
 
@@ -13,7 +20,10 @@ const MAX_FILES = 20;
 
 /** Files the player submits: relative path -> contents. */
 export const FileMap = z
-  .record(z.string().regex(/^(?!\/)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[A-Za-z0-9_\-./]+$/), z.string().max(MAX_FILE_BYTES))
+  .record(
+    z.string().regex(/^(?!\/)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[A-Za-z0-9_\-./]+$/),
+    z.string().max(MAX_FILE_BYTES),
+  )
   .refine((files) => Object.keys(files).length <= MAX_FILES, { error: `at most ${MAX_FILES} files` });
 export type FileMap = z.infer<typeof FileMap>;
 
@@ -142,7 +152,9 @@ export const EncounterView = z.strictObject({
   tests: z.array(TestView),
   hints: z.strictObject({
     total: z.number(),
-    taken: z.array(z.strictObject({ level: z.number(), name: z.string(), text: z.string(), cost: z.number() })),
+    taken: z.array(
+      z.strictObject({ level: z.number(), name: z.string(), text: z.string(), cost: z.number() }),
+    ),
     nextCost: z.number().optional(),
   }),
   casts: z.number(),
@@ -155,7 +167,9 @@ export const EncounterView = z.strictObject({
       wallMs: z.number(),
     })
     .optional(),
-  rewards: z.strictObject({ bonuses: z.array(z.string()), commits: z.number(), cycles: z.number() }).optional(),
+  rewards: z
+    .strictObject({ bonuses: z.array(z.string()), commits: z.number(), cycles: z.number() })
+    .optional(),
   /** Present after a Retreat or when Focus ran out: the reference solution and its explanation. */
   retreat: z.strictObject({ solutionFiles: FileMap, explanation: z.string().optional() }).optional(),
   /** This fight's log; every room starts a fresh one. */
@@ -346,13 +360,20 @@ export type ErrorResponse = z.infer<typeof ErrorResponse>;
 export const HealthResponse = z.strictObject({
   ok: z.literal(true),
   engineVersion: z.string(),
-  runners: z.array(z.strictObject({ id: z.string(), languages: z.array(z.string()), available: z.boolean() })),
+  runners: z.array(
+    z.strictObject({ id: z.string(), languages: z.array(z.string()), available: z.boolean() }),
+  ),
 });
 export type HealthResponse = z.infer<typeof HealthResponse>;
 
 // ---- Characters ("profiles"), ADR-0010 ----
 
-export const ProfileView = z.strictObject({ id: z.string(), name: z.string(), classId: z.string(), createdAt: z.string() });
+export const ProfileView = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+  classId: z.string(),
+  createdAt: z.string(),
+});
 export type ProfileView = z.infer<typeof ProfileView>;
 
 /** What a character has done so far, for the title screen. */
@@ -476,7 +497,10 @@ export const ZoneView = z.strictObject({
   height: z.int(),
   /** One string per row of legend characters. */
   tiles: z.array(z.string()),
-  legend: z.record(z.string(), z.strictObject({ terrain: z.string(), color: z.string(), walkable: z.boolean() })),
+  legend: z.record(
+    z.string(),
+    z.strictObject({ terrain: z.string(), color: z.string(), walkable: z.boolean() }),
+  ),
   /** Where movement is possible right now, as rows of dungeon tile codes ("." walkable, "#" blocked), so the client's
    * pathfinding is the same `findPath` an expedition uses. */
   collision: z.array(z.string()),
@@ -564,7 +588,11 @@ export type TravelRequest = z.infer<typeof TravelRequest>;
 export const TalkRequest = z.strictObject({ npcId: z.string().min(1) });
 export type TalkRequest = z.infer<typeof TalkRequest>;
 
-export const ChooseRequest = z.strictObject({ npcId: z.string().min(1), nodeId: z.string().min(1), choice: z.int().min(0) });
+export const ChooseRequest = z.strictObject({
+  npcId: z.string().min(1),
+  nodeId: z.string().min(1),
+  choice: z.int().min(0),
+});
 export type ChooseRequest = z.infer<typeof ChooseRequest>;
 
 export const InspectRequest = z.strictObject({ featureId: z.string().min(1) });
@@ -595,6 +623,8 @@ export const ShardView = z.strictObject({
   rarity: z.enum(["common", "uncommon", "rare"]),
   /** Mana added to every cast of a spell holding it. */
   cost: z.int(),
+  /** How its mana bill grows with the bolts it handles (ADR-0015). */
+  complexity: z.enum(["constant", "linear", "linearithmic", "quadratic"]),
   /** Plain words for what the code does; absent on difficulties that show only the code. */
   summary: z.string().optional(),
   /** The function's name and source in the run's language. */
@@ -603,7 +633,9 @@ export const ShardView = z.strictObject({
   tags: z.array(z.string()),
   /** Integrity burned by each cast. */
   curse: z.int().optional(),
-  forge: z.strictObject({ into: z.string(), intoName: z.string(), verb: z.enum(["upgrade", "repair"]) }).optional(),
+  forge: z
+    .strictObject({ into: z.string(), intoName: z.string(), verb: z.enum(["upgrade", "repair"]) })
+    .optional(),
 });
 export type ShardView = z.infer<typeof ShardView>;
 
@@ -637,6 +669,8 @@ export const SpellStepView = z.strictObject({
   shard: z.string(),
   given: z.int(),
   returned: z.int(),
+  /** Work units this step was billed, from its shard's complexity class and the bolts it was handed (ADR-0015). */
+  work: z.int(),
   /** The bolts this shard passed on (up to the trace cap). */
   bolts: z.array(BoltView),
   outcome: BoltOutcomeView.optional(),
@@ -653,7 +687,9 @@ export const SpellRunView = z.strictObject({
   steps: z.array(SpellStepView),
   result: BoltOutcomeView.optional(),
   /** Why the spell would fizzle, and where, when its code fails. */
-  misfire: z.strictObject({ reason: z.string(), shard: z.string().optional(), line: z.int().optional() }).optional(),
+  misfire: z
+    .strictObject({ reason: z.string(), shard: z.string().optional(), line: z.int().optional() })
+    .optional(),
   /** Anything the shards printed. */
   console: z.string(),
 });
@@ -700,17 +736,29 @@ export const ShardrunLogView = z.strictObject({
 });
 export type ShardrunLogView = z.infer<typeof ShardrunLogView>;
 
-export const ShardrunDifficultyView = z.strictObject({ id: z.string(), name: z.string(), summary: z.string() });
+export const ShardrunDifficultyView = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+  summary: z.string(),
+});
 export type ShardrunDifficultyView = z.infer<typeof ShardrunDifficultyView>;
 
 /** The numbers every run plays by, before relics change them. */
 export const ShardrunRulesView = z.strictObject({
+  /** Mana the first layer gives each turn, and what every layer below adds (ADR-0015). */
   manaPerTurn: z.int(),
+  manaPerLayer: z.int(),
   baseBoltPower: z.int(),
   spellBaseCost: z.int(),
+  /** Work units one mana buys on the linear curve, and the curve every run starts on (ADR-0015). */
   workPerMana: z.int(),
+  workCurve: z.enum(["log", "sqrt", "linear"]),
+  /** Bolts that land on the first layer, what every layer below adds, and the most it can ever reach. */
   maxBolts: z.int(),
+  boltsPerLayer: z.int(),
+  maxBoltsEver: z.int(),
   maxBoltPower: z.int(),
+  maxBoltMult: z.number(),
   maxSpells: z.int(),
   maxSpellCapacity: z.int(),
   weakMultiplier: z.number(),
@@ -735,13 +783,28 @@ export const ShardrunView = z.strictObject({
   id: z.string(),
   status: z.enum(["map", "battle", "reward", "rest", "forge", "won", "lost", "abandoned"]),
   language: z.string(),
-  difficulty: z.strictObject({ id: z.string(), name: z.string(), showSummaries: z.boolean(), showPredictions: z.boolean() }),
+  difficulty: z.strictObject({
+    id: z.string(),
+    name: z.string(),
+    showSummaries: z.boolean(),
+    showPredictions: z.boolean(),
+  }),
   /** Counts accepted commands; previews fetched for an older revision are stale. */
   revision: z.int(),
   integrity: z.int(),
   integrityMax: z.int(),
-  layer: z.strictObject({ index: z.int(), count: z.int(), id: z.string(), name: z.string(), flavor: z.string(), backdrop: z.string() }),
-  map: z.strictObject({ nodes: z.array(ShardrunMapNodeView), edges: z.array(z.tuple([z.string(), z.string()])) }),
+  layer: z.strictObject({
+    index: z.int(),
+    count: z.int(),
+    id: z.string(),
+    name: z.string(),
+    flavor: z.string(),
+    backdrop: z.string(),
+  }),
+  map: z.strictObject({
+    nodes: z.array(ShardrunMapNodeView),
+    edges: z.array(z.tuple([z.string(), z.string()])),
+  }),
   spells: z.array(SpellView),
   inventory: z.array(z.string()),
   relics: z.array(z.string()),
@@ -830,7 +893,9 @@ export const CodexFoeView = z.strictObject({
   intents: z.array(z.strictObject({ kind: z.string(), text: z.string() })),
   flavor: z.string(),
   /** Where it is met. */
-  layers: z.array(z.strictObject({ id: z.string(), name: z.string(), role: z.enum(["fight", "elite", "boss"]) })),
+  layers: z.array(
+    z.strictObject({ id: z.string(), name: z.string(), role: z.enum(["fight", "elite", "boss"]) }),
+  ),
 });
 export type CodexFoeView = z.infer<typeof CodexFoeView>;
 
@@ -843,7 +908,6 @@ export const CodexLayerView = z.strictObject({
   bosses: z.array(z.string()),
 });
 export type CodexLayerView = z.infer<typeof CodexLayerView>;
-
 
 /** Everything Shardrun content holds, for the Codex screen. Not scoped to a character or a run. */
 export const ShardrunCodexResponse = z.strictObject({
@@ -870,7 +934,10 @@ export const ShardrunStatusResponse = z.strictObject({
 export type ShardrunStatusResponse = z.infer<typeof ShardrunStatusResponse>;
 
 /** Spell previews for the active battle at `revision`, once every spell has run. */
-export const ShardrunPreviewsResponse = z.strictObject({ revision: z.int(), spells: z.record(z.string(), SpellRunView) });
+export const ShardrunPreviewsResponse = z.strictObject({
+  revision: z.int(),
+  spells: z.record(z.string(), SpellRunView),
+});
 export type ShardrunPreviewsResponse = z.infer<typeof ShardrunPreviewsResponse>;
 
 export const StartShardrunRequest = z.strictObject({
@@ -887,9 +954,21 @@ export const ShardrunDevRequest = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("remove-shard"), shardId: z.string().min(1) }),
   z.strictObject({ type: z.literal("grant-relic"), relicId: z.string().min(1) }),
   z.strictObject({ type: z.literal("remove-relic"), relicId: z.string().min(1) }),
-  z.strictObject({ type: z.literal("grant-spell"), name: z.string().min(1).max(40), capacity: z.int().min(1).max(8) }),
-  z.strictObject({ type: z.literal("set"), integrity: z.int().min(0).optional(), mana: z.int().min(0).optional() }),
-  z.strictObject({ type: z.literal("spawn"), kind: z.enum(["fight", "elite", "boss"]), foes: z.array(z.string().min(1)).min(1).max(4) }),
+  z.strictObject({
+    type: z.literal("grant-spell"),
+    name: z.string().min(1).max(40),
+    capacity: z.int().min(1).max(8),
+  }),
+  z.strictObject({
+    type: z.literal("set"),
+    integrity: z.int().min(0).optional(),
+    mana: z.int().min(0).optional(),
+  }),
+  z.strictObject({
+    type: z.literal("spawn"),
+    kind: z.enum(["fight", "elite", "boss"]),
+    foes: z.array(z.string().min(1)).min(1).max(4),
+  }),
   z.strictObject({ type: z.literal("end-battle"), outcome: z.enum(["win", "lose"]) }),
   z.strictObject({ type: z.literal("goto-layer"), layer: z.int().min(0) }),
 ]);
