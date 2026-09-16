@@ -46,6 +46,10 @@ describe("the whole spell as code", () => {
     const text = source.lines.map((line) => line.text).join("\n");
     expect(text.match(/def amplify\(/g)).toHaveLength(1);
     expect(text).toContain("def cast_big_bolt(battle):");
+    // The cast reads first; the shards it calls follow underneath.
+    const lineOf = (needle: string) => source.lines.findIndex((line) => line.text.includes(needle));
+    expect(lineOf("def cast_big_bolt")).toBeLessThan(lineOf("def amplify"));
+    expect(lineOf("def cast_big_bolt")).toBeLessThan(lineOf("def fork"));
     expect(source.calls.map((call) => source.lines[call.line - 1]?.text.trim())).toEqual([
       "bolts = amplify(bolts, battle)",
       "bolts = fork(bolts, battle)",

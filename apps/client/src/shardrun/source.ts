@@ -64,11 +64,27 @@ export function composeSpell(
   const names = shardIds.map((id) => shards[id]?.name ?? id);
   add(`${comment} ${spellName}: ${names.length > 0 ? names.join(" → ") : "one plain bolt"}`, "comment");
   add("", "blank");
+
+  // The cast comes first: it is what the spell is, and each call below leads down into the shard it names. Order does
+  // not change how it runs (Python calls these only when the cast is called; JavaScript hoists declarations).
+  const start = python
+    ? `    bolts = [{"power": ${basePower}, "element": "none", "target": "front", "pierce": False, "ward": False}]`
+    : `  let bolts = [{ power: ${basePower}, element: "none", target: "front", pierce: false, ward: false }];`;
+  const castName = python ? `cast_${snakeCase(spellName)}` : `cast${pascalCase(spellName)}`;
+  add(python ? `def ${castName}(battle):` : `function ${castName}(battle) {`, "def");
+  const startLine = add(start, "start");
+  const calls = shardIds.map((id) => {
+    const name = shards[id]?.function ?? id;
+    return { line: add(python ? `    bolts = ${name}(bolts, battle)` : `  bolts = ${name}(bolts, battle);`, "call"), shard: id };
+  });
+  const returnLine = add(python ? "    return bolts" : "  return bolts;", "return");
+  if (!python) add("}", "body");
+
   for (const id of new Set(shardIds)) {
+    add("", "blank");
     const shard = shards[id];
     if (!shard) {
       add(`${comment} ${id}: this shard is missing`, "comment");
-      add("", "blank");
       continue;
     }
     const sourceLines = shard.code.replace(/\s+$/, "").split("\n");
@@ -82,21 +98,7 @@ export function composeSpell(
       else if (defLine !== 0 && !/^(|}|#.*|\/\/.*)$/.test(text.trim())) body.push(line);
     }
     functions.set(id, { defLine: defLine || (lines.length - sourceLines.length + 1), body });
-    add("", "blank");
   }
-
-  const start = python
-    ? `    bolts = [{"power": ${basePower}, "element": "none", "target": "front", "pierce": False, "ward": False}]`
-    : `  let bolts = [{ power: ${basePower}, element: "none", target: "front", pierce: false, ward: false }];`;
-  const castName = python ? `cast_${snakeCase(spellName)}` : `cast${pascalCase(spellName)}`;
-  add(python ? `def ${castName}(battle):` : `function ${castName}(battle) {`, "def");
-  const startLine = add(start, "start");
-  const calls = shardIds.map((id) => {
-    const name = shards[id]?.function ?? id;
-    return { line: add(python ? `    bolts = ${name}(bolts, battle)` : `  bolts = ${name}(bolts, battle);`, "call"), shard: id };
-  });
-  const returnLine = add(python ? "    return bolts" : "  return bolts;", "return");
-  if (!python) add("}", "body");
   return { lines, startLine, calls, returnLine, functions };
 }
 
