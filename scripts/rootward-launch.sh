@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Rootward desktop launcher: one click to play.
 #
-#   rootward-launch.sh             START: install packages if the lockfile changed, build the client, start the
-#                                  server in the background, and open the game. If Rootward is already running,
-#                                  just open it (a click never kills a game in progress).
-#   rootward-launch.sh --restart   stop the server, then START (use this after pulling new code)
+#   rootward-launch.sh             START: install packages if the lockfile changed, build the client, and open the
+#                                  game. If Rootward is already running, it is updated and restarted: the update is
+#                                  built while the old server keeps running, and only a successful build replaces it,
+#                                  so a failed update leaves the working game up. Progress is saved on every move.
+#   rootward-launch.sh --restart   the same as START (kept for scripts and the desktop entry's Restart action)
 #   rootward-launch.sh --open      open the game in the browser without starting anything
 #   rootward-launch.sh --stop      stop the server
 #   rootward-launch.sh --install   write Rootward.desktop in the repository root and put a copy on the Desktop
@@ -61,7 +62,8 @@ fail() {
 
 open_game() {
   [ -n "${ROOTWARD_NO_OPEN:-}" ] && return 0
-  command -v xdg-open >/dev/null 2>&1 && setsid xdg-open "$URL" >/dev/null 2>&1 &
+  # 9>&- keeps the launcher's lock out of the browser, which can outlive the launcher by hours (see take_lock).
+  command -v xdg-open >/dev/null 2>&1 && setsid xdg-open "$URL" >/dev/null 2>&1 9>&- &
   return 0
 }
 
@@ -141,20 +143,55 @@ busy_port() {
   fi
 }
 
+# One launcher at a time. Every click can rebuild and restart now, so two quick clicks must not run two builds or start
+# two servers. flock releases the lock when this script exits; the long-lived things it starts (the server, the
+# browser) close descriptor 9 so they cannot keep holding it.
+take_lock() {
+  mkdir -p "$STATE_DIR"
+  exec 9>"$STATE_DIR/launcher.lock"
+  command -v flock >/dev/null 2>&1 || return 0
+  flock -n 9 && return 0
+  notify "Rootward is already updating or starting. One moment…"
+  return 1
+}
+
+# Install what the lockfile says and build the client. The running server, if any, keeps serving meanwhile.
+update_and_build() {
+  update_packages || return 1
+  log "Building the client"
+  pnpm run build >>"$LOG" 2>&1 && return 0
+  if is_up; then
+    fail "Building the update failed, so the Rootward that was already running was left as it was. The log says why."
+    open_game
+  else
+    fail "Building the client failed. The log says why."
+  fi
+  return 1
+}
+
+# START and --restart: update first, then replace whatever is running with the new build.
 start_server() {
   ensure_tools || return 1
   cd "$ROOT" || { fail "The Rootward folder is missing: $ROOT"; return 1; }
-  mkdir -p "$STATE_DIR"
+  take_lock || return 0
   [ -f "$LOG" ] && mv -f "$LOG" "$LOG.1"
-  notify "Starting Rootward…"
+  local running=""
+  is_up && running=1
+  if [ -n "$running" ]; then
+    notify "Updating Rootward. It restarts when the update is built…"
+  else
+    notify "Starting Rootward…"
+  fi
 
-  update_packages || return 1
-  log "Building the client"
-  pnpm run build >>"$LOG" 2>&1 || { fail "Building the client failed. The log says why."; return 1; }
+  update_and_build || return 1
+  if [ -n "$running" ] || [ -n "$(port_owner)" ]; then
+    log "Stopping the running server"
+    stop_server || return 1
+  fi
 
   log "Starting the server at ${URL}"
   # This is the developer's own machine, so Shardrun's dev sandbox is available; ROOTWARD_DEV=0 turns it off.
-  ROOTWARD_PORT="$PORT" ROOTWARD_DEV="${ROOTWARD_DEV:-1}" setsid node apps/server/src/main.ts >>"$LOG" 2>&1 </dev/null &
+  ROOTWARD_PORT="$PORT" ROOTWARD_DEV="${ROOTWARD_DEV:-1}" setsid node apps/server/src/main.ts >>"$LOG" 2>&1 </dev/null 9>&- &
   local pid=$! _
   echo "$pid" >"$PIDFILE"
 
@@ -177,7 +214,11 @@ start_server() {
     fi
     if is_up && port_owner | grep -qx "$pid"; then
       log "Running"
-      notify "Rootward is running at ${URL}"
+      if [ -n "$running" ]; then
+        notify "Rootward is updated and running again at ${URL}"
+      else
+        notify "Rootward is running at ${URL}"
+      fi
       open_game
       return 0
     fi
@@ -195,7 +236,7 @@ Type=Application
 Version=1.0
 Name=Rootward
 GenericName=Programming Roguelike
-Comment=Update packages, start the Rootward server, and open the game
+Comment=Update Rootward, start or restart its server, and open the game
 Exec=$SELF
 Path=$ROOT
 Icon=$ICON
@@ -206,11 +247,11 @@ Keywords=rootward;roguelike;programming;coding;education;
 Actions=Restart;Open;Stop;
 
 [Desktop Action Restart]
-Name=Restart (rebuild and start fresh)
+Name=Update and restart
 Exec=$SELF --restart
 
 [Desktop Action Open]
-Name=Open in browser (don't start the server)
+Name=Open in browser (don't update or restart)
 Exec=$SELF --open
 
 [Desktop Action Stop]
@@ -235,22 +276,14 @@ case "${1:-}" in
   --install) install_desktop ;;
   --open) open_game ;;
   --stop)
+    take_lock || exit 0
     if [ -f "$PIDFILE" ] || [ -n "$(port_owner)" ]; then
       stop_server && notify "Rootward stopped."
     else
       notify "Rootward is not running."
     fi
     ;;
-  --restart)
-    stop_server || exit 1
-    start_server
-    ;;
-  "" | --start)
-    if is_up; then
-      notify "Rootward is already running. Opening it (use Restart after updating)."
-      open_game
-      exit 0
-    fi
+  "" | --start | --restart)
     start_server
     ;;
   *)

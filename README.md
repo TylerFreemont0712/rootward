@@ -32,9 +32,12 @@ can take a couple of seconds while it loads.
 
 `scripts/rootward-launch.sh --install` writes `Rootward.desktop` in the repository root, using this checkout's absolute
 paths, and puts a copy on your Desktop. Double-clicking it installs packages if the lockfile changed, builds the client,
-starts the server in the background, and opens the game; if Rootward is already running, it just opens it. Right-click
-the icon for **Restart** (use it after pulling new code), **Open**, and **Stop**. The launcher's log is
-`~/.local/state/rootward/launcher.log`. After moving the repository folder, run the install command again.
+starts the server in the background, and opens the game. If Rootward is already running, the click updates and restarts
+it: the update is built while the old server keeps running, and only a successful build replaces it, so a failed update
+leaves the working game up (progress is saved on every move, so a restart loses nothing). Clicks made while an update is
+already under way are ignored. Right-click the icon for **Open** (just the browser, no update), **Stop**, and **Update
+and restart**. The launcher's log is `~/.local/state/rootward/launcher.log`. After moving the repository folder, run the
+install command again.
 
 ## Commands
 
