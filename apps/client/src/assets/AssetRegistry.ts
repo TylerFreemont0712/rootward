@@ -53,6 +53,7 @@ const RELICS = [
   "grimoire-page",
   "mana-capacitor",
   "overclocked-core",
+  "second-grimoire",
 ];
 const SHARD_ICONS = [
   "fork",
@@ -77,6 +78,15 @@ const SHARD_ICONS = [
   "double-tap",
   "bulwark",
   "priority-queue",
+  "apex",
+  "tally",
+  "rewind",
+  "temper",
+  "triage",
+  "vengeance",
+  "patience",
+  "overflow",
+  "siphon",
 ];
 
 const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {

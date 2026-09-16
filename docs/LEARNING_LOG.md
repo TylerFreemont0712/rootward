@@ -250,3 +250,13 @@ language feature took more than a minute to understand.
   parses instead of crashing every request that touches it.
 - **Content status, not code flags.** Planned classes are ordinary class files with `status: planned`, so the picker,
   the API check, and future unlocking all read one field.
+- **Two guards, both on the server.** The dev sandbox needs `ROOTWARD_DEV=1` on the process *and* `sandbox: true` on the
+  run: `stepShardrun` refuses every `dev-*` command with `not-a-sandbox`, and `ShardrunService.dev` checks both before
+  it reads the run. The client only hides buttons, so a hand-written request reaches nothing an ordinary run would not.
+- **One helper, two callers.** `bindableSpell` decides which empty spell a forge could bind; `bindSpell` binds exactly
+  that one, and the `spell-slot` relic calls the same pair. The panel can promise a name because the button and the
+  rule read one function.
+- **Examples that really run.** Every shard's worked examples execute in both Python and JavaScript during
+  `pnpm content:validate`, so a shard's plain-words summary cannot drift from its code. The new shards use integer
+  arithmetic throughout, which keeps the two languages agreeing exactly rather than almost.
+
