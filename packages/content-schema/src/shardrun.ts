@@ -26,6 +26,11 @@ export const Bolt = z.strictObject({
   pierce: z.boolean(),
   /** Becomes block for the Maintainer instead of hitting anything. */
   ward: z.boolean(),
+  /**
+   * The second axis (ADR-0014): a bolt deals `power * mult`. It defaults to 1, so every shard written before this
+   * existed, and every worked example, keeps its meaning; shards copy bolts by spreading, so it flows through them.
+   */
+  mult: z.number().default(1),
 });
 export type Bolt = z.infer<typeof Bolt>;
 
@@ -136,6 +141,8 @@ export type RelicRarity = z.infer<typeof RelicRarity>;
 export const RelicEffect = z.discriminatedUnion("kind", [
   /** Added to every bolt after its spell's last shard. */
   z.strictObject({ kind: z.literal("bolt-power"), add: z.number() }),
+  /** Added to every bolt's multiplier after its spell's last shard (ADR-0014). */
+  z.strictObject({ kind: z.literal("bolt-mult"), add: z.number() }),
   /** Every hit's damage is multiplied by this. */
   z.strictObject({ kind: z.literal("damage-multiplier"), factor: z.number().positive() }),
   /** Added to the weakness multiplier. */

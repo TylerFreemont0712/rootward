@@ -122,7 +122,10 @@ every rule number is under `shardrun` in `config/balance.yaml`. Routes are under
    from the `spell_slots` name pool (`bindableSpell` decides what is offered), and a `spell-slot` relic binds one when
    claimed; `max_spells` caps the book. Adding a shard needs no engine change: any `draftable` shard joins the reward
    pool by rarity.
-4. **Resolving.** The engine prices the cast (base + shard costs + work), validates and clamps the bolts, and applies
+4. **Resolving.** A bolt deals `power x mult` (ADR-0014): the multiplier is the second axis a build grows on, and
+   both numbers are clamped (`max_bolt_power`, `max_bolt_mult`) because a shard's output is player code. `mult`
+   defaults to 1, so shards written before that ADR keep their meaning and flow it through unchanged.
+   The engine prices the cast (base + shard costs + work), validates and clamps the bolts, and applies
    them: wards become block, other bolts hit their target through weaknesses, resistances, shields, and traits. Ending
    a turn lets every living foe play its next intent.
 5. **The view.** A command responds as soon as the rules are applied; the next turn's spells then run in the

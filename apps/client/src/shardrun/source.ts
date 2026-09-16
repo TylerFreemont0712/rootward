@@ -68,8 +68,8 @@ export function composeSpell(
   // The cast comes first: it is what the spell is, and each call below leads down into the shard it names. Order does
   // not change how it runs (Python calls these only when the cast is called; JavaScript hoists declarations).
   const start = python
-    ? `    bolts = [{"power": ${basePower}, "element": "none", "target": "front", "pierce": False, "ward": False}]`
-    : `  let bolts = [{ power: ${basePower}, element: "none", target: "front", pierce: false, ward: false }];`;
+    ? `    bolts = [{"power": ${basePower}, "element": "none", "target": "front", "pierce": False, "ward": False, "mult": 1}]`
+    : `  let bolts = [{ power: ${basePower}, element: "none", target: "front", pierce: false, ward: false, mult: 1 }];`;
   const castName = python ? `cast_${snakeCase(spellName)}` : `cast${pascalCase(spellName)}`;
   add(python ? `def ${castName}(battle):` : `function ${castName}(battle) {`, "def");
   const startLine = add(start, "start");

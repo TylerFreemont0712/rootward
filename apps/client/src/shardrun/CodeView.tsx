@@ -105,6 +105,7 @@ export function CodeView(props: {
           {bolts.map((bolt, i) => (
             <span key={i} className={`shr-bolt-chip el-${bolt.element}${bolt.ward ? " ward" : ""}`} title={`${bolt.target}${bolt.pierce ? ", pierces" : ""}`}>
               {bolt.ward ? "⛨" : "◆"} {bolt.power}
+              {bolt.mult !== 1 && <b className="shr-bolt-mult">×{bolt.mult}</b>}
             </span>
           ))}
         </div>

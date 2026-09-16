@@ -2,7 +2,7 @@ import type { ShardView, SpellRunView } from "@rootward/shared";
 import { describe, expect, it } from "vitest";
 import { composeSpell, playbackFrames } from "../src/shardrun/source.ts";
 
-const bolt = (power: number) => ({ power, element: "none" as const, target: "front" as const, pierce: false, ward: false });
+const bolt = (power: number) => ({ power, element: "none" as const, target: "front" as const, pierce: false, ward: false, mult: 1 });
 
 const SHARDS: Record<string, ShardView> = {
   amplify: {

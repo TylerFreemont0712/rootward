@@ -131,6 +131,7 @@ function sameBolts(actual: readonly unknown[], expected: readonly Bolt[]): boole
     return (
       got.success &&
       Math.abs(got.data.power - want.power) < 1e-6 &&
+      Math.abs(got.data.mult - want.mult) < 1e-6 &&
       got.data.element === want.element &&
       got.data.target === want.target &&
       got.data.pierce === want.pierce &&

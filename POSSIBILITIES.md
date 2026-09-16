@@ -1,7 +1,7 @@
 # POSSIBILITIES.md — making the numbers get out of hand
 
-Ideas, not decisions. Nothing here is built. Anything adopted needs an ADR first, because most of it changes the
-Shardrun damage contract (ADR-0012, ADR-0013). Written 2026-09-16 from the player's note: *the fun of a Balatro-like
+Ideas. **Phase 1 of section 7 has since shipped (ADR-0014);** everything else here is still a proposal, and each
+piece needs an ADR first, because most of it changes the Shardrun damage contract (ADR-0012, ADR-0013). Written 2026-09-16 from the player's note: *the fun of a Balatro-like
 is the insane final number, and in a programming game the functions themselves should be what compound.*
 
 ## 1. Why Shardrun cannot explode today
@@ -49,9 +49,13 @@ damage = (Σ bolt power) × mult
 ```
 
 Bolts keep `power` and stay clamped (that clamp is a safety rail against a shard returning `1e308`, and it should
-stay). `mult` starts at 1, is raised by shards and relics, and is **not** clamped the same way — it is the axis the
-build grows on. In the shard contract this is a small change: a shard may return a volley, and optionally a mult
-contribution.
+stay). `mult` starts at 1 and is raised by shards and relics — it is the axis the build grows on.
+
+> **What shipped differs from this sketch on two points (ADR-0014).** The multiplier lives on *each bolt* rather than
+> on the cast, which means the `(bolts, battle) -> bolts` shard signature survives untouched and all 36 existing shards
+> carry it for free. And it *is* clamped, by `max_bolt_mult`, for exactly the reason power is: a shard's output is
+> player code, and the engine trusts none of it. A cast-level multiplier, as sketched here, remains the fallback if
+> per-bolt multipliers turn out to read confusingly in play — and it is the better fit for retriggers in Phase 2.
 
 Why this fits a programming game: the volley is *data*, and the mult is *the accumulator you fold into*. Shards that
 work on the list and shards that work on the accumulator are visibly different kinds of function, which is itself
@@ -125,8 +129,19 @@ Big numbers are only fun against big requirements. Today foe HP is roughly linea
 
 ## 7. Suggested order
 
-1. **Phase 1 — two axes.** Add `mult` to the cast, make the clamps balance-driven, add three `+mult` shards and one
-   `×mult` relic, show `Σ power × mult` in the code view. Small, and it immediately changes how builds feel.
+1. **Phase 1 — two axes. ✅ Done 2026-09-16, ADR-0014.** `mult` landed on the bolt rather than the cast (the shard
+   signature survives that way), clamped by a new `max_bolt_mult`. Charge, Cascade and Resonate move it, the Tuning
+   Fork relic adds to it, and the code view shows it on each bolt chip.
+
+   **Measured through the real server and the real sandbox the day it landed.** The build
+   `echo ×4 → amplify-plus ×2 → charge → resonate` ends on 16 bolts of 14 power × 6 mult: **1 344 damage, where the
+   same eight shards under the old rules gave 224** — through the old 640 ceiling, and enough to kill the Root Daemon
+   (170 HP on Beginner) roughly eight times over. The new arithmetic ceiling is 16 × 40 × 25 = 16 000.
+
+   **But that cast costs 23 mana and a turn gives 6, so it cannot actually be cast.** This is the honest limit of
+   Phase 1: it proves the axis compounds, and it moves **Phase 3 (complexity pricing) ahead of Phase 2 in priority**,
+   because paying for a wide build is now the binding constraint rather than computing one. A first cheap step would
+   be relics and shards that give mana or discount work, so a big build is reachable before the deep mechanics land.
 2. **Phase 2 — higher-order shards.** `twice`, `compose`, `repeat`. Needs the sandbox spike first.
 3. **Phase 3 — complexity pricing.** Replace flat shard costs with a cost function of work, plus a log-billing relic.
 4. **Phase 4 — recursion, exponent tier, endless layers, scaling shards.** The deep end, once the arithmetic is

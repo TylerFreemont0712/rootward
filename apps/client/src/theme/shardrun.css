@@ -406,3 +406,6 @@
 .shr-dev-chip:hover:not(:disabled) { border-color: #6ddf9a; color: #6ddf9a; }
 .shr-dev-chip.on { border-color: #6ddf9a; color: #6ddf9a; }
 .shr-dev-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* The second damage axis (ADR-0014): shown on a bolt chip only when a shard actually moved it. */
+.shr-bolt-mult { margin-left: 3px; font-weight: 500; color: #ffd166; }

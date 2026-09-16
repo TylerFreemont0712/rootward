@@ -74,6 +74,7 @@ shardrun:                                    # the roguelite mode (ADR-0012)
   max_bolts: 16
   max_pipeline_bolts: 64
   max_bolt_power: 40
+  max_bolt_mult: 25                           # damage is power x mult; this clamps the second axis (ADR-0014)
   weak_multiplier: 1.5
   resist_multiplier: 0.5
   scatter_multiplier: 0.5

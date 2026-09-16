@@ -1,0 +1,26 @@
+id: charge
+name: Charge
+rarity: common
+cost: 1
+function: charge
+summary: "Adds 2 to every bolt's multiplier. A bolt deals its power times its multiplier."
+tags: [lists, dictionaries]
+code:
+  python: |
+    def charge(bolts, battle):
+        return [{**bolt, "mult": bolt["mult"] + 2} for bolt in bolts]
+  javascript: |
+    function charge(bolts, battle) {
+      return bolts.map((bolt) => ({ ...bolt, mult: bolt.mult + 2 }));
+    }
+examples:
+  - name: a plain bolt starts at one and climbs to three
+    bolts:
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 6, element: none, target: front, pierce: false, ward: false, mult: 3 }
+  - name: it adds to a multiplier another shard already raised
+    bolts:
+      - { power: 4, element: fire, target: back, pierce: false, ward: false, mult: 2 }
+    expect:
+      - { power: 4, element: fire, target: back, pierce: false, ward: false, mult: 4 }

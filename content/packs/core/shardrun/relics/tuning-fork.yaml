@@ -1,0 +1,8 @@
+id: tuning-fork
+name: Tuning Fork
+rarity: uncommon
+icon: tuning-fork
+summary: "Every bolt gains 1 to its multiplier."
+flavor: "Struck once at the Machine's founding, still humming the same note."
+effects:
+  - { kind: bolt-mult, add: 1 }

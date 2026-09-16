@@ -101,6 +101,8 @@ export const Balance = z.strictObject({
     /** Inside the pipeline, a shard's output is cut to this many before the next shard sees it. */
     max_pipeline_bolts: PositiveInt,
     max_bolt_power: PositiveInt,
+    /** A bolt's multiplier is player code's number too, so it is clamped exactly as its power is (ADR-0014). */
+    max_bolt_mult: z.number().min(1),
     weak_multiplier: z.number().min(1),
     resist_multiplier: Ratio,
     /** A bolt aimed at every foe hits each for this fraction of its power. */

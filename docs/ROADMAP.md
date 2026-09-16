@@ -191,17 +191,25 @@ These three come from the player directly and outrank the generic milestone orde
       *before* the exponent tier. Phase 1 is the cheap test: `mult` on the cast, clamps moved into balance, a few
       `+mult` shards, and the code view showing the running product. Needs an ADR; changes the ADR-0012 damage
       contract.
+      **Phase 1 landed 2026-09-16 (ADR-0014):** a bolt now deals `power x mult`, `mult` is clamped by a new
+      `max_bolt_mult`, a `bolt-mult` relic effect exists, and three shards move the new axis (Charge +2, Cascade
+      +1/+2/+3 by position, Resonate doubles). Every shard written before it still works untouched, because they all
+      copy bolts by spreading. Next: Phase 2, higher-order shards (`twice`, `compose`, `repeat`), which needs a
+      sandbox spike first because a shard would receive another shard.
 - [ ] **The Apprentice class** — a teaching class for young beginners (the player's daughters are the intended
       players). A class is the right shape for this because classes already carry `subjects`, their own fights, and
       their own difficulty of explanation. Wants: a very gentle challenge ladder (one idea per fight, no timers, no
       run-ending losses), plain-language everything, pictures and colour carrying meaning alongside text, the
       existing Beginner difficulty as the floor rather than the ceiling, generous hint ladders that never give the
       answer (AGENT.md section 6 still holds), and a mentor NPC who explains in plain words. Content lives at
-      `content/packs/core/classes/apprentice/`, starting `status: planned` until its fights exist. Should be authored
-      **Japanese-first** (below), not translated after the fact.
-- [ ] **Japanese as a first-class language** — the intended players speak Japanese, so this is a requirement, not a
-      nicety, and it should land *before* much more English content is written, or the translation debt grows with
-      every challenge. There is no i18n of any kind today: every string is inline in JSX or in English YAML. Needs:
+      `content/packs/core/classes/apprentice/`, starting `status: planned` until its fights exist. Authored in English
+      like the rest of the project, but it is the class most likely to be *played* in Japanese, so it should be the
+      first content translated once the locale switch exists (below).
+- [ ] **Japanese as a switchable localization** — decided with the player 2026-09-16: **English stays the project's
+      source language** (it is the player's native one), and Japanese is a locale the game can be *switched into*, for
+      his daughters. So this is localization with an English source of truth, not a Japanese fork and not a
+      replacement. It should still land *before* much more English content is written, or the translation debt grows
+      with every challenge. There is no i18n of any kind today: every string is inline in JSX or in English YAML. Needs:
       (1) a locale on the profile, with the server sending already-localised views, exactly as it already does for
       difficulty gating, so the client never decides; (2) a decision on content shape — per-locale overlay files
       (`<id>.ja.yaml`) that fall back to English key by key are probably kinder to authoring than `{en, ja}` maps

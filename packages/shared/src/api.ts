@@ -580,6 +580,8 @@ export type ElementView = z.infer<typeof ElementView>;
 
 export const BoltView = z.strictObject({
   power: z.number(),
+  /** The second damage axis (ADR-0014): a bolt deals `power * mult`. */
+  mult: z.number(),
   element: ElementView,
   target: z.enum(["front", "back", "weakest", "strongest", "all"]),
   pierce: z.boolean(),

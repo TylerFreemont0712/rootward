@@ -1,0 +1,28 @@
+id: cascade
+name: Cascade
+rarity: uncommon
+cost: 1
+function: cascade
+summary: "Each bolt's multiplier grows by one more than the bolt before it: +1, then +2, then +3."
+tags: [enumerate, lists]
+code:
+  python: |
+    def cascade(bolts, battle):
+        stepped = []
+        for index, bolt in enumerate(bolts):
+            stepped.append({**bolt, "mult": bolt["mult"] + index + 1})
+        return stepped
+  javascript: |
+    function cascade(bolts, battle) {
+      return bolts.map((bolt, index) => ({ ...bolt, mult: bolt.mult + index + 1 }));
+    }
+examples:
+  - name: later bolts gain more
+    bolts:
+      - { power: 5, element: none, target: front, pierce: false, ward: false }
+      - { power: 5, element: fire, target: front, pierce: false, ward: false }
+      - { power: 5, element: frost, target: back, pierce: false, ward: false }
+    expect:
+      - { power: 5, element: none, target: front, pierce: false, ward: false, mult: 2 }
+      - { power: 5, element: fire, target: front, pierce: false, ward: false, mult: 3 }
+      - { power: 5, element: frost, target: back, pierce: false, ward: false, mult: 4 }

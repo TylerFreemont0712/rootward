@@ -65,6 +65,7 @@ export type StepResult = { ok: true; state: ShardrunState } | { ok: false; error
 /** Run-wide changes from the relics held. */
 export interface RelicModifiers {
   boltPower: number;
+  boltMult: number;
   damageMultiplier: number;
   weakBonus: number;
   manaPerTurn: number;
@@ -417,6 +418,7 @@ export function layerOf(state: ShardrunState, catalog: ShardrunCatalog): Shardru
 export function relicModifiers(state: Pick<ShardrunState, "relics">, catalog: ShardrunCatalog): RelicModifiers {
   const modifiers: RelicModifiers = {
     boltPower: 0,
+    boltMult: 0,
     damageMultiplier: 1,
     weakBonus: 0,
     manaPerTurn: 0,
@@ -429,6 +431,9 @@ export function relicModifiers(state: Pick<ShardrunState, "relics">, catalog: Sh
       switch (effect.kind) {
         case "bolt-power":
           modifiers.boltPower += effect.add;
+          break;
+        case "bolt-mult":
+          modifiers.boltMult += effect.add;
           break;
         case "damage-multiplier":
           modifiers.damageMultiplier *= effect.factor;
@@ -487,14 +492,18 @@ export function normalizeBolts(raw: readonly unknown[], balance: ShardrunBalance
       fizzled += 1;
       continue;
     }
-    bolts.push({ ...parsed.data, power: clampPower(parsed.data.power, balance) });
+    bolts.push({
+      ...parsed.data,
+      power: clampPower(parsed.data.power, balance),
+      mult: clampMult(parsed.data.mult, balance),
+    });
   }
   return { bolts, fizzled };
 }
 
 /** The bolt every spell starts from, before its first shard. */
 export function baseBolt(balance: ShardrunBalance): Bolt {
-  return { power: balance.base_bolt_power, element: "none", target: "front", pierce: false, ward: false };
+  return { power: balance.base_bolt_power, element: "none", target: "front", pierce: false, ward: false, mult: 1 };
 }
 
 /** The battle as shard code sees it: only living foes, and only fields a player could read off the screen. */
@@ -772,8 +781,13 @@ function castSpell(
 
 /** Relics that add power apply after the last shard, before the bolts fly, and stay inside the power cap. */
 function empower(bolts: readonly Bolt[], state: ShardrunState, catalog: ShardrunCatalog): Bolt[] {
-  const add = relicModifiers(state, catalog).boltPower;
-  return add === 0 ? [...bolts] : bolts.map((bolt) => ({ ...bolt, power: clampPower(bolt.power + add, catalog.balance) }));
+  const { boltPower: add, boltMult } = relicModifiers(state, catalog);
+  if (add === 0 && boltMult === 0) return [...bolts];
+  return bolts.map((bolt) => ({
+    ...bolt,
+    power: clampPower(bolt.power + add, catalog.balance),
+    mult: clampMult(bolt.mult + boltMult, catalog.balance),
+  }));
 }
 
 /** Fire bolts in order and return the damage dealt. Logs every hit so the client can animate it. */
@@ -783,15 +797,16 @@ function resolveBolts(state: ShardrunState, battle: BattleState, bolts: readonly
   let dealt = 0;
   for (const bolt of bolts) {
     if (bolt.ward) {
-      battle.block += bolt.power;
-      log(state, { kind: "ward", amount: bolt.power, element: bolt.element, text: `A ward gathers ${bolt.power} block.` });
+      const gathered = Math.round(bolt.power * bolt.mult);
+      battle.block += gathered;
+      log(state, { kind: "ward", amount: gathered, element: bolt.element, text: `A ward gathers ${gathered} block.` });
       continue;
     }
     const alive = battle.foes.filter((foe) => foe.hp > 0);
     if (alive.length === 0) break;
     const share = bolt.target === "all" ? balance.scatter_multiplier : 1;
     for (const foe of targetsOf(bolt, alive)) {
-      const power = Math.floor(bolt.power * share);
+      const power = Math.floor(bolt.power * bolt.mult * share);
       if (foe.trait?.kind === "nullify-first" && !foe.nullified) {
         foe.nullified = true;
         log(state, { kind: "absorb", foe: foe.uid, element: bolt.element, text: `${foe.name} swallows the first bolt whole.` });
@@ -994,6 +1009,11 @@ function discounted(state: ShardrunState, cost: number, catalog: ShardrunCatalog
 
 function clampPower(power: number, balance: ShardrunBalance): number {
   return Math.max(0, Math.min(balance.max_bolt_power, Math.round(power)));
+}
+
+/** The multiplier axis, clamped like power. Infinity is not a number the rules will carry, so it becomes 0. */
+function clampMult(mult: number, balance: ShardrunBalance): number {
+  return Number.isFinite(mult) ? Math.max(0, Math.min(balance.max_bolt_mult, mult)) : 0;
 }
 
 function log(state: ShardrunState, entry: LogEntry): void {

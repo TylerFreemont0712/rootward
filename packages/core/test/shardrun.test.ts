@@ -25,6 +25,7 @@ const BALANCE: ShardrunBalance = {
   max_bolts: 4,
   max_pipeline_bolts: 16,
   max_bolt_power: 20,
+  max_bolt_mult: 25,
   weak_multiplier: 1.5,
   resist_multiplier: 0.5,
   scatter_multiplier: 0.5,
@@ -152,7 +153,7 @@ function layerAt(using: ShardrunConfig, index: number): ShardrunLayer {
 }
 
 function bolt(power: number, element: Element = "none", extra: Partial<Bolt> = {}): Bolt {
-  return { power, element, target: "front", pierce: false, ward: false, ...extra };
+  return { power, element, target: "front", pierce: false, ward: false, mult: 1, ...extra };
 }
 
 /** Apply commands in order, failing the test on any refusal. */
@@ -553,5 +554,52 @@ describe("spell slots", () => {
     const granted = play(state, [{ type: "dev-grant-relic", relicId: "grimoire" }]);
     expect(granted.spells.map((spell) => spell.name)).toEqual(["Bolt", "Ward", "Volley"]);
     expect(granted.spells.at(-1)).toMatchObject({ capacity: 2, shards: [] });
+  });
+});
+
+describe("the multiplier axis (ADR-0014)", () => {
+  // A bolt deals power x mult. The multiplier is the axis a build grows on, so these tests pin how it is read,
+  // clamped, and defaulted — the last of those is what lets every shard written before ADR-0014 keep its meaning.
+  it("multiplies power by the multiplier", () => {
+    const fight = inFight();
+    expect(previewBolts(fight, [bolt(5, "none", { mult: 3 })], CATALOG).damage).toBe(15);
+    expect(previewBolts(fight, [bolt(5, "none", { mult: 1 })], CATALOG).damage).toBe(5);
+  });
+
+  it("treats a bolt that never mentions a multiplier as times one", () => {
+    // Shards written before this existed return bolts with no `mult` key at all.
+    const older = { power: 7, element: "none", target: "front", pierce: false, ward: false };
+    expect(previewBolts(inFight(), [older], CATALOG).damage).toBe(7);
+  });
+
+  it("clamps the multiplier, because it is player code's number", () => {
+    const fight = inFight();
+    // Measured as ward block, not damage: damage *dealt* is capped by the foe's remaining HP, so a working clamp and a
+    // missing one would both report 20 here and the test would prove nothing.
+    expect(previewBolts(fight, [bolt(2, "none", { ward: true, mult: 1000 })], CATALOG).block).toBe(2 * BALANCE.max_bolt_mult);
+    expect(previewBolts(fight, [bolt(4, "none", { ward: true, mult: -5 })], CATALOG).block).toBe(0);
+    expect(previewBolts(fight, [bolt(4, "none", { ward: true, mult: Number.POSITIVE_INFINITY })], CATALOG).block).toBe(0);
+  });
+
+  it("raises a ward's block by the multiplier too", () => {
+    expect(previewBolts(inFight(), [bolt(6, "none", { ward: true, mult: 2 })], CATALOG).block).toBe(12);
+  });
+
+  it("lets a relic add to every bolt's multiplier", () => {
+    // A catalog local to this test: a relic added to the shared one would join the common pool and change which
+    // relic the seeded elite and treasure draws pick, which other tests assert by id.
+    const tuner = relic("tuner", [{ kind: "bolt-mult", add: 1 }]);
+    const using: ShardrunCatalog = { ...CATALOG, relics: new Map([...CATALOG.relics, [tuner.id, tuner]]) };
+    const state = startShardrun(using, { seed: "seed-1", language: "python", difficulty: "normal", sandbox: true });
+    const armed = play(
+      state,
+      [
+        { type: "dev-grant-relic", relicId: "tuner" },
+        { type: "dev-spawn", kind: "fight", foes: ["dummy"] },
+      ],
+      using,
+    );
+    // The bolt asks for mult 1; the relic makes it 2, so 5 power lands as 10.
+    expect(previewBolts(armed, [bolt(5, "none", { mult: 1 })], using).damage).toBe(10);
   });
 });

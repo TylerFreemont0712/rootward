@@ -1,0 +1,28 @@
+id: resonate
+name: Resonate
+rarity: rare
+cost: 2
+function: resonate
+summary: "Doubles every bolt's multiplier. Put it after the shards that raise one."
+tags: [lists, dictionaries]
+code:
+  python: |
+    def resonate(bolts, battle):
+        return [{**bolt, "mult": bolt["mult"] * 2} for bolt in bolts]
+  javascript: |
+    function resonate(bolts, battle) {
+      return bolts.map((bolt) => ({ ...bolt, mult: bolt.mult * 2 }));
+    }
+examples:
+  - name: doubling nothing much is still not much
+    bolts:
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 6, element: none, target: front, pierce: false, ward: false, mult: 2 }
+  - name: doubling a multiplier that was already raised
+    bolts:
+      - { power: 6, element: none, target: front, pierce: false, ward: false, mult: 5 }
+      - { power: 2, element: spark, target: all, pierce: true, ward: false, mult: 3 }
+    expect:
+      - { power: 6, element: none, target: front, pierce: false, ward: false, mult: 10 }
+      - { power: 2, element: spark, target: all, pierce: true, ward: false, mult: 6 }

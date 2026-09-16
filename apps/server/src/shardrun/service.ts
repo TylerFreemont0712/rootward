@@ -678,7 +678,9 @@ function toOutcome(run: PipelineRun): PipelineOutcome {
 function displayBolts(raw: readonly unknown[]): BoltView[] {
   return raw.flatMap((candidate) => {
     const parsed = Bolt.safeParse(candidate);
-    return parsed.success ? [{ ...parsed.data, power: Math.round(parsed.data.power * 100) / 100 }] : [];
+    return parsed.success
+      ? [{ ...parsed.data, power: Math.round(parsed.data.power * 100) / 100, mult: Math.round(parsed.data.mult * 100) / 100 }]
+      : [];
   });
 }
 
