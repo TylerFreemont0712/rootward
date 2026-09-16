@@ -68,6 +68,12 @@ export function shownHp(pending: Pending | undefined, foe: { uid: string; hp: nu
   return Math.max(0, Math.min(foe.max, foe.hp + owed));
 }
 
+/** Whether the stage should show a foe broken apart: once its defeat has played, not when the response that killed it
+ * arrives. */
+export function shownFallen(pending: Pending | undefined, foe: { uid: string; hp: number; max: number }): boolean {
+  return shownHp(pending, foe) === 0 && !(pending?.defeats.includes(foe.uid) ?? false);
+}
+
 /** The Maintainer's Integrity as the stage should show it now. */
 export function shownIntegrity(pending: Pending, integrity: number, max: number): number {
   return Math.max(0, Math.min(max, integrity + pending.integrityLoss - pending.integrityGain));

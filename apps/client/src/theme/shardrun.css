@@ -156,13 +156,19 @@
 /* z-index 0 makes the world one stacking layer: the stage (a size container, so already a stacking context) then
  * paints every overlay above all of it, whatever z-index a sprite or the effects canvas has inside. Without it the
  * Maintainer (z 80) painted over the code view (z 8). */
-.shr-world {
-  position: absolute; inset: -16px; z-index: 0;
-  background-color: #0d0a12; background-size: cover; background-position: center 65%; image-rendering: pixelated;
+.shr-world { position: absolute; inset: -16px; z-index: 0; background-color: #0d0a12; }
+/* The arena's backdrop, its own layer so a shake can move it less than the fighters (parallax, see FxLayer.tsx). It
+ * overhangs the world a little more, so that counter-movement never shows an edge. The arenas are painted for this
+ * stage's wide shape, floor at the bottom, so the crop keeps the floor. */
+.shr-arena {
+  position: absolute; inset: -12px;
+  background-size: cover; background-position: center 72%; image-rendering: pixelated;
 }
 .shr-stage-shade {
   position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(180deg, rgb(0 0 0 / 35%), transparent 30%, transparent 72%, rgb(0 0 0 / 45%));
+  background:
+    radial-gradient(ellipse 70% 55% at 55% 62%, transparent 55%, rgb(0 0 0 / 38%)),
+    linear-gradient(180deg, rgb(0 0 0 / 28%), transparent 26%, transparent 80%, rgb(0 0 0 / 35%));
 }
 .shr-stage.boss-fight .shr-stage-shade {
   background:

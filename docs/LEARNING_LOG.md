@@ -432,4 +432,18 @@ language feature took more than a minute to understand.
   the child combinator or a class of their own.
 - **An idle loop from one frame.** `breathe` lowers everything above the robe's hem a pixel or two, feet planted;
   stepping through 0, 1, 2, 1 with `steps(4)` reads as breathing, and no frame is redrawn, so the design is untouched.
+- **Sketch the composition, let the model paint it.** A prompt cannot say where things go: "a battle arena with a wide
+  floor" came back as a staircase in the middle with props on the floor. img2img from a blurred sketch of values and
+  colors (`scripts/art/layouts.py`) keeps the big shapes and repaints every detail at denoise 0.8. The grain on the
+  sketch is seeded, because the sketch is part of the render's cache key: an unseeded one would re-render every time.
+- **Parallax from a counter-shake.** Moving the backdrop back by 60% of the stage's shake leaves it moving 40% as far as
+  the fighters, and the eye reads smaller movement as distance (`FxLayer.tsx`). No second camera, no depth map.
+- **Judge a background with the sprites standing in it.** On its own, a violet dungeon looked fine; with the violet
+  Maintainer and the dark Null Wraith in it, both vanished. Contrast is between the background and what stands on it,
+  so arena candidates were compared on a mock stage with each layer's hardest foe in place (ADR-0019 amendment).
+- **Light behind a body, never over it.** Drawing a soft additive glow on the canvas under the sprites lights the
+  painted wall behind a foe when it is hit, and separates a dark sprite from a dark room, without ever tinting the
+  sprite or a number (`light()` and `drawSpots()` in `fx/engine.ts`).
+- **CSS background lists as a fallback.** `background-image: url(a), url(b)` paints `a` over `b`; if `a` fails to
+  load, `b` simply shows. A missing optional image degrades without any JavaScript noticing (`Stage.tsx`).
 

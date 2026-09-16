@@ -1,7 +1,7 @@
 import type { ShardrunLogView } from "@rootward/shared";
 import { describe, expect, it } from "vitest";
 import { FOE_HEIGHT, layoutFoes } from "../src/shardrun/fx/layout.ts";
-import { NOTHING_PENDING, pendingOf, settled, shownHp, shownIntegrity } from "../src/shardrun/fx/pending.ts";
+import { NOTHING_PENDING, pendingOf, settled, shownFallen, shownHp, shownIntegrity } from "../src/shardrun/fx/pending.ts";
 import { planTimeline } from "../src/shardrun/fx/timeline.ts";
 
 describe("where foes stand (ADR-0019)", () => {
@@ -71,6 +71,17 @@ describe("numbers that wait for the hit (ADR-0019)", () => {
     expect(shownHp(pending, { uid: "b", hp: 20, max: 30 })).toBe(20);
     expect(shownIntegrity(pending, 40, 60)).toBe(40);
     expect(pending.defeats).toEqual([]);
+  });
+
+  it("shows a foe fallen only once its defeat has played", () => {
+    const pending = pendingOf(log);
+    // Foe a died in this command, but its bolts and its defeat have not played yet.
+    expect(shownFallen(pending, { uid: "a", hp: 0, max: 14 })).toBe(false);
+    let played = pending;
+    for (const cue of planTimeline(log).cues) played = settled(played, cue);
+    expect(shownFallen(played, { uid: "a", hp: 0, max: 14 })).toBe(true);
+    expect(shownFallen(played, { uid: "b", hp: 20, max: 30 })).toBe(false);
+    expect(shownFallen(undefined, { uid: "c", hp: 0, max: 9 })).toBe(true);
   });
 
   it("never shows more than the maximum or less than nothing", () => {

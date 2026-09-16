@@ -138,7 +138,13 @@ const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
   hud: new Set(["integrity", "focus", "cycles"]),
   /** Full-bleed opaque backdrops (one per realm, eventually); id is the realm id. Only "foundry" exists so far --
    * it's the only realm any seeded content is actually set in. */
-  backgrounds: new Set(["foundry", "title", "salvage", "arena-salvage", "arena-heap", "arena-kernel"]),
+  backgrounds: new Set([
+    "foundry",
+    "title",
+    "salvage",
+    // Shardrun's arenas (ADR-0019): one per layer, and each guardian's own room.
+    ...["salvage", "heap", "kernel", "kiln", "vault", "throne"].map((room) => `arena-${room}`),
+  ]),
   /** Map sprites for the player, keyed by class slug; distinct from the `classes` portrait. */
   avatars: new Set(CLASSES),
   /** World props (content/packs/<pack>/props.yaml), drawn bottom-aligned on their footprint. */

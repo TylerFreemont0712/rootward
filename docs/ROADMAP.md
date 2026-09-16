@@ -160,6 +160,10 @@ Task breakdown:
       After the player's first look: the code view moved to the middle (it had been painted under the Maintainer by a
       stacking bug), a cast's final bolts, damage and block now stay up while its hits land, the idle breathes, and
       reward cards show shard names at full size again (a CSS selector had been shrinking them).
+      Then the arenas (2026-09-17, "going a little more all out" on the backgrounds): six painted for the stage from
+      layout sketches (img2img) and picked with the foes standing in them, one per layer plus each guardian's own room,
+      with per-layer air (dust, spores, embers), fog over the floor, spell light that lands on the room, a pool of light
+      for every fighter, and parallax on a shake (ADR-0019 amendment).
       Still open: sound (the cues are ready for it), battle strips and portraits for the planned classes, and a hand
       playtest of the pacing
 - [x] **Shardrun** (ADR-0012), a separate roguelite mode at the player's request (2026-09-15: "find pieces of code and

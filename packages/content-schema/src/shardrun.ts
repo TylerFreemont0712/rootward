@@ -218,6 +218,10 @@ const FoeGroups = z.array(z.array(Id).min(1).max(4)).min(1);
 const ShardWeights = z.record(ShardRarity, z.number().min(0));
 const RelicWeights = z.record(RelicRarity, z.number().min(0));
 
+export const ARENA_AMBIENCES = ["dust", "spores", "embers"] as const;
+export const ArenaAmbience = z.enum(ARENA_AMBIENCES);
+export type ArenaAmbience = z.infer<typeof ArenaAmbience>;
+
 /** A layer of the Salvage: one generated map, its foes, and a boss at the top. */
 export const ShardrunLayer = z.strictObject({
   id: Id,
@@ -225,6 +229,12 @@ export const ShardrunLayer = z.strictObject({
   flavor: NonEmptyString,
   /** Art id of the battle backdrop (`backgrounds/<id>`). */
   backdrop: Id,
+  /** Art id of the guardian's own room; its fights use `backdrop` without one (ADR-0019). */
+  boss_backdrop: Id.optional(),
+  /** What drifts in the arena's air, drawn by the client: presentation only, like the backdrop (ADR-0019). */
+  ambience: ArenaAmbience.default("dust"),
+  /** The guardian's room's air, when it differs from the layer's. */
+  boss_ambience: ArenaAmbience.optional(),
   /** Rows of rooms below the boss. */
   rows: z.int().min(3).max(15),
   columns: z.int().min(2).max(7),

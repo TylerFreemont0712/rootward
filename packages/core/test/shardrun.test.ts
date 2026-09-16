@@ -120,6 +120,7 @@ function layer(id: string, extra: Partial<ShardrunLayer> = {}): ShardrunLayer {
     name: id,
     flavor: "A test layer.",
     backdrop: id,
+    ambience: "dust",
     rows: 4,
     columns: 3,
     paths: 3,

@@ -114,3 +114,41 @@ Option 3, in these parts.
   in the same palette, so the design cannot drift. The stage steps through it with a CSS `steps(4)` animation and a
   slow sway over the feet, and a mote of mana now and then rises off the open hand.
 
+## Amendment (2026-09-17): arenas painted for the stage
+
+The first arenas were painted from a prompt alone and read as flat, front-facing rooms: a staircase in the middle, props
+where the fighters stand, bright detail behind every sprite, and a shape (1.75:1) the stage crops heavily. What changed:
+
+- **A layout sketch, then the painting.** `scripts/art/layouts.py` draws each arena's composition in blurred shapes of
+  value and color, and the render starts from it (img2img at denoise 0.8, `init` in the manifest): a dark ceiling for
+  the code view and a guardian's health bar, a broad lit floor where the fighters stand, an open middle for bolts, a
+  distant glow for depth, framed edges. A prompt cannot place things; a sketch can. The arenas are painted at the stage's
+  own 2.4:1 by the illustration model (no pixel-art LoRA, which gave flat, cluttered rooms) and cut to 720x300 with 128
+  colors, which keeps depth and reads as pixel art at the stage's 2x.
+- **Chosen with the fighters standing in them.** Each arena was rendered as several candidates and judged on a mock
+  stage with its layer's hardest foe in place: the dark Null Wraith and the fire Tally Wisp in the Salvage, the green
+  Memory Leak Ooze in the Heap, the black Segfault Specter in the Kernel. The first Salvage came back violet and swallowed
+  both the Maintainer and the Wraith; the first Heap was a fluorescent server room with a neon bar where the bolts fly.
+  Both were rendered again (warm stone under lanterns; a muted cavern with a leak), and a candidate that is right but
+  too bright or too saturated is graded in post (`brightness`, `saturation`, `contrast`) rather than rendered again.
+- **Guardians fight in their own rooms.** A layer may name `boss_backdrop`: the Kiln Warden stands in front of its
+  furnace, the Deadlock Golem in front of a glowing round vault door that rings it like a halo (warm, so its blue chains
+  show), and the Root Daemon before an empty black-and-gold throne, as if it had just stepped down (dark, so its red
+  shows).
+- **The air moves.** A layer names an `ambience` (and optionally `boss_ambience`): `dust` (drifting motes, light shafts,
+  crystals glinting far back), `spores` (rising spores, leaks that drip from the ceiling and splash), or `embers`
+  (sparks and streaks of data rising). They are drawn by `fx/atmosphere.ts` on the canvas behind the fighters, with slow
+  fog lying over the floor, and follow reduced motion.
+- **Light lands on the room.** A gathering spell lights the room around the Maintainer, each hit lights the wall behind
+  its foe (a flurry of small bolts flickers on it, a heavy one floods it), and a guardian's room swells with the
+  guardian's own color as the dark of its entrance lifts. These are soft glows on the canvas behind the bodies
+  (`light()` in `fx/engine.ts`), so they never cover a sprite or a number; they are local, not flashes, and only dim with
+  reduced motion.
+- **A spot for every fighter.** The rooms are dark on purpose, so each fighter stands in a faint pool of light in the
+  color of the arena's air, with a fainter glow behind it; a foe's spot fades when it falls. It is what keeps a dark foe
+  from becoming a hole in a dark wall.
+- **Parallax.** The backdrop is its own layer inside the stage's world and takes back 60% of every shake, so it moves
+  less than the fighters and reads as farther away.
+- **Art stays optional.** The stage gives the guardian's room, the layer's arena, and the old Salvage backdrop as one
+  list of background images, first on top, so a room missing from disk shows the next one instead of a black stage (a
+  catalog entry only says the art may exist).

@@ -82,6 +82,8 @@ describe("ShardrunService", () => {
     const { service, id } = await character();
     const run = await service.start(id, "javascript", "beginner");
     expect(run.layer).toMatchObject({ index: 0, count: 3, name: "The Salvage" });
+    // The arena is presentation from content (ADR-0019): the layer's own, and the guardian's room with its own air.
+    expect(run.layer).toMatchObject({ backdrop: "arena-salvage", bossBackdrop: "arena-kiln", ambience: "dust", bossAmbience: "embers" });
     const open = run.map.nodes.filter((node) => node.state === "open");
     expect(open.length).toBeGreaterThan(1);
     expect(open.every((node) => node.row === 0 && node.kind === "fight" && node.foes.length > 0)).toBe(true);

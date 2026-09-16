@@ -1,4 +1,5 @@
-import type { ElementView } from "@rootward/shared";
+import type { ArenaAmbienceView, ElementView } from "@rootward/shared";
+import { Atmosphere } from "./atmosphere.ts";
 import {
   beamFx,
   bezier,
@@ -52,6 +53,8 @@ export interface FoeArt {
   url: string | undefined;
   /** Guardians glow and shed embers the whole fight. */
   aura: boolean;
+  /** Broken apart on the stage: its spot goes dark. */
+  fallen: boolean;
 }
 
 /** Where the Maintainer's casting hand is, as a share of the sprite from its feet and its middle; and at rest. */
@@ -76,8 +79,10 @@ export class FxEngine {
   private ready: ElementView | undefined;
   private readyGlow = 0;
   private readySpin = 0;
-  private dust: { x: number; y: number; speed: number; phase: number }[] = [];
+  private readonly atmosphere = new Atmosphere();
   private auraColors = new Map<string, string>();
+  /** How lit each foe's spot is: easing up to 1 while it stands, down to 0 once it has fallen. */
+  private readonly spots = new Map<string, number>();
   readonly sprites: SpriteBank;
   private options: FxOptions;
   private readonly random: () => number;
@@ -96,6 +101,11 @@ export class FxEngine {
   /** One pixel of the art, in canvas pixels: effects are sized in these so they scale with the stage. */
   get grid(): number {
     return Math.max(2, Math.round(this.scene.height / 170));
+  }
+
+  /** What drifts in this arena's air (content's `ambience`). */
+  setAmbience(ambience: ArenaAmbienceView): void {
+    this.atmosphere.setAmbience(ambience);
   }
 
   /** The spell the player is about to cast (a hovered card): a faint circle gathers under the Maintainer. */
@@ -143,10 +153,11 @@ export class FxEngine {
     };
   }
 
-  /** What lies on the floor, under the bodies: casting circles, rings, drifting dust. */
+  /** What lies behind and under the bodies: the arena's air, casting circles, rings on the floor. */
   drawBack(ctx: CanvasRenderingContext2D): void {
     ctx.clearRect(0, 0, this.scene.width, this.scene.height);
-    this.drawDust(ctx);
+    this.atmosphere.draw(ctx, this.scene.width, this.scene.height, this.grid, this.sprites);
+    this.drawSpots(ctx);
     this.drawReady(ctx);
     this.drawLayer(ctx, 0);
   }
@@ -262,6 +273,27 @@ export class FxEngine {
     this.add(flashFx({ width: this.scene.width, height: this.scene.height, color, alpha, life }));
   }
 
+  /**
+   * Light falling on the room: a soft glow on the back canvas, so it lands on the arena's walls and floor behind the
+   * bodies and never over them. It is what puts a spell in a place rather than on a sprite. Local and soft, so it is
+   * not a flash; with reduced motion it is only dimmer.
+   */
+  private light(spec: { at: Point; color: string; size: number; life: number; strength: number; delay?: number; rise?: number; fall?: number }): void {
+    const strength = spec.strength * (this.options.reduced ? 0.5 : 1);
+    this.add(
+      spriteFx({
+        sprites: this.sprites,
+        key: `dot:${spec.color}`,
+        at: spec.at,
+        size: spec.size,
+        life: spec.life,
+        delay: spec.delay ?? 0,
+        layer: 0,
+        alpha: (t) => envelope(t, spec.rise ?? 0.08, spec.fall ?? 0.8) * strength,
+      }),
+    );
+  }
+
   /** Stop the clock for a moment. Volleys only stop once every 180ms, or a burst of hits would crawl. */
   private hitStop(ms: number): void {
     if (this.options.reduced || this.clock - this.lastStop < 180) return;
@@ -293,6 +325,8 @@ export class FxEngine {
         fallback: { color: look.main, shape: "ring" },
       }),
     );
+    // The gathering spell lights the room around the Maintainer, for as long as it is held.
+    this.light({ at: { x: hero.x, y: hero.feet - hero.height * 0.45 }, color: look.main, size: hero.height * 2.6, life: hold, strength: 0.24, rise: 0.2, fall: 0.3 });
     // Light gathering in the hand, and motes drawn in toward it.
     const hand = () => this.hand();
     this.add(
@@ -460,6 +494,8 @@ export class FxEngine {
       }),
     );
     this.add(ringFx({ at, from: grid * 3, to: burst * 0.75, width: grid * (2 + heft * 3), color: resisted ? STEEL : look.main, life: 340 + heft * 160 }));
+    // The wall behind the foe catches the hit: a flurry of small bolts flickers on it, a heavy one floods it.
+    this.light({ at, color: look.main, size: burst * 3.2, life: 300 + heft * 260, strength: (0.1 + heft * 0.32) * (resisted ? 0.6 : 1) });
     const sparks = this.count(8 + heft * 34 + power * 8);
     const outward = cue.pierce ? 0 : Math.PI; // a piercing bolt carries its debris on through
     this.particles.burst(
@@ -644,7 +680,9 @@ export class FxEngine {
     if (!boss) return;
     this.add(vignetteFx({ width: this.scene.width, height: this.scene.height, color: "#000000", alpha: 0.8, life: duration, darken: true }));
     for (const [uid, body] of Object.entries(this.scene.foes)) {
-      const glow = this.auraColors.get(uid) ?? HURT_LOOK.main;
+      const glow = this.auraOf(uid) ?? HURT_LOOK.main;
+      // Its room answers as the dark lifts: light swells up behind the guardian, in its own color, and settles.
+      this.light({ at: { x: body.x, y: body.feet - body.height * 0.55 }, color: glow, size: body.height * 2.6, life: duration * 1.3, delay: duration * 0.3, strength: 0.42, rise: 0.4, fall: 0.5 });
       this.add(ringFx({ at: { x: body.x, y: body.feet - this.grid * 2 }, from: body.width * 0.1, to: body.width * 1.8, width: this.grid * 5, color: glow, life: 900, delay: duration * 0.45, squash: 0.28, layer: 0 }));
       this.add(emitterFx({ life: duration * 0.7, delay: duration * 0.2, rate: 60, spawn: () => { this.particles.add({ x: body.x + (this.random() - 0.5) * body.width * 1.2, y: body.feet - this.random() * this.grid * 8, vy: -120 - this.random() * 160, gravity: -60, life: 900, size: this.grid * 2, endSize: this.grid, color: glow }); } }));
     }
@@ -666,16 +704,17 @@ export class FxEngine {
   private ambient(dt: number): void {
     const { width, height } = this.scene;
     if (width === 0) return;
-    const wanted = this.options.reduced ? 10 : 34;
-    while (this.dust.length < wanted) this.dust.push({ x: this.random() * width, y: this.random() * height, speed: 6 + this.random() * 14, phase: this.random() * Math.PI * 2 });
-    for (const mote of this.dust) {
-      mote.x += (mote.speed * dt) / 1000;
-      mote.y += (Math.sin(this.clock / 1400 + mote.phase) * 6 * dt) / 1000;
-      if (mote.x > width + 4) {
-        mote.x = -4;
-        mote.y = this.random() * height;
-      }
+    const toward = Math.min(1, dt / 420);
+    for (const uid of new Set([...Object.keys(this.scene.foes), ...this.spots.keys()])) {
+      const standing = this.scene.foes[uid] !== undefined && this.foeArt[uid]?.fallen !== true;
+      const level = this.spots.get(uid) ?? 0;
+      const next = level + ((standing ? 1 : 0) - level) * toward;
+      if (standing || next > 0.01) this.spots.set(uid, next);
+      else this.spots.delete(uid);
     }
+    this.atmosphere.update(dt, width, height, this.grid, this.options.reduced, this.random, (effect) => {
+      this.add(effect);
+    });
     // At rest, a mote of mana now and then rises off the open hand: the idle is a mage's, not a statue's.
     if (this.idle && this.random() < (dt / 1000) * (this.options.reduced ? 0.6 : 2.2)) {
       const { hero } = this.scene;
@@ -698,11 +737,7 @@ export class FxEngine {
     for (const [uid, art] of Object.entries(this.foeArt)) {
       const body = this.scene.foes[uid];
       if (!art.aura || !body) continue;
-      if (!this.auraColors.has(uid) && art.url !== undefined) {
-        const pixels = this.sprites.pixels(art.url);
-        if (pixels) this.auraColors.set(uid, glowColor(pixels) ?? HURT_LOOK.main);
-      }
-      const color = this.auraColors.get(uid) ?? HURT_LOOK.main;
+      const color = this.auraOf(uid) ?? HURT_LOOK.main;
       const rate = (this.options.reduced ? 3 : 14) * (body.height / (this.scene.height * 0.5));
       if (this.random() < (rate * dt) / 1000) {
         this.particles.add({ x: body.x + (this.random() - 0.5) * body.width * 0.9, y: body.feet - this.random() * body.height * 0.9, vy: -30 - this.random() * 40, vx: (this.random() - 0.5) * 20, gravity: -30, life: 1400, size: this.grid * 2, endSize: this.grid, color });
@@ -710,12 +745,41 @@ export class FxEngine {
     }
   }
 
-  private drawDust(ctx: CanvasRenderingContext2D): void {
-    const grid = this.grid;
+  /**
+   * A pool of light where each fighter stands, and a faint glow behind it, in the color of the arena's air. The rooms
+   * are dark on purpose (the code view and the bars sit over them), and a dark foe on a dark wall is a hole in the
+   * picture: a little light behind a body is what separates it from the wall, as a stage light would.
+   */
+  private drawSpots(ctx: CanvasRenderingContext2D): void {
+    const dot = this.sprites.dot(this.atmosphere.light);
+    if (!dot) return;
+    ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.fillStyle = "rgb(255 220 170 / 0.18)";
-    for (const mote of this.dust) ctx.fillRect(Math.round(mote.x / grid) * grid, Math.round(mote.y / grid) * grid, grid, grid);
-    ctx.globalCompositeOperation = "source-over";
+    ctx.imageSmoothingEnabled = true;
+    const spot = (body: Body, level: number) => {
+      if (level <= 0.01 || body.height <= 0) return;
+      const glow = body.height * 1.7;
+      ctx.globalAlpha = 0.1 * level;
+      ctx.drawImage(dot, body.x - glow / 2, body.feet - body.height * 0.55 - glow / 2, glow, glow);
+      const pool = Math.max(body.width * 2.2, body.height * 0.9);
+      ctx.globalAlpha = 0.18 * level;
+      ctx.drawImage(dot, body.x - pool / 2, body.feet - pool * 0.15, pool, pool * 0.3);
+    };
+    spot(this.scene.hero, 1);
+    for (const [uid, body] of Object.entries(this.scene.foes)) spot(body, this.spots.get(uid) ?? 0);
+    ctx.restore();
+  }
+
+  /** A foe's own glow color, read from its sprite the first time it is asked for after the sprite has loaded. */
+  private auraOf(uid: string): string | undefined {
+    const cached = this.auraColors.get(uid);
+    if (cached !== undefined) return cached;
+    const url = this.foeArt[uid]?.url;
+    const pixels = url === undefined ? undefined : this.sprites.pixels(url);
+    if (!pixels) return undefined;
+    const color = glowColor(pixels) ?? HURT_LOOK.main;
+    this.auraColors.set(uid, color);
+    return color;
   }
 
   private drawReady(ctx: CanvasRenderingContext2D): void {

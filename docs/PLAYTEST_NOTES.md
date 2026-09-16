@@ -3,6 +3,24 @@
 Friction found while playing, newest first. Each entry: date, commit, what happened, severity (blocker / annoying /
 polish), and the follow-up (a ROADMAP item or the commit that fixed it).
 
+## 2026-09-17 — the arenas, from screenshots in every room (ADR-0019 amendment)
+
+The player asked to go "a little more all out" on the level backgrounds. Checked by rendering candidates, judging them
+on a mock stage with each layer's hardest foe standing in place, then driving a dev sandbox run in headless Chromium
+through a fight on each layer and each guardian's entrance (the Kiln Warden, the Deadlock Golem, the Root Daemon).
+Not yet played by hand.
+
+- **A violet room hid violet fighters.** The first Salvage render was violet-grey; the Maintainer and the Null Wraith
+  melted into it. Annoying; rendered again in warm stone under lanterns, then darkened in post.
+- **The first Heap was a server room**: busy cage grids behind every sprite and a neon-green bar exactly where bolts
+  fly. Annoying; rendered again as a muted cavern with a thin leak along the floor.
+- **A dark foe on a dark wall** (the Segfault Specter in the Kernel, the Wraith anywhere dim) read as a hole. Polish;
+  every fighter now stands in a faint pool of light.
+- **A fire hit on the Deadlock Golem is paler** against its bright vault door than anywhere else. Polish; the ring and
+  debris still read. Watch it in play.
+- **A guardian's room could be missing from disk** (the built client copies the art at build time) and the stage went
+  black. Annoying; the stage now falls back to the layer's arena underneath.
+
 ## 2026-09-16 — the player's first look at the battle stage (ADR-0019 amendment)
 
 What the player reported after playing, and what changed:

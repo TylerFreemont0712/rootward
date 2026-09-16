@@ -799,6 +799,9 @@ export const ShardrunModifierView = z.strictObject({
 });
 export type ShardrunModifierView = z.infer<typeof ShardrunModifierView>;
 
+export const ArenaAmbienceView = z.enum(["dust", "spores", "embers"]);
+export type ArenaAmbienceView = z.infer<typeof ArenaAmbienceView>;
+
 export const ShardrunView = z.strictObject({
   id: z.string(),
   status: z.enum(["map", "battle", "reward", "rest", "forge", "won", "lost", "abandoned"]),
@@ -820,6 +823,10 @@ export const ShardrunView = z.strictObject({
     name: z.string(),
     flavor: z.string(),
     backdrop: z.string(),
+    /** The guardian's room, and what drifts in the air of each (ADR-0019); the layer's own when the content names none. */
+    bossBackdrop: z.string(),
+    ambience: ArenaAmbienceView,
+    bossAmbience: ArenaAmbienceView,
   }),
   map: z.strictObject({
     nodes: z.array(ShardrunMapNodeView),

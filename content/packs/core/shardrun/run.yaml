@@ -35,6 +35,9 @@ layers:
     name: The Salvage
     flavor: Broken programs, shattered into shards. The first guardians still keep their posts.
     backdrop: arena-salvage
+    boss_backdrop: arena-kiln
+    ambience: dust
+    boss_ambience: embers
     rows: 8
     columns: 5
     paths: 5
@@ -60,6 +63,9 @@ layers:
     name: The Heap
     flavor: Memory that was never freed, piled into caverns. Things live in the leaks.
     backdrop: arena-heap
+    boss_backdrop: arena-vault
+    ambience: spores
+    boss_ambience: dust
     rows: 9
     columns: 5
     paths: 5
@@ -84,6 +90,8 @@ layers:
     name: The Kernel
     flavor: The core of the Machine, where every process answers to one owner.
     backdrop: arena-kernel
+    boss_backdrop: arena-throne
+    ambience: embers
     rows: 9
     columns: 5
     paths: 6

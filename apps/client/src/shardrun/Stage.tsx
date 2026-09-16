@@ -13,7 +13,7 @@ import {
 } from "../assets/AssetRegistry.ts";
 import { useT } from "../i18n/index.ts";
 import { useShardrun } from "../state/shardrun.ts";
-import { type Pending, shownHp } from "./fx/pending.ts";
+import { type Pending, shownFallen, shownHp } from "./fx/pending.ts";
 import type { FoeArt } from "./fx/engine.ts";
 import { FxLayer, type StagePlacements } from "./fx/FxLayer.tsx";
 import { heroPlacement, layoutFoes, type Placement } from "./fx/layout.ts";
@@ -82,6 +82,7 @@ export function Stage({ run, battle, timeline, onStart, pending, classId, pose, 
   const settleAll = useShardrun((s) => s.settleAll);
   const shake = useShardrun((s) => s.shake);
   const worldRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
   const [aspect, setAspect] = useState(2.8);
   const [spriteAspects, setSpriteAspects] = useState<Readonly<Record<string, number>>>({});
   const [reactions, setReactions] = useState<Readonly<Record<string, Reaction>>>({});
@@ -139,9 +140,12 @@ export function Stage({ run, battle, timeline, onStart, pending, classId, pose, 
   const foeArt = useMemo(
     () =>
       Object.fromEntries(
-        battle.foes.map((foe): [string, FoeArt] => [foe.uid, { url: foeSpriteUrl(foe.sprite), aura: foe.size === "huge" || foe.size === "colossal" }]),
+        battle.foes.map((foe): [string, FoeArt] => [
+          foe.uid,
+          { url: foeSpriteUrl(foe.sprite), aura: foe.size === "huge" || foe.size === "colossal", fallen: shownFallen(pending, foe) },
+        ]),
       ),
-    [battle.foes],
+    [battle.foes, pending],
   );
   // Guardians too big for a plate under their feet: their health goes across the top of the stage instead.
   const bosses = useMemo(
@@ -298,15 +302,23 @@ export function Stage({ run, battle, timeline, onStart, pending, classId, pose, 
   }, [later, settleAll]);
 
   const hpOf = (foe: ShardrunFoeView) => shownHp(pending, foe);
-  // A foe breaks apart when its defeat plays, not when the response that killed it arrives.
-  const broken = (foe: ShardrunFoeView) => hpOf(foe) === 0 && !(pending?.defeats.includes(foe.uid) ?? false);
-  const backdrop = assetUrl("backgrounds", run.layer.backdrop) ?? assetUrl("backgrounds", "salvage");
+  const broken = (foe: ShardrunFoeView) => shownFallen(pending, foe);
+  // A guardian fights in its own room, in its own air; everyone else in the layer's arena.
+  const guardianRoom = battle.kind === "boss";
+  // LEARN: art is optional, and a catalog entry does not promise the file is there. Every candidate goes into one
+  // background-image list, first on top: a room that fails to load simply leaves the next one showing through.
+  const backdrops = [...new Set([guardianRoom ? run.layer.bossBackdrop : run.layer.backdrop, run.layer.backdrop, "salvage"])]
+    .map((id) => assetUrl("backgrounds", id))
+    .filter((url) => url !== undefined);
+  const backdrop = backdrops.length > 0 ? backdrops.map((url) => `url("${url}")`).join(", ") : undefined;
+  const ambience = guardianRoom ? run.layer.bossAmbience : run.layer.ambience;
   const hero = placements.hero;
   const frameIndex = BATTLE_POSES.indexOf(pose);
 
   return (
     <div className={`shr-stage${bosses.length > 0 ? " boss-fight" : ""}`}>
-      <div ref={worldRef} className="shr-world" style={backdrop !== undefined ? { backgroundImage: `url("${backdrop}")` } : undefined}>
+      <div ref={worldRef} className="shr-world">
+        <div ref={backdropRef} className="shr-arena" style={backdrop !== undefined ? { backgroundImage: backdrop } : undefined} aria-hidden="true" />
         <div className="shr-stage-shade" aria-hidden="true" />
         <FxLayer
           timeline={timeline}
@@ -314,8 +326,10 @@ export function Stage({ run, battle, timeline, onStart, pending, classId, pose, 
           foeArt={foeArt}
           ready={ready}
           idle={pose === "idle"}
+          ambience={ambience}
           shake={shake}
           worldRef={worldRef}
+          backdropRef={backdropRef}
           onStart={onStart}
           onCue={onCue}
           onDone={onDone}

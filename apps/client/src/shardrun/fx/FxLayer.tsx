@@ -1,4 +1,4 @@
-import type { ElementView } from "@rootward/shared";
+import type { ArenaAmbienceView, ElementView } from "@rootward/shared";
 import { type RefObject, useEffect, useRef } from "react";
 import { assetUrl } from "../../assets/AssetRegistry.ts";
 import { type FoeArt, FxEngine, type Scene } from "./engine.ts";
@@ -28,9 +28,13 @@ export interface FxLayerProps {
   ready: ElementView | undefined;
   /** The Maintainer is standing idle: a little mana drifts up from the hand. */
   idle: boolean;
+  /** What drifts in the arena's air. */
+  ambience: ArenaAmbienceView;
   shake: boolean;
   /** The element that shakes: the stage's world, not its overlays. */
   worldRef: RefObject<HTMLDivElement | null>;
+  /** The backdrop inside the world, moved back against the shake so it seems farther away. */
+  backdropRef: RefObject<HTMLDivElement | null>;
   onStart: () => void;
   onCue: (cue: Cue) => void;
   /** The timeline has played every cue. */
@@ -84,6 +88,7 @@ export function FxLayer(props: FxLayerProps) {
       engine.scene = toScene(current.placements, size.width, size.height);
       engine.foeArt = current.foeArt;
       engine.setReady(current.ready);
+      engine.setAmbience(current.ambience);
       engine.idle = current.idle;
       engine.update(dt);
       const playing = runner.current;
@@ -109,7 +114,12 @@ export function FxLayer(props: FxLayerProps) {
       const world = current.worldRef.current;
       if (world) {
         const offset = engine.shakeOffset();
-        world.style.transform = offset.x === 0 && offset.y === 0 ? "" : `translate(${offset.x.toFixed(1)}px, ${offset.y.toFixed(1)}px)`;
+        const still = offset.x === 0 && offset.y === 0;
+        world.style.transform = still ? "" : `translate(${offset.x.toFixed(1)}px, ${offset.y.toFixed(1)}px)`;
+        // LEARN: parallax on a shake. The fighters move with the whole world; the backdrop takes back most of that
+        // movement, so it travels less than they do, and less movement is what the eye reads as farther away.
+        const backdrop = current.backdropRef.current;
+        if (backdrop) backdrop.style.transform = still ? "" : `translate(${(-offset.x * 0.6).toFixed(1)}px, ${(-offset.y * 0.6).toFixed(1)}px)`;
       }
       frame = requestAnimationFrame(tick);
     };
