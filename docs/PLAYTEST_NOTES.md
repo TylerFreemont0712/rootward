@@ -3,6 +3,22 @@
 Friction found while playing, newest first. Each entry: date, commit, what happened, severity (blocker / annoying /
 polish), and the follow-up (a ROADMAP item or the commit that fixed it).
 
+## 2026-09-16 — the multiplier axis, measured rather than played (ADR-0014, 81f6bf5)
+
+Measured with a throwaway script driving the real server and the real sandbox, not a hand-played run.
+
+- **A compounding build cannot be paid for.** `echo x4 -> amplify-plus x2 -> charge -> resonate` ends on 16 bolts of
+  14 power x 6 mult: 1344 damage, where the same eight shards under the old rules dealt 224 — through the old 640
+  ceiling. But the cast costs **23 mana and a turn gives 6**, so it can never actually be cast. Blocker for the
+  big-number fantasy (ordinary spells are unaffected). Follow-up: complexity-priced mana, Phase 3 in
+  `POSSIBILITIES.md`, now promoted ahead of Phase 2; the cheap first step is mana relics or a work discount.
+- **Overkill against the last guardian.** That cast is about eight times the Root Daemon's 170 HP on Beginner, so once
+  it is affordable, foe HP is the next thing that has to grow. Not blocking today, because nothing can pay for it.
+  Follow-up: geometric HP per layer and endless layers (`POSSIBILITIES.md` section 5).
+- **The multiplier chip is visually unverified.** The code view shows `xN` on a bolt only when a shard moved it, and
+  the smoke test only ever sees mult 1, so that branch has never been seen rendering. Polish; check it on the next
+  mult build.
+
 ## 2026-09-15 — first look at the Bastion and the Foundry (screenshots, ADR-0011)
 
 Taken with a scripted headless browser against a throwaway database, not a hand-played session.
@@ -94,3 +110,6 @@ and service tests. Not yet played by hand end to end: balance across three layer
 - **Programmer difficulty.** No predictions means reading every shard. Is it satisfying, or just slower? Is keeping the
   mana cost visible the right hint?
 - **Code view speed.** Normal takes about 160 ms a line plus pauses at each shard. Does watching every cast get old?
+- **The multiplier ceiling.** `max_bolt_mult: 25` is a guess made to have a safety rail at all (ADR-0014). Damage is
+  now `power x mult`, so the two clamps together set the ceiling at 16 x 40 x 25 = 16 000. Is that the right shape, and
+  should either clamp grow per layer or per relic rather than sitting fixed?

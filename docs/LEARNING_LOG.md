@@ -260,3 +260,23 @@ language feature took more than a minute to understand.
   `pnpm content:validate`, so a shard's plain-words summary cannot drift from its code. The new shards use integer
   arithmetic throughout, which keeps the two languages agreeing exactly rather than almost.
 
+## Compounding damage (ADR-0014)
+
+- **A default is how a contract changes without breaking content.** Adding a second damage axis meant adding a field to
+  `Bolt`, which is the file shape for 36 shards and every worked example (ADR-0002). `mult: z.number().default(1)` made
+  that a non-event: old examples parse, old saved runs parse, and shards that copy bolts by spreading carry the new
+  field for free. When the schema *is* the file format, a default is a migration.
+- **A comparator only checks the fields it lists.** `sameBolts` in content validation compared power, element, target,
+  pierce and ward one by one, so a brand-new field was invisible to it — the new shards' examples would have passed with
+  a completely wrong multiplier. Executable examples are only as strong as the comparison behind them.
+- **A test that cannot fail proves nothing.** The clamp test asserted damage, but damage *dealt* is capped by the foe's
+  remaining HP, so a working clamp (50) and a missing one (2000) both read 20. It was rewritten to measure ward block,
+  which has no such cap. Worth asking of any assertion: what value would make this fail?
+- **Shared fixtures carry shared rules.** A relic added to the test catalog defaulted to common rarity, joined the pool
+  the seeded elite reward draws from, and displaced the relic an unrelated test asserted by id. Fixtures that feed a
+  seeded draw belong to the test that needs them, not to the shared catalog.
+- **Measure the fantasy, not just the code.** Unit tests said the multiplier worked; a script through the real server
+  and sandbox said a compounding build deals 1344 where the old rules gave 224 — and costs 23 mana against a turn's 6,
+  so it cannot be cast at all. The rules were right and the mode was still not playable, which is not something a unit
+  test was ever going to say.
+
