@@ -68,6 +68,35 @@ export const en = {
   "stats.manaSpent": "Mana spent",
   "stats.shards": "Shards salvaged",
   "stats.relics": "Relics claimed",
+
+  "battle.integrity": "Integrity",
+  "battle.block": "{amount} block",
+  "battle.blockHint": "Block soaks enemy hits until your next turn",
+  "battle.mana": "{mana}/{max} mana",
+  "battle.turn": "Turn {turn}",
+  "battle.kind.fight": "fight",
+  "battle.kind.elite": "elite",
+  "battle.kind.boss": "guardian",
+  "battle.endTurn": "End turn",
+  "battle.log": "Battle log",
+  "battle.guardian": "Guardian of {layer}",
+  "battle.intentHint": "What it will do when you end your turn",
+
+  "fx.weak": "WEAK",
+  "fx.resist": "resisted",
+  "fx.nullified": "nullified",
+  "fx.glanced": "glanced off",
+  "fx.blocked": "{amount} blocked",
+  "fx.block": "+{amount} block",
+  "fx.shield": "+{amount} shield",
+  "fx.stoked": "stoked!",
+  "fx.fizzle": "fizzle",
+  "fx.hits.one": "{count} hit",
+  "fx.hits.many": "{count} hits",
+
+  "options.shake": "Shake the stage on heavy hits",
+  "options.on": "On",
+  "options.off": "Off",
 } as const;
 
 /** Every key the game can ask for. Other locales are typed against it, so a stale key cannot go unnoticed. */

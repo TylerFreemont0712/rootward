@@ -242,7 +242,10 @@ describe("ShardrunService", () => {
     expect(granted.relics).toContain("debugger-duck");
     const spawned = await devd.service.dev(devd.id, { type: "spawn", kind: "elite", foes: ["kiln-warden"] });
     expect(spawned.status).toBe("battle");
-    expect(spawned.battle?.foes[0]?.name).toBe("Kiln Warden");
+    // The size is presentation read from content (ADR-0019): a guardian fills the stage however it was spawned.
+    expect(spawned.battle?.foes[0]).toMatchObject({ name: "Kiln Warden", size: "huge" });
+    // A spawned fight is logged as a room's fight is, so the stage plays the guardian's entrance.
+    expect(spawned.log.map((entry) => entry.kind)).toContain("enter");
     // A spawned fight is a real fight: its spells are previewed in the sandbox like any other.
     expect((await devd.service.previews(devd.id)).spells["spell-1"]?.cost).toBeGreaterThan(0);
   });

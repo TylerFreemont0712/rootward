@@ -142,6 +142,14 @@ every rule number is under `shardrun` in `config/balance.yaml`. Routes are under
    or remove a shard or relic, add a spell, set Integrity or mana, spawn an encounter, end a fight either way, or jump
    to a layer. That needs both `ROOTWARD_DEV=1` on the server and the run's own mark, and changes nothing else about
    how the run plays (ADR-0013).
+7. **The stage.** The client plays each response's log (ADR-0019). The log already says what every bolt was — its
+   place in the volley, its aim, pierce, multiplier, weakness or resistance, what a shield took — so
+   `planTimeline` (`apps/client/src/shardrun/fx/timeline.ts`) can turn it into timed cues without any rule of its own.
+   `FxLayer` runs `FxEngine` (`fx/engine.ts`) on two canvases, under and over the bodies, and fires each cue on the
+   engine's clock, which stops for a few frames on a heavy hit; `Stage.tsx` answers the same cues with poses, hit
+   flashes, rising numbers and banners. HP and Integrity wait for the hits through a small ledger (`fx/pending.ts`).
+   Where everyone stands comes from `fx/layout.ts`, from each foe's `size` in content. None of this changes what the
+   server decided; it only decides when the player sees it.
 
 ## Language
 
@@ -250,6 +258,8 @@ See `docs/CONTENT_AUTHORING.md`. Optional generated art is described in `assets/
 | No number a shard computes is trusted as damage (bolts parsed, clamped, capped, and priced) | `normalizeBolts` and `spellCost` in `packages/core/src/shardrun/engine.ts` | `packages/core/test/shardrun.test.ts` |
 | Rearranging spells never creates or destroys a shard | `stepShardrun` ("arrange") | `packages/core/test/shardrun.test.ts` |
 | A shard's examples match what its code really does, in both languages | `packages/content-tools/src/validate/shardrun.ts` | `pnpm content:validate` |
+| The stage never shows a number the log did not produce, and a replayed log cannot push a bar past the true value | `apps/client/src/shardrun/fx/pending.ts` (losses and gains kept apart, clamped at zero) | `apps/client/test/shardrun-stage.test.ts` |
+| Every hit of a bolt aimed at all foes lands at once, and a defeat plays after the hit that caused it | `planTimeline` in `apps/client/src/shardrun/fx/timeline.ts` | `apps/client/test/shardrun-timeline.test.ts` |
 | The server is not reachable from the network | `ROOTWARD_HOST` defaults to `127.0.0.1` | manual |
 
 ## Testing layers

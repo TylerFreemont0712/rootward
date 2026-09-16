@@ -1,6 +1,7 @@
 id: null-wraith
 name: Null Wraith
 sprite: null-wraith
+size: medium
 hp: 18
 weak: [fire]
 trait: { kind: nullify-first }

@@ -1,4 +1,4 @@
-import { Element, FoeIntent, FoeTrait, ShardrunNodeKind } from "@rootward/content-schema";
+import { BoltTarget, Element, FoeIntent, FoeTrait, ShardrunNodeKind } from "@rootward/content-schema";
 import { z } from "zod";
 
 // Shardrun state (ADR-0012, ADR-0013). A run is saved as one validated snapshot after every command rather than as an
@@ -99,6 +99,19 @@ export const LogEntry = z.strictObject({
   spell: z.string().optional(),
   amount: z.int().optional(),
   element: Element.optional(),
+  // The shape of the bolt behind a hit, absorb, glance or ward (ADR-0019). The rules never read these back; they are
+  // what lets the arena draw a scatter as a scatter and a piercing bolt as a lance, rather than every bolt alike.
+  /** The bolt's place in its volley: the hits of a bolt aimed at every foe share it. */
+  bolt: z.int().min(0).optional(),
+  target: BoltTarget.optional(),
+  /** Present, and true, only for a bolt that ignores shields. */
+  pierce: z.literal(true).optional(),
+  /** Present only when it is not 1 (ADR-0014). */
+  mult: z.number().optional(),
+  /** A hit that landed on a weakness or into a resistance. */
+  affinity: z.enum(["weak", "resist"]).optional(),
+  /** What a foe's shield took from a hit, or the Maintainer's block from an enemy blow. */
+  blocked: z.int().min(1).optional(),
 });
 export type LogEntry = z.infer<typeof LogEntry>;
 

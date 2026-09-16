@@ -1,6 +1,7 @@
 id: dangling-pointer
 name: Dangling Pointer
 sprite: dangling-pointer
+size: small
 hp: 22
 trait: { kind: shifting-weakness, cycle: [frost, spark, fire] }
 intents:

@@ -1039,6 +1039,8 @@ function foeView(foe: FoeState, catalog: ShardrunCatalog, say: Translate<Message
     uid: foe.uid,
     name: content?.name ?? foe.name,
     sprite: foe.sprite,
+    // Presentation, read live from content like the name: resizing a foe should not wait for the next fight.
+    size: content?.size ?? "medium",
     hp: foe.hp,
     max: foe.max,
     shield: foe.shield,

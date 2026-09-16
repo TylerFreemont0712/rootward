@@ -2,6 +2,7 @@ import "../theme/shardrun.css";
 import type { ShardrunView } from "@rootward/shared";
 import { useEffect, useState } from "react";
 import { assetUrl } from "../assets/AssetRegistry.ts";
+import { useT } from "../i18n/index.ts";
 import { Arena } from "../shardrun/Arena.tsx";
 import { DevDrawer } from "../shardrun/DevDrawer.tsx";
 import { SPEED_CHOICES } from "../shardrun/CodeView.tsx";
@@ -10,6 +11,7 @@ import { RelicBar } from "../shardrun/parts.tsx";
 import { ForgePanel, RestPanel, RewardPanel } from "../shardrun/rooms.tsx";
 import { RunTotals, StatsPanel } from "../shardrun/StatsPanel.tsx";
 import { Workbench } from "../shardrun/Workbench.tsx";
+import { shownIntegrity } from "../shardrun/fx/pending.ts";
 import { useShardrun } from "../state/shardrun.ts";
 import { useGame } from "../state/store.ts";
 
@@ -89,6 +91,8 @@ export function ShardrunScreen() {
 function RunHeader({ run }: { run: ShardrunView }) {
   const command = useShardrun((s) => s.command);
   const busy = useShardrun((s) => s.busy);
+  // The same Integrity the portrait shows: it drops when a blow lands on the stage, not when the response arrives.
+  const integrity = useShardrun((s) => shownIntegrity(s.pending, run.integrity, run.integrityMax));
   const [confirming, setConfirming] = useState(false);
   // One drawer at a time: opening one closes the others.
   const [drawer, setDrawer] = useState<"none" | "stats" | "options" | "dev">("none");
@@ -98,13 +102,13 @@ function RunHeader({ run }: { run: ShardrunView }) {
   return (
     <header className="shr-header">
       <span className="shr-logo">SHARDRUN</span>
-      <div className="shr-integrity" aria-label={`Integrity ${run.integrity} of ${run.integrityMax}`}>
+      <div className="shr-integrity" aria-label={`Integrity ${integrity} of ${run.integrityMax}`}>
         <span>Integrity</span>
         <span className="shr-meter">
-          <i style={{ width: `${(run.integrity / run.integrityMax) * 100}%` }} />
+          <i style={{ width: `${(integrity / run.integrityMax) * 100}%` }} />
         </span>
         <b>
-          {run.integrity}/{run.integrityMax}
+          {integrity}/{run.integrityMax}
         </b>
       </div>
       <span className="meta">
@@ -189,8 +193,11 @@ function RunHeader({ run }: { run: ShardrunView }) {
 }
 
 function OptionsPanel() {
+  const t = useT();
   const codeSpeed = useShardrun((s) => s.codeSpeed);
   const setCodeSpeed = useShardrun((s) => s.setCodeSpeed);
+  const shake = useShardrun((s) => s.shake);
+  const setShake = useShardrun((s) => s.setShake);
   return (
     <div className="shr-options" role="group" aria-label="Options">
       <div className="shr-option">
@@ -207,6 +214,24 @@ function OptionsPanel() {
               }}
             >
               {choice.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="shr-option">
+        <span>{t("options.shake")}</span>
+        <div className="actions">
+          {([true, false] as const).map((on) => (
+            <button
+              key={String(on)}
+              type="button"
+              className={shake === on ? "btn primary" : "btn"}
+              aria-pressed={shake === on}
+              onClick={() => {
+                setShake(on);
+              }}
+            >
+              {t(on ? "options.on" : "options.off")}
             </button>
           ))}
         </div>

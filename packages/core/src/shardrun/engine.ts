@@ -459,6 +459,8 @@ function devCommand(
       state.battle = battle;
       state.status = "battle";
       note(`spawned ${foes.map((foe) => foe.name).join(" and ")}`);
+      // Logged exactly as a room's fight is, so a spawned guardian makes its entrance in the arena (ADR-0019).
+      log(state, { kind: "enter", text: `${foes.map((foe) => foe.name).join(" and ")} ${foes.length === 1 ? "blocks" : "block"} the way.` });
       return undefined;
     }
     case "dev-end-battle": {
@@ -1080,7 +1082,8 @@ function resolveBolts(
   const { balance } = catalog;
   const modifiers = relicModifiers(state, catalog);
   let dealt = 0;
-  for (const bolt of bolts) {
+  for (const [index, bolt] of bolts.entries()) {
+    const shape = boltShape(index, bolt);
     if (bolt.ward) {
       const gathered = Math.round(bolt.power * bolt.mult);
       battle.block += gathered;
@@ -1088,6 +1091,7 @@ function resolveBolts(
         kind: "ward",
         amount: gathered,
         element: bolt.element,
+        ...shape,
         text: `A ward gathers ${gathered} block.`,
       });
       continue;
@@ -1103,6 +1107,7 @@ function resolveBolts(
           kind: "absorb",
           foe: foe.uid,
           element: bolt.element,
+          ...shape,
           text: `${foe.name} swallows the first bolt whole.`,
         });
         continue;
@@ -1112,6 +1117,7 @@ function resolveBolts(
           kind: "glance",
           foe: foe.uid,
           element: bolt.element,
+          ...shape,
           text: `A ${power}-power bolt glances off ${foe.name}.`,
         });
         continue;
@@ -1119,8 +1125,10 @@ function resolveBolts(
       let multiplier = modifiers.damageMultiplier;
       if (foe.trait?.kind === "pattern-ward" && bolt.element !== foe.pattern)
         multiplier *= balance.pattern_off_multiplier;
-      if (foe.weak.includes(bolt.element)) multiplier *= balance.weak_multiplier + modifiers.weakBonus;
-      else if (foe.resist.includes(bolt.element)) multiplier *= balance.resist_multiplier;
+      const weak = foe.weak.includes(bolt.element);
+      const resisted = !weak && foe.resist.includes(bolt.element);
+      if (weak) multiplier *= balance.weak_multiplier + modifiers.weakBonus;
+      else if (resisted) multiplier *= balance.resist_multiplier;
       let damage = Math.floor(power * multiplier);
       let blocked = 0;
       if (!bolt.pierce) {
@@ -1137,6 +1145,9 @@ function resolveBolts(
         foe: foe.uid,
         amount: damage,
         element: bolt.element,
+        ...shape,
+        ...(weak ? { affinity: "weak" as const } : resisted ? { affinity: "resist" as const } : {}),
+        ...(blocked > 0 ? { blocked } : {}),
         text: `${foe.name} takes ${damage}${shieldNote}.`,
       });
       if (foe.hp === 0) log(state, { kind: "defeat", foe: foe.uid, text: `${foe.name} breaks apart.` });
@@ -1163,6 +1174,19 @@ function potentialOf(state: ShardrunState, bolts: readonly Bolt[], catalog: Shar
   for (const foe of shadow.foes) foe.hp = foeHp(foe.hp + headroom, balance);
   copy.log = [];
   return resolveBolts(copy, shadow, bolts, catalog);
+}
+
+/**
+ * What the arena needs to draw a bolt as the bolt it is (ADR-0019), in the log's sparse form: only the facts that set it
+ * apart from a plain, single-target, unmultiplied bolt, so an ordinary volley's log stays as small as it was.
+ */
+function boltShape(index: number, bolt: Bolt): Pick<LogEntry, "bolt" | "target" | "pierce" | "mult"> {
+  return {
+    bolt: index,
+    target: bolt.target,
+    ...(bolt.pierce ? { pierce: true as const } : {}),
+    ...(bolt.mult !== 1 ? { mult: bolt.mult } : {}),
+  };
 }
 
 function targetsOf(bolt: Bolt, alive: readonly FoeState[]): FoeState[] {
@@ -1238,6 +1262,7 @@ function hitMaintainer(state: ShardrunState, battle: BattleState, foe: FoeState,
     kind: "enemy",
     foe: foe.uid,
     amount: damage,
+    ...(blocked > 0 ? { blocked } : {}),
     text: `${foe.name} hits you for ${damage}${blockNote}.`,
   });
 }

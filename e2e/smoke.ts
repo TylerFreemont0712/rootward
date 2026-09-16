@@ -186,6 +186,9 @@ async function main(): Promise<void> {
     await page.getByRole("button", { name: /End turn/ }).click();
     // The battle log also says "Turn 2.", so wait on the turn counter alone.
     await page.locator(".shr-self > .meta").getByText(/^Turn 2/).waitFor();
+    // The stage (ADR-0019): the class's portrait in the lower left, and effects drawn under and over the bodies.
+    await page.locator(".shr-hero-panel .shr-portrait img").waitFor();
+    if ((await page.locator("canvas.shr-fx").count()) !== 2) throw new Error("the arena should draw its effects on two canvases");
     await page.screenshot({ path: path.join(resultsDir, "shardrun-battle.png") });
 
     // Content localization (ADR-0018): the same run, read in Japanese. The language is chosen at the menu, so go back,

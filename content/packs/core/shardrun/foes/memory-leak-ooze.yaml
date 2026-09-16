@@ -1,6 +1,7 @@
 id: memory-leak-ooze
 name: Memory Leak Ooze
 sprite: memory-leak-ooze
+size: medium
 hp: 30
 weak: [fire]
 intents:

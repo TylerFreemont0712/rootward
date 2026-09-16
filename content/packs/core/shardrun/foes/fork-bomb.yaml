@@ -1,6 +1,7 @@
 id: fork-bomb
 name: Fork Bomb
 sprite: fork-bomb
+size: large
 hp: 70
 weak: [frost]
 resist: [fire]

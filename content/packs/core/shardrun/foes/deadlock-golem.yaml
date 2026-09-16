@@ -1,6 +1,7 @@
 id: deadlock-golem
 name: Deadlock Golem
 sprite: deadlock-golem
+size: huge
 hp: 130
 trait: { kind: pattern-ward, pattern: [spark, fire, frost] }
 intents:

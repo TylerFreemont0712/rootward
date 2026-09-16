@@ -389,3 +389,36 @@ language feature took more than a minute to understand.
 - **A `WeakMap` keyed on an object is a cache keyed on identity.** Each locale's index is built once and never
   replaced, so `WeakMap<ContentIndex, ShardrunCatalog>` is a per-locale memo that never needed a locale string, and
   releases itself if the index is ever dropped.
+
+## Making a hit feel like a hit (ADR-0019)
+
+- **Light adds.** Fire, lightning and magic are light, and light is additive: drawn with `globalCompositeOperation =
+  "lighter"`, black adds nothing, so an effect rendered on black is already the effect. `post_glow` in
+  `scripts/art/generate.py` goes one step further and turns brightness into alpha (dividing the color back out), so
+  the same sprite also works with ordinary blending. Two renders came back on white anyway; the script now warns.
+- **Hit-stop needs a clock you own.** A pause on a heavy hit only works if *everything* waits: the next bolt, the
+  number, the HP bar. `FxEngine.clock` stands still during hit-stop and cues fire on it (`FxLayer.tsx`), so the DOM
+  and the canvas cannot drift apart. `setTimeout` schedules would have kept firing through the pause.
+- **Shake by trauma squared.** Hits add to one `trauma` value that decays each frame, and the stage moves by
+  `trauma²` (`shakeOffset` in `fx/engine.ts`). Squaring is what makes small hits barely move the stage and big ones
+  really throw it; sums of sines give motion that wanders smoothly instead of jittering like random offsets would.
+- **Frame-rate independent drag.** "Keep 30% of your speed per second" is `speed *= 0.3 ** seconds` each frame, not a
+  fixed factor per frame; the second slows down twice as fast at 120 fps as at 60 (`Particles.update`).
+- **Don't recolor art with hue filters.** `hue-rotate` on a hit turned a purple wraith green. A flash is a colored box
+  masked by the sprite's own image (`mask-image`), which lights up exactly the sprite's shape in exactly the bolt's
+  color (`HeroSprite` and `FoeSprite` in `Stage.tsx`). Restarting a CSS animation on every hit takes a new animation
+  *name*, hence the identical `-0`/`-1` keyframe pairs chosen by a counter's parity.
+- **Make replayed effects harmless, not just rare.** The pending ledger keeps losses and gains as separate
+  non-negative numbers, so settling a cue twice clamps at zero instead of showing a wrong HP (`fx/pending.ts`). The
+  store's `shownBeat` stops most replays; the clamp makes the rest safe.
+- **OpenPose sides are the figure's own.** A figure facing the image's right shows its *right* side to the viewer, so
+  in a three-quarter view the near shoulder is `R_SHOULDER` (`battle_pose` in `scripts/art/poses.py`). Raising an arm
+  past the face made the model draw a hand resting on the head and turn the figure toward the viewer; arms kept below
+  the head held their pose.
+- **Registered frames for moves, anchored frames for walks.** A walk cycle anchors every frame on the head so the body
+  stays put while legs move. A battle pose must move the body — a lunge forward, a recoil back — so `post_pose_strip`
+  crops every cell to one shared box instead, and only drops each frame to the floor.
+- **Reuse a render at another size before rendering again.** A 48px map sprite was cut from a 1024px render that was
+  still in the cache; cut again at 96px it is sharper than a new render would be and the same design by construction
+  (`raw_from` in the manifest).
+

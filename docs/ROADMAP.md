@@ -148,6 +148,17 @@ Task breakdown:
       grants one, and nine new shards (Apex, Tally, Rewind, Temper, Triage, Vengeance, Patience, Overflow, Siphon) are
       real functions in both languages with worked examples that run in validation. Still open from the same notes:
       starting kits (a chosen loadout at the start of a run)
+- [x] **A battle stage worth watching** (ADR-0019, 2026-09-16, at the player's request: "different spells, different
+      effects, we should really go the whole nine yards"): the engine's log now says what every bolt was (aim, pierce,
+      multiplier, weakness, what a shield took), and a pure timeline plays it on a canvas effects engine with hit-stop,
+      trauma shake, element bursts, rain for scatter, lances for pierce, seekers, gold halos for multipliers, and foes
+      breaking into their own pixels; HP bars wait for the hits. Foes have a `size` in content, so guardians stand huge
+      and near, with a health bar across the top and an entrance; the Root Daemon was re-rendered as a colossal machine
+      king. The Artificer has an eight-pose battle strip (pose-guided renders) and a high-detail battle portrait in a
+      lower-left panel with Integrity, block, and mana. Effect sprites, foe battle sprites, the strip and the portrait
+      are ComfyUI renders (`battle/`, `foes/`, `fx/`), all optional. Reduced motion and a Shake option are respected.
+      Still open: sound (the cues are ready for it), battle strips and portraits for the planned classes, and a hand
+      playtest of the pacing
 - [x] **Shardrun** (ADR-0012), a separate roguelite mode at the player's request (2026-09-15: "find pieces of code and
       plug and play them into powerful attacks and spells", turn-based, same art): 23 shards that are real Python and
       JavaScript functions, 6 foes with rule-bending traits, a seven-floor run with fights, elites, rests, forges, and a

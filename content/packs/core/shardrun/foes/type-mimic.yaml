@@ -1,6 +1,7 @@
 id: type-mimic
 name: Type Mimic
 sprite: type-mimic
+size: medium
 hp: 32
 resist: [none]
 trait: { kind: shifting-weakness, cycle: [fire, frost, spark] }

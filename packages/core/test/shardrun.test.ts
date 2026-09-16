@@ -78,6 +78,7 @@ function foe(id: string, extra: Partial<ShardrunFoe> = {}): ShardrunFoe {
     id,
     name: id,
     sprite: id,
+    size: "medium",
     hp: 20,
     weak: [],
     resist: [],
@@ -446,6 +447,44 @@ describe("casting", () => {
     target.shield = 5;
     const after = play(state, [cast([bolt(8), bolt(8, "none", { pierce: true }), bolt(8, "frost")])]);
     expect(after.battle?.foes[0]?.hp).toBe(20 - 3 - 8 - 4);
+  });
+
+  it("logs the shape of each bolt, so the arena can draw a lance as a lance and a weakness as a weakness (ADR-0019)", () => {
+    const state = inFight();
+    const target = state.battle?.foes[0];
+    if (!target) throw new Error("no foe");
+    target.shield = 5;
+    const after = play(state, [
+      cast([bolt(4, "fire"), bolt(4, "none", { pierce: true, mult: 2 }), bolt(4, "frost"), bolt(3, "none", { ward: true })]),
+    ]);
+    const shown = after.log.filter((entry) => ["hit", "ward"].includes(entry.kind));
+    expect(shown).toMatchObject([
+      // Fire is this foe's weakness: 4 x 1.5 = 6, and the shield takes 5 of it.
+      { kind: "hit", bolt: 0, target: "front", affinity: "weak", blocked: 5, amount: 1 },
+      { kind: "hit", bolt: 1, target: "front", pierce: true, mult: 2, amount: 8 },
+      { kind: "hit", bolt: 2, affinity: "resist", amount: 2 },
+      { kind: "ward", bolt: 3, amount: 3 },
+    ]);
+    // Sparse: a plain bolt carries no pierce, no multiplier and no affinity at all.
+    expect(shown[1]).not.toHaveProperty("blocked");
+    expect(shown[1]).not.toHaveProperty("affinity");
+    expect(shown[2]).not.toHaveProperty("pierce");
+    expect(shown[2]).not.toHaveProperty("mult");
+
+    // An enemy blow says how much of it the ward's block caught.
+    const struck = play(after, [{ type: "end-turn" }]).log.find((entry) => entry.kind === "enemy");
+    expect(struck?.blocked).toBe(3);
+
+    // A bolt aimed at every foe lands once on each of them, and every one of those hits names the same bolt.
+    const pair = inFight();
+    const first = pair.battle?.foes[0];
+    if (!first) throw new Error("no foe");
+    pair.battle?.foes.push({ ...structuredClone(first), uid: "second" });
+    const scattered = play(pair, [cast([bolt(4, "none", { target: "all" })])]).log.filter((entry) => entry.kind === "hit");
+    expect(scattered.map((entry) => [entry.foe, entry.bolt, entry.target])).toEqual([
+      [first.uid, 0, "all"],
+      ["second", 0, "all"],
+    ]);
   });
 
   it("swallows the first bolt against nullify, and ignores weak bolts against thick hide", () => {

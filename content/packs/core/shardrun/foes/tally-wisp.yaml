@@ -1,6 +1,7 @@
 id: tally-wisp
 name: Tally Wisp
 sprite: tally-wisp
+size: small
 hp: 16
 weak: [frost]
 resist: [fire]

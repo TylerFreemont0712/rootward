@@ -1,6 +1,7 @@
 id: kiln-warden
 name: Kiln Warden
 sprite: kiln-warden
+size: huge
 hp: 95
 weak: [frost]
 resist: [fire]

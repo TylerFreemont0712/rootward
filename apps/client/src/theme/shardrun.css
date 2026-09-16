@@ -142,40 +142,110 @@
 .el-frost { color: var(--frost); }
 .el-spark { color: var(--spark); }
 
-/* The battle stage */
+/* The battle stage (ADR-0019): a world that can shake, sprites placed by fx/layout.ts, effects canvases above and below
+ * them, and the HUD pieces (boss bars, hit counter, banners) that hold still over it. */
 .shr-battle { display: flex; flex-direction: column; gap: 12px; }
 .shr-stage {
-  position: relative; height: clamp(360px, 54vh, 500px); overflow: hidden;
-  border: 1px solid var(--line); background-color: #0d0a12; background-size: cover; background-position: center 65%; image-rendering: pixelated;
+  --stage-h: clamp(380px, 58vh, 560px);
+  position: relative; height: var(--stage-h); overflow: hidden; container-type: size;
+  border: 1px solid var(--line); background: #0d0a12;
 }
-.shr-stage-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgb(0 0 0 / 30%), transparent 35%, rgb(0 0 0 / 55%)); }
-.shr-hero, .shr-foe { position: absolute; translate: -50% -100%; display: flex; flex-direction: column; align-items: center; }
+.shr-stage.boss-fight { --stage-h: clamp(420px, 66vh, 640px); border-color: #6b2a2a; }
+/* The world overhangs the stage a little on every side, so a shake never shows its edge. */
+.shr-world {
+  position: absolute; inset: -16px;
+  background-color: #0d0a12; background-size: cover; background-position: center 65%; image-rendering: pixelated;
+}
+.shr-stage-shade {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgb(0 0 0 / 35%), transparent 30%, transparent 72%, rgb(0 0 0 / 45%));
+}
+.shr-stage.boss-fight .shr-stage-shade {
+  background:
+    radial-gradient(ellipse at 74% 62%, rgb(160 30 30 / 20%), transparent 55%),
+    linear-gradient(180deg, rgb(0 0 0 / 50%), transparent 36%, transparent 70%, rgb(0 0 0 / 55%));
+}
+.shr-fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.shr-fx.back { z-index: 1; }
+.shr-fx.front { z-index: 200; }
+
+.shr-hero, .shr-foe { position: absolute; translate: -50% -100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+.shr-hero { z-index: 80; }
+.shr-ground-shadow {
+  position: absolute; left: 50%; bottom: 0; width: 72%; height: 10%; translate: -50% 45%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 58%), transparent);
+}
+/* A body is a sprite and its flash, moving together. The flash is a colored box masked by the sprite's own image
+ * (see Stage.tsx), so a hit lights the body up in the bolt's color without a hue filter recoloring the art. */
+.shr-body { position: relative; display: block; height: 100%; transform-origin: 50% 100%; }
+.shr-flash {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0; background: #fff;
+  mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat;
+}
 .shr-hero-sprite {
-  width: 128px; height: 200px; background-size: 640px 200px; background-position: 0 0; background-repeat: no-repeat;
-  image-rendering: pixelated; filter: drop-shadow(0 8px 0 rgb(0 0 0 / 35%)); animation: shr-breathe 2.8s ease-in-out infinite;
+  width: 100%; background-repeat: no-repeat; image-rendering: pixelated;
+  filter: drop-shadow(0 0 1px rgb(0 0 0 / 70%)); animation: shr-breathe 2.8s ease-in-out infinite;
 }
-.shr-hero-glyph, .shr-foe-glyph { font-family: var(--font-crt); font-size: 96px; color: var(--amber); line-height: 1; }
-.shr-hero.casting .shr-hero-sprite { filter: drop-shadow(0 0 14px var(--shard)) drop-shadow(0 8px 0 rgb(0 0 0 / 35%)); }
-.shr-hero.hurt { animation: shr-shake 0.35s; }
+.shr-hero-glyph, .shr-foe-glyph { font-family: var(--font-crt); font-size: 20cqh; color: var(--amber); line-height: 1; }
+/* Poses: the strip's frame does the drawing; these add the motion between frames. */
+.shr-hero.pose-windup .shr-hero-sprite { animation: none; transform: translateX(-3%) scaleY(0.985); filter: drop-shadow(0 0 10px var(--shard)); }
+.shr-hero.pose-cast .shr-hero-sprite { animation: shr-thrust 0.28s ease-out both; filter: drop-shadow(0 0 16px var(--shard)) brightness(1.15); }
+.shr-hero.pose-recover .shr-hero-sprite { animation: none; }
+.shr-hero.pose-ward .shr-hero-sprite { animation: none; filter: drop-shadow(0 0 12px var(--teal)); }
+.shr-hero.pose-ward .shr-flash { --flash: 0.45; background: var(--teal); animation: shr-flash 0.45s ease-out; }
+.shr-hero.pose-hurt .shr-hero-sprite { animation: shr-recoil 0.36s ease-out; filter: drop-shadow(0 0 8px var(--fail)); }
+.shr-hero.pose-hurt .shr-flash { --flash: 0.8; background: #ff3b30; animation: shr-flash 0.36s ease-out; }
+.shr-hero.pose-channel .shr-hero-sprite { animation: shr-channel 0.9s ease-in-out infinite; filter: drop-shadow(0 0 12px var(--shard)); }
+.shr-hero.pose-victory .shr-hero-sprite { animation: shr-cheer 1.2s ease-in-out infinite; filter: drop-shadow(0 0 10px #ffd166); }
 .shr-block { position: absolute; bottom: 100%; font-family: var(--font-crt); font-size: 24px; color: var(--teal); text-shadow: 0 0 8px var(--teal-glow), 0 2px 0 #000; white-space: nowrap; }
-.shr-foe-sprite { height: 150px; width: auto; image-rendering: pixelated; filter: drop-shadow(0 8px 0 rgb(0 0 0 / 35%)); animation: shr-idle 2.6s ease-in-out infinite; }
-.shr-foe.hit .shr-foe-sprite { animation: shr-shake 0.3s; filter: brightness(1.8) drop-shadow(0 8px 0 rgb(0 0 0 / 35%)); }
-.shr-foe.lunge { animation: shr-lunge 0.42s ease-out; }
-.shr-foe.defeated .shr-foe-sprite { opacity: 0.2; filter: grayscale(1); animation: none; transition: opacity 0.5s; }
-.shr-foe.defeated .shr-plate { opacity: 0.4; }
+
+.shr-foe .shr-body { animation: shr-idle 2.6s ease-in-out infinite; }
+.shr-foe-sprite { display: block; height: 100%; width: auto; image-rendering: pixelated; filter: drop-shadow(0 0 1px rgb(0 0 0 / 70%)); }
+.shr-foe.size-huge .shr-body { animation: shr-heave 3.4s ease-in-out infinite; }
+.shr-foe.size-huge .shr-foe-sprite { filter: drop-shadow(0 0 12px rgb(255 140 60 / 30%)) drop-shadow(0 0 1px #000); }
+.shr-foe.size-colossal .shr-body { animation: shr-heave 4.2s ease-in-out infinite; }
+.shr-foe.size-colossal .shr-foe-sprite { filter: drop-shadow(0 0 22px rgb(255 50 50 / 45%)) drop-shadow(0 0 1px #000); }
+.shr-foe.stoked .shr-foe-sprite { filter: drop-shadow(0 0 12px rgb(255 90 78 / 70%)) drop-shadow(0 0 1px #000); }
+/* Reactions come in pairs of identical animations (-0 and -1): alternating the name restarts the animation on every hit. */
+.shr-foe.react-hit .shr-body { animation: shr-flinch-0 0.26s ease-out; }
+.shr-foe.react-hit-1 .shr-body { animation-name: shr-flinch-1; }
+.shr-foe.react-heavy .shr-body { animation: shr-knock-0 0.42s cubic-bezier(0.2, 0.8, 0.3, 1); }
+.shr-foe.react-heavy-1 .shr-body { animation-name: shr-knock-1; }
+.shr-foe.react-hit .shr-flash, .shr-foe.react-heavy .shr-flash { --flash: 0.8; animation: shr-flash-0 0.26s ease-out; }
+.shr-foe.react-hit-1 .shr-flash, .shr-foe.react-heavy-1 .shr-flash { animation-name: shr-flash-1; }
+.shr-foe.react-heavy .shr-flash { --flash: 0.9; animation-duration: 0.34s; }
+.shr-foe.tint-fire .shr-flash { background: #ffae5c; }
+.shr-foe.tint-frost .shr-flash { background: #c4ecff; }
+.shr-foe.tint-spark .shr-flash { background: #fff7c2; }
+.shr-foe.tint-none .shr-flash { background: #ead8ff; }
+.shr-foe.react-absorb .shr-body { animation: shr-gulp 0.36s ease-out; }
+.shr-foe.react-absorb .shr-flash { --flash: 0.75; background: #1c0833; animation: shr-flash-0 0.36s ease-out; }
+.shr-foe.react-glance .shr-body { animation: shr-clank 0.24s ease-out; }
+.shr-foe.react-glance .shr-flash { --flash: 0.55; background: #fff; animation: shr-flash-0 0.24s ease-out; }
+.shr-foe.react-lunge { animation: shr-lunge 0.46s cubic-bezier(0.3, 0.1, 0.2, 1); }
+.shr-foe.react-shield .shr-flash { --flash: 0.5; background: #a9c4de; animation: shr-flash-0 0.46s ease-out; }
+.shr-foe.react-stoke .shr-body { animation: shr-rage 0.5s ease-in-out; }
+.shr-foe.react-stoke .shr-flash { --flash: 0.6; background: #ff5a4e; animation: shr-flash-0 0.6s ease-out; }
+.shr-foe.react-heal .shr-flash { --flash: 0.5; background: #8bc96a; animation: shr-flash-0 0.5s ease-out; }
+/* A guardian arrives as a black shape rising out of the floor, and its colors come up after it. */
+.shr-foe.react-rise .shr-body { animation: shr-arrive 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.shr-foe.react-rise .shr-flash { --flash: 1; background: #000; animation: shr-flash-0 1.5s ease-in both; }
+.shr-foe.defeated .shr-body, .shr-foe.defeated .shr-ground-shadow, .shr-foe.defeated .shr-plate { opacity: 0; animation: none; }
 .shr-intent {
-  position: absolute; bottom: calc(100% + 6px); left: 50%; translate: -50% 0; white-space: nowrap;
+  position: absolute; bottom: calc(100% + 6px); left: 50%; translate: -50% 0; z-index: 1; white-space: nowrap;
   padding: 2px 8px; font-size: 11px; color: var(--text); background: rgb(18 14 10 / 92%); border: 1px solid var(--fail);
 }
 .shr-intent.intent-shield, .shr-intent.intent-heal { border-color: var(--teal-dim); }
 .shr-intent.intent-stoke { border-color: var(--warn); }
 .shr-plate {
-  position: absolute; top: calc(100% + 6px); left: 50%; translate: -50% 0; width: 200px;
-  padding: 5px 7px; font-size: 11px; background: rgb(18 14 10 / 88%); border: 1px solid var(--line);
+  position: absolute; top: calc(100% + 10px); left: 50%; translate: -50% 0; width: 196px; z-index: 1;
+  padding: 5px 7px; font-size: 11px; background: rgb(18 14 10 / 88%); border: 1px solid var(--line); transition: opacity 0.3s;
 }
 .shr-plate b { font-weight: 500; }
-.shr-hp { position: relative; height: 11px; margin: 3px 0; border: 1px solid var(--line); background: #2a1512; }
-.shr-hp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #a52a24, var(--integrity)); transition: width 0.45s; }
+.shr-hp { position: relative; height: 11px; margin: 3px 0; border: 1px solid var(--line); background: #2a1512; overflow: hidden; }
+/* The bar drops at once and the pale trail behind it follows, so a hit shows how much it took. */
+.shr-hp em { position: absolute; inset: 0 auto 0 0; background: #ffe7b0; opacity: 0.75; transition: width 0.7s ease-in 0.25s; }
+.shr-hp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #a52a24, var(--integrity)); transition: width 0.18s ease-out; }
 .shr-hp span { position: absolute; inset: 0; font-size: 9px; line-height: 9px; text-align: center; color: #fff; text-shadow: 0 1px 0 #000; }
 .shr-tags { display: flex; flex-wrap: wrap; gap: 3px; }
 .shr-tag { padding: 0 5px; font-size: 10px; border: 1px solid var(--line); }
@@ -184,40 +254,94 @@
 .shr-tag.trait { color: var(--warn); border-color: var(--warn); }
 .shr-trait-text { margin-top: 3px; font-size: 10px; color: var(--muted); line-height: 1.3; }
 
-.shr-bolt {
-  position: absolute; z-index: 5; left: var(--to-x); top: var(--to-y); translate: -50% -50%; pointer-events: none;
-  animation: shr-fly 0.24s ease-in both;
+.shr-boss-bars { position: absolute; z-index: 6; top: 10px; left: 50%; translate: -50% 0; width: min(64%, 760px); display: grid; gap: 6px; }
+.shr-boss-bar {
+  padding: 6px 12px 8px; border: 1px solid #7a2a2a;
+  background: linear-gradient(180deg, rgb(24 8 10 / 94%), rgb(24 8 10 / 82%)); box-shadow: 0 0 26px rgb(160 20 20 / 30%);
 }
-.shr-bolt img { width: 48px; height: 48px; image-rendering: pixelated; filter: drop-shadow(0 0 8px currentColor); }
-.shr-bolt i { display: block; width: 16px; height: 16px; border-radius: 50%; background: currentColor; box-shadow: 0 0 14px currentColor; }
+.shr-boss-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.shr-boss-head b { font-family: var(--font-crt); font-weight: 400; font-size: 30px; line-height: 1; letter-spacing: 2px; color: #ff8f7a; text-shadow: 0 0 12px rgb(255 60 60 / 45%); }
+.shr-boss-head .shr-intent { position: static; translate: none; }
+.shr-boss-bar .shr-hp { height: 15px; }
+.shr-boss-bar .shr-hp i { background: linear-gradient(90deg, #6e0f0f, #e2584f 60%, #ff9d7a); }
+.shr-boss-bar .shr-hp span { font-size: 11px; line-height: 13px; }
+.shr-boss-bar .shr-trait-text { font-size: 11px; }
+.shr-boss-bar.defeated { opacity: 0.45; transition: opacity 0.6s; }
+
 .shr-float {
-  position: absolute; z-index: 6; translate: -50% 0; pointer-events: none; white-space: nowrap;
-  font-family: var(--font-crt); font-size: 34px; line-height: 1; text-shadow: 0 2px 0 #000, 0 0 10px currentColor;
-  animation: shr-rise 0.85s ease-out both;
+  position: absolute; z-index: 300; translate: -50% -50%; pointer-events: none; white-space: nowrap;
+  display: flex; flex-direction: column; align-items: center;
+  font-family: var(--font-crt); line-height: 0.9; text-shadow: 0 2px 0 #000, 0 0 10px currentColor;
+  animation: shr-pop 1.05s cubic-bezier(0.2, 0.9, 0.3, 1) both;
 }
-.shr-float.late { animation-delay: 0.2s; }
-.shr-float.damage { color: var(--amber); }
+.shr-float small { font-size: 0.5em; letter-spacing: 0.08em; }
+.shr-float.size-s { font-size: clamp(18px, 4.6cqh, 28px); }
+.shr-float.size-m { font-size: clamp(24px, 6.4cqh, 38px); }
+.shr-float.size-l { font-size: clamp(32px, 9cqh, 54px); }
+.shr-float.size-xl { font-size: clamp(42px, 12.5cqh, 78px); animation-name: shr-pop-big; }
+.shr-float.damage { color: #ffe0a3; }
+.shr-float.weak { color: #ffb347; }
+.shr-float.resist { color: #9fb6c8; }
+.shr-float.empowered { color: #ffd166; }
 .shr-float.hurt { color: var(--fail); }
 .shr-float.block { color: var(--teal); }
 .shr-float.heal { color: var(--pass); }
 .shr-float.curse { color: #d68cff; }
-.shr-float.muted { color: var(--muted); font-size: 24px; }
-.shr-turn-banner {
-  position: absolute; z-index: 7; left: 50%; top: 14%; translate: -50% 0; pointer-events: none;
-  font-family: var(--font-crt); font-size: 44px; color: var(--amber); text-shadow: 0 0 14px var(--amber-glow), 0 3px 0 #000;
-  animation: shr-banner 0.9s ease-out both;
-}
+.shr-float.muted { color: var(--muted); }
+.shr-combo { position: absolute; z-index: 7; right: 3%; top: 15%; display: flex; flex-direction: column; align-items: flex-end; pointer-events: none; animation: shr-combo-pop 0.2s ease-out; }
+.shr-combo b { font-family: var(--font-crt); font-weight: 400; font-size: clamp(36px, 11cqh, 72px); line-height: 0.9; color: #ffe0a3; text-shadow: 0 0 16px var(--amber-glow), 0 3px 0 #000; }
+.shr-combo span { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--amber); text-shadow: 0 1px 0 #000; }
+.shr-banner { position: absolute; z-index: 9; left: 50%; top: 40%; translate: -50% -50%; display: flex; flex-direction: column; align-items: center; pointer-events: none; animation: shr-banner 0.9s ease-out both; }
+.shr-banner b { font-family: var(--font-crt); font-weight: 400; font-size: 44px; line-height: 1; color: var(--amber); text-shadow: 0 0 14px var(--amber-glow), 0 3px 0 #000; }
+.shr-banner.tone-boss { top: 52%; width: 100%; padding: 20px 0; background: linear-gradient(90deg, transparent, rgb(10 0 0 / 82%) 22%, rgb(10 0 0 / 82%) 78%, transparent); animation: shr-boss-banner 1.9s ease-out both; }
+.shr-banner.tone-boss b { font-size: clamp(40px, 10cqh, 76px); color: #ff8f7a; text-shadow: 0 0 24px rgb(255 40 40 / 60%), 0 3px 0 #000; animation: shr-boss-title 1.9s ease-out both; }
+.shr-banner.tone-boss span { margin-top: 6px; font-size: 13px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--warn); }
 
-/* Battle controls */
-.shr-controls { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 12px; align-items: start; }
+/* Battle controls: the Maintainer's panel in the lower left, rising into the stage, and the spells beside it */
+.shr-controls { display: grid; grid-template-columns: 284px minmax(0, 1fr); gap: 12px; align-items: start; }
 @media (max-width: 900px) { .shr-controls { grid-template-columns: 1fr; } }
-.shr-self { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--line); background: rgb(26 20 16 / 94%); }
+.shr-hero-panel {
+  --cast: var(--shard);
+  position: relative; z-index: 3; margin-top: calc(-0.15 * clamp(380px, 58vh, 560px));
+  display: flex; flex-direction: column; gap: 8px; padding: 12px;
+  border: 1px solid var(--line); background: rgb(22 17 13 / 97%); box-shadow: 0 -10px 30px rgb(0 0 0 / 55%);
+}
+@media (max-width: 900px) { .shr-hero-panel { margin-top: 0; } }
 .shr-self kbd { font-family: inherit; font-size: 10px; border: 1px solid currentColor; border-radius: 2px; padding: 0 4px; margin-left: 6px; }
+.shr-portrait {
+  position: relative; margin: 0; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 50% 64%, color-mix(in srgb, var(--cast) 30%, transparent), transparent 62%),
+    linear-gradient(180deg, #1b1424, #0c0910);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.shr-portrait img { display: block; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; transition: filter 0.2s; }
+.shr-portrait::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgb(0 0 0 / 16%) 0 1px, transparent 1px 3px); }
+.shr-portrait figcaption {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  padding: 22px 10px 6px; background: linear-gradient(180deg, transparent, rgb(8 6 10 / 94%));
+}
+.shr-portrait figcaption b { font-family: var(--font-crt); font-weight: 400; font-size: 26px; line-height: 1; color: var(--amber); text-shadow: 0 2px 0 #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shr-portrait figcaption span { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--shard); }
+.shr-portrait-glyph { display: grid; place-items: center; height: 100%; font-family: var(--font-crt); font-size: 120px; color: var(--amber); }
+.shr-hero-panel.casting .shr-portrait { border-color: var(--cast); box-shadow: 0 0 22px color-mix(in srgb, var(--cast) 55%, transparent), inset 0 0 34px color-mix(in srgb, var(--cast) 32%, transparent); }
+.shr-hero-panel.casting .shr-portrait img { filter: brightness(1.12) drop-shadow(0 0 8px var(--cast)); }
+.shr-hero-panel.warding .shr-portrait { border-color: var(--teal); box-shadow: 0 0 18px var(--teal-glow); }
+.shr-hero-panel.hurt .shr-portrait { border-color: var(--fail); animation: shr-portrait-hurt 0.36s ease-out; }
+.shr-hero-panel.hurt .shr-portrait img { filter: sepia(0.5) saturate(2.2) hue-rotate(-25deg) brightness(1.1); }
+.shr-hero-panel.low:not(.hurt) .shr-portrait { animation: shr-low-pulse 1.4s ease-in-out infinite; }
+.shr-vitals { display: grid; gap: 6px; }
+.shr-vital { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.shr-vital .shr-meter { width: auto; height: 12px; }
+.shr-vital .shr-meter i { transition: width 0.25s ease-out; }
+.shr-vital b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+.shr-block-line { font-size: 12px; color: var(--faint); }
+.shr-block-line.up { color: var(--teal); text-shadow: 0 0 8px var(--teal-glow); }
 .shr-mana-orbs { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .shr-mana-orbs i { width: 17px; height: 17px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-3); }
 .shr-mana-orbs i.full { border-color: var(--shard-dim); background: radial-gradient(circle at 35% 35%, #eadcff, var(--shard) 55%, #4a2b86); box-shadow: 0 0 8px var(--shard-glow); }
 .shr-mana-orbs span { width: 100%; font-size: 11px; color: var(--shard); }
-.shr-log { list-style: none; margin: 0; padding: 6px 0 0; border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 2px; font-size: 11px; max-height: 210px; overflow: auto; }
+.shr-log { list-style: none; margin: 0; padding: 6px 0 0; border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 2px; font-size: 11px; max-height: 150px; overflow: auto; }
 .shr-log .log-hit, .shr-log .log-cast { color: var(--amber); }
 .shr-log .log-enemy, .shr-log .log-loss, .shr-log .log-curse { color: var(--fail); }
 .shr-log .log-ward, .shr-log .log-shield { color: var(--teal); }
@@ -241,13 +365,35 @@
 .shr-misfire { color: var(--fail); }
 .shr-console { margin: 0; padding: 4px 6px; max-height: 80px; overflow: auto; font-size: 11px; color: var(--muted); background: #0b0806; border: 1px solid var(--line-soft); }
 
-@keyframes shr-idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-@keyframes shr-breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.015); } }
+@keyframes shr-idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2.5%); } }
+@keyframes shr-heave { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.012, 1.028); } }
+@keyframes shr-breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.012); } }
 @keyframes shr-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
-@keyframes shr-lunge { 0%, 100% { transform: translateX(0); } 35% { transform: translateX(-46px); } }
-@keyframes shr-fly { from { left: var(--from-x); top: var(--from-y); opacity: 1; } 85% { opacity: 1; } to { left: var(--to-x); top: var(--to-y); opacity: 0; } }
-@keyframes shr-rise { from { opacity: 0; transform: translateY(8px) scale(0.8); } 20% { opacity: 1; transform: translateY(0) scale(1.1); } to { opacity: 0; transform: translateY(-36px) scale(1); } }
+@keyframes shr-thrust { 0% { transform: translateX(-3%); } 40% { transform: translateX(6%) scaleX(1.03); } 100% { transform: translateX(2%); } }
+@keyframes shr-recoil { 0% { transform: translateX(0) rotate(0); } 30% { transform: translateX(-9%) rotate(-5deg); } 60% { transform: translateX(-4%) rotate(-2deg); } 100% { transform: translateX(0) rotate(0); } }
+@keyframes shr-channel { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5%); } }
+@keyframes shr-cheer { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-5%); } 55% { transform: translateY(0); } }
+@keyframes shr-flinch-0 { 0% { transform: translateX(0); } 25% { transform: translateX(4%) scale(0.97, 1.02); } 60% { transform: translateX(-1.5%); } 100% { transform: translateX(0); } }
+@keyframes shr-flinch-1 { 0% { transform: translateX(0); } 25% { transform: translateX(4%) scale(0.97, 1.02); } 60% { transform: translateX(-1.5%); } 100% { transform: translateX(0); } }
+@keyframes shr-knock-0 { 0% { transform: translateX(0); } 18% { transform: translateX(10%) rotate(4deg) scale(0.94, 1.04); } 55% { transform: translateX(-2%) rotate(-1deg); } 100% { transform: translateX(0); } }
+@keyframes shr-knock-1 { 0% { transform: translateX(0); } 18% { transform: translateX(10%) rotate(4deg) scale(0.94, 1.04); } 55% { transform: translateX(-2%) rotate(-1deg); } 100% { transform: translateX(0); } }
+@keyframes shr-gulp { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.08, 0.94); } }
+@keyframes shr-clank { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-2%); } 60% { transform: translateX(1.5%); } }
+@keyframes shr-lunge { 0%, 100% { transform: translateX(0); } 22% { transform: translateX(5%); } 48% { transform: translateX(-36%); } }
+@keyframes shr-rage { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes shr-arrive { 0% { opacity: 0; transform: translateY(10%) scale(0.9); } 40% { opacity: 1; } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes shr-flash { from { opacity: var(--flash, 0.8); } to { opacity: 0; } }
+/* A hit flash is bright for a moment and mostly gone within a third of its time: a blink, not a fade. */
+@keyframes shr-flash-0 { 0% { opacity: var(--flash, 0.8); } 30% { opacity: calc(var(--flash, 0.8) * 0.3); } 100% { opacity: 0; } }
+@keyframes shr-flash-1 { 0% { opacity: var(--flash, 0.8); } 30% { opacity: calc(var(--flash, 0.8) * 0.3); } 100% { opacity: 0; } }
+@keyframes shr-pop { 0% { opacity: 0; transform: translateY(25%) scale(0.6); } 12% { opacity: 1; transform: translateY(0) scale(1.25); } 24% { transform: scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-80%); } }
+@keyframes shr-pop-big { 0% { opacity: 0; transform: scale(2.2); } 10% { opacity: 1; transform: scale(0.9); } 20% { transform: scale(1.06) rotate(-3deg); } 30% { transform: scale(1) rotate(0); } 78% { opacity: 1; } 100% { opacity: 0; transform: translateY(-70%); } }
+@keyframes shr-combo-pop { from { transform: scale(1.25); } to { transform: scale(1); } }
 @keyframes shr-banner { from { opacity: 0; transform: scale(1.4); } 25% { opacity: 1; transform: scale(1); } 75% { opacity: 1; } to { opacity: 0; } }
+@keyframes shr-boss-banner { 0% { opacity: 0; } 18% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes shr-boss-title { 0% { letter-spacing: 34px; opacity: 0; } 30% { letter-spacing: 8px; opacity: 1; } 100% { letter-spacing: 6px; } }
+@keyframes shr-portrait-hurt { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }
+@keyframes shr-low-pulse { 0%, 100% { box-shadow: 0 0 0 rgb(226 88 79 / 0%); } 50% { box-shadow: 0 0 18px rgb(226 88 79 / 55%); } }
 @keyframes shr-beckon { 0%, 100% { box-shadow: 0 0 6px var(--amber-glow); } 50% { box-shadow: 0 0 16px var(--amber-glow); } }
 
 @media (prefers-reduced-motion: reduce) {

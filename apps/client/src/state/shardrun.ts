@@ -8,7 +8,8 @@ import type {
 } from "@rootward/shared";
 import { create } from "zustand";
 import { api, ApiError } from "../api/client.ts";
-import { playbackMs } from "../shardrun/playback.ts";
+import { NOTHING_PENDING, type Pending, pendingOf, settled } from "../shardrun/fx/pending.ts";
+import { type Cue, playbackMs } from "../shardrun/fx/timeline.ts";
 import type { CodeSpeed } from "../shardrun/source.ts";
 
 // Shardrun's client state (ADR-0012, ADR-0013), kept apart from the main store because nothing else reads it. As
@@ -20,6 +21,7 @@ type Battle = NonNullable<ShardrunView["battle"]>;
 const HISTORY = 60;
 const SPEED_KEY = "rootward:shardrun:code-speed";
 const DIFFICULTY_KEY = "rootward:shardrun:difficulty";
+const SHAKE_KEY = "rootward:shardrun:shake";
 const SPEEDS: readonly CodeSpeed[] = ["off", "slow", "normal", "fast"];
 
 export interface ShardrunStore {
@@ -34,6 +36,8 @@ export interface ShardrunStore {
   error: string | undefined;
   /** Counts responses, so the arena replays each new log exactly once. */
   beat: number;
+  /** The last beat whose log the stage has started playing: coming back to the fight does not play it again. */
+  shownBeat: number;
   /** Recent log entries across commands, newest last, for the battle log. */
   history: ShardrunLogView[];
   /** The last battle, held on screen while the log of the command that ended it plays out. */
@@ -44,7 +48,11 @@ export interface ShardrunStore {
   phase: "code" | "log";
   /** The battle as it stood before the cast, shown while its code plays, so no HP bar gives the result away early. */
   staged: Battle | undefined;
+  /** What the stage still has to show of the last command (see `Pending`). */
+  pending: Pending;
   codeSpeed: CodeSpeed;
+  /** Shake the stage on heavy hits (a per-browser option; prefers-reduced-motion turns it off regardless). */
+  shake: boolean;
   difficulty: string;
   load: (profileId: string) => Promise<void>;
   start: (language: string, sandbox?: boolean) => Promise<void>;
@@ -53,7 +61,14 @@ export interface ShardrunStore {
   devCommand: (request: ShardrunDevRequest) => Promise<void>;
   /** The code playback finished or was skipped: let the hits play. */
   finishReplay: () => void;
+  /** The stage has started playing the log of `beat`. */
+  markShown: (beat: number) => void;
+  /** A cue has played on the stage: move its share of the pending numbers onto the bars. */
+  settle: (cue: Cue) => void;
+  /** The stage has shown everything. */
+  settleAll: () => void;
   setCodeSpeed: (speed: CodeSpeed) => void;
+  setShake: (on: boolean) => void;
   setDifficulty: (id: string) => void;
   dismissError: () => void;
 }
@@ -61,11 +76,17 @@ export interface ShardrunStore {
 export const useShardrun = create<ShardrunStore>()((set, get) => {
   let afterglowTimer: number | undefined;
 
-  const clearAfterglowLater = () => {
+  const clearAfterglowIn = (ms: number) => {
     window.clearTimeout(afterglowTimer);
     afterglowTimer = window.setTimeout(() => {
       set({ afterglow: undefined });
-    }, playbackMs(get().run?.log ?? []) + 400);
+    }, ms);
+  };
+  // The stage says when its last cue has played (`settleAll`), and the arena leaves soon after. This timer is only the
+  // fallback for a stage that never finishes, such as a hidden tab, whose animation frames have stopped; it allows for
+  // the pauses heavy hits add to the plain timeline.
+  const clearAfterglowLater = () => {
+    clearAfterglowIn(playbackMs(get().run?.log ?? []) * 1.6 + 1200);
   };
 
   /** Fill in spell previews once the sandbox has run them, unless the run has moved on since. */
@@ -101,14 +122,21 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
       const replay = run.replay && get().codeSpeed !== "off" ? { beat, spellId: run.replay.spellId, run: run.replay.run } : undefined;
       const phase = replay ? "code" : "log";
       const staged = replay ? before?.battle : undefined;
+      const pending = pendingOf(run.log);
       if (before?.battle && before.status === "battle" && run.status !== "battle") {
         // The winning (or losing) blow changes the screen at once; keep the arena up until its code and hits have played.
-        const defeated = new Set(run.log.flatMap((entry) => (entry.kind === "defeat" && entry.foe !== undefined ? [entry.foe] : [])));
-        const battle = { ...before.battle, foes: before.battle.foes.map((foe) => (defeated.has(foe.uid) ? { ...foe, hp: 0 } : foe)) };
-        set({ run, beat, history, replay, phase, staged, afterglow: { run: { ...run, spells: before.spells }, battle } });
+        // The held battle carries the foes' HP *after* the blow, like any other view, so the pending ledger applies to it.
+        const battle = {
+          ...before.battle,
+          foes: before.battle.foes.map((foe) => ({
+            ...foe,
+            hp: Math.max(0, Math.min(foe.max, foe.hp - (pending.damage[foe.uid] ?? 0) + (pending.mending[foe.uid] ?? 0))),
+          })),
+        };
+        set({ run, beat, history, replay, phase, staged, pending, afterglow: { run: { ...run, spells: before.spells }, battle } });
         if (phase === "log") clearAfterglowLater();
       } else {
-        set({ run, beat, history, replay, phase, staged, afterglow: undefined });
+        set({ run, beat, history, replay, phase, staged, pending, afterglow: undefined });
       }
       if (run.battle && run.previews === "pending") void loadPreviews(profileId, run.revision);
     } catch (error) {
@@ -128,16 +156,20 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
     busy: false,
     error: undefined,
     beat: 0,
+    shownBeat: 0,
     history: [],
     afterglow: undefined,
     replay: undefined,
     phase: "log",
     staged: undefined,
+    pending: NOTHING_PENDING,
     codeSpeed: readSpeed(),
+    shake: readStorage(SHAKE_KEY) !== "off",
     difficulty: readStorage(DIFFICULTY_KEY) ?? "beginner",
 
     load: async (profileId) => {
-      if (get().profileId !== profileId) set({ profileId, run: undefined, loaded: false, afterglow: undefined, replay: undefined, phase: "log" });
+      if (get().profileId !== profileId)
+        set({ profileId, run: undefined, loaded: false, afterglow: undefined, replay: undefined, phase: "log", pending: NOTHING_PENDING });
       try {
         const { run, languages, difficulties, dev } = await api.shardrun(profileId);
         if (get().profileId !== profileId) return;
@@ -167,9 +199,28 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
       if (get().afterglow) clearAfterglowLater();
     },
 
+    markShown: (beat) => {
+      if (get().shownBeat < beat) set({ shownBeat: beat });
+    },
+
+    settle: (cue) => {
+      const next = settled(get().pending, cue);
+      if (next !== get().pending) set({ pending: next });
+    },
+
+    settleAll: () => {
+      if (get().pending !== NOTHING_PENDING) set({ pending: NOTHING_PENDING });
+      if (get().afterglow && get().phase === "log") clearAfterglowIn(450);
+    },
+
     setCodeSpeed: (speed) => {
       writeStorage(SPEED_KEY, speed);
       set({ codeSpeed: speed });
+    },
+
+    setShake: (on) => {
+      writeStorage(SHAKE_KEY, on ? "on" : "off");
+      set({ shake: on });
     },
 
     setDifficulty: (id) => {

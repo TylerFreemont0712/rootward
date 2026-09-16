@@ -1,6 +1,7 @@
 id: regex-sphinx
 name: Regex Sphinx
 sprite: regex-sphinx
+size: large
 hp: 48
 trait: { kind: pattern-ward, pattern: [fire, frost, spark] }
 intents:

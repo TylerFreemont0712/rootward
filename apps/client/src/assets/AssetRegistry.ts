@@ -22,7 +22,10 @@ export type AssetCategory =
   | "portraits"
   | "creatures"
   | "brand"
-  | "shardrun";
+  | "shardrun"
+  | "battle"
+  | "foes"
+  | "fx";
 
 /** Served from apps/client/public/generated, which is assets/generated at the repo root (see that folder's symlink). */
 const BASE_URL = "/generated";
@@ -43,6 +46,8 @@ const SHARDRUN_FOES = [
 ];
 /** Every class, playable or planned (PROMPT.md section 6). */
 const CLASSES = ["artificer", "warden", "shade", "oracle", "keeper", "necromancer", "summoner"];
+/** Classes with battle poses and a battle portrait so far; the others fall back to their walk sprite and portrait. */
+const BATTLE_CLASSES = ["artificer"];
 const RELICS = [
   "debugger-duck",
   "firewall",
@@ -189,6 +194,18 @@ const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
     ...["fight", "elite", "boss", "rest", "forge", "treasure"].map((kind) => `map-${kind}`),
     ...RELICS.map((id) => `relic-${id}`),
   ]),
+  /** Shardrun's arena (ADR-0019): a class's battle poses as one strip, and its high-detail battle portrait. */
+  battle: new Set([...BATTLE_CLASSES, ...BATTLE_CLASSES.map((id) => `portrait-${id}`)]),
+  /** Foes drawn at arena scale, a larger cut of the same render as their `creatures` sprite; id is the foe's sprite. */
+  foes: new Set([...ENEMIES, ...SHARDRUN_FOES]),
+  /** Light effects rendered on black with brightness as alpha, for the effects canvas (ADR-0019). */
+  fx: new Set([
+    ...["fire", "frost", "spark", "arcane"].map((element) => `burst-${element}`),
+    "circle",
+    "ward",
+    "slash",
+    "flare",
+  ]),
 };
 
 /** A shard's icon, or undefined when it has none. `fork-plus` uses `fork`'s icon. */
@@ -210,6 +227,30 @@ export type WalkDirection = "down" | "up" | "right";
 /** A class's walk strip for one direction, or undefined when it has none (the static avatar is used instead). */
 export function walkStripUrl(classSlug: string, direction: WalkDirection): string | undefined {
   return WALK_STRIPS.has(classSlug) ? `${BASE_URL}/avatars/${classSlug}-walk-${direction}.png` : undefined;
+}
+
+/**
+ * A battle strip's frames, left to right. The order is fixed by the pose sheet the strip was rendered from
+ * (`battle_poses` in scripts/art/poses.py), so the two change together.
+ */
+export const BATTLE_POSES = ["idle", "windup", "cast", "recover", "ward", "hurt", "channel", "victory"] as const;
+export type BattlePose = (typeof BATTLE_POSES)[number];
+/** One frame of a battle strip, in art pixels. */
+export const BATTLE_FRAME = { width: 96, height: 104 } as const;
+
+/** A class's battle strip, or undefined when it has none (the arena then poses its walk sprite with transforms). */
+export function battleStripUrl(classSlug: string): string | undefined {
+  return assetUrl("battle", classSlug);
+}
+
+/** The portrait shown beside the spells: the high-detail battle one when it exists, else the dialogue portrait. */
+export function battlePortraitUrl(classSlug: string): string | undefined {
+  return assetUrl("battle", `portrait-${classSlug}`) ?? assetUrl("portraits", classSlug);
+}
+
+/** A foe at arena scale, falling back to its map-sized creature sprite. */
+export function foeSpriteUrl(sprite: string): string | undefined {
+  return assetUrl("foes", sprite) ?? assetUrl("creatures", sprite);
 }
 
 /** A display name to logical id, e.g. "Off-By-One Goblin" -> "off-by-one-goblin". */

@@ -3,6 +3,28 @@
 Friction found while playing, newest first. Each entry: date, commit, what happened, severity (blocker / annoying /
 polish), and the follow-up (a ROADMAP item or the commit that fixed it).
 
+## 2026-09-16 — the battle stage, from screenshots mid-effect (ADR-0019)
+
+Checked by driving a dev sandbox run in headless Chromium (a throwaway script, not the smoke test): two-foe fights and a
+spawned Root Daemon, with spells built to show each flight — Kindle + Echo, Chill + Scatter, Arc + Pierce + Charge +
+Resonate, and Ward — screenshotted at fixed moments during each cast and the foes' turn. Not yet played by hand.
+
+- **Hit tints recolored the art.** A `hue-rotate` flash turned the purple Null Wraith green on every hit. Annoying;
+  fixed with a flash masked by the sprite's own image, in the bolt's color.
+- **A piercing bolt's wake ran through the second foe**, which read as a hit it never made. Polish; the wake now stops
+  just past its target.
+- **Stage flashes could strobe.** Every bolt of x5 or more flashed the whole stage, so a wide multiplied volley would
+  flash many times a second. Blocker for comfort; limited to one flash in any 400ms, none with reduced motion.
+- **A heavy-hit flash held the Root Daemon as a flat silhouette** for most of half a second. Polish; now a blink that
+  is mostly gone in a third of its time.
+- **Particles were two screen pixels** on a 1400px stage. Polish; the art-pixel grid is now half as large again (three
+  pixels instead of two on a typical stage).
+- **A guardian spawned before the page loads makes no entrance**, because a reload never replays the last log (on
+  purpose: it would also replay the last volley). Spawned from the Dev drawer it plays: silhouette, name banner,
+  embers, ring. Expected, noted so it is not mistaken for a bug.
+- **The stage grows for a guardian** (58vh to 66vh), so the spells below move down when a boss fight starts. Polish;
+  watch whether it bothers anyone.
+
 ## 2026-09-16 — the multiplier axis, measured rather than played (ADR-0014, 81f6bf5)
 
 Measured with a throwaway script driving the real server and the real sandbox, not a hand-played run.
@@ -78,6 +100,13 @@ Checked by `pnpm test:e2e` (class picker, main menu, World, practice fight, a Sh
 and service tests. Not yet played by hand end to end: balance across three layers is a guess.
 
 ## Tunables to watch in the first playtests
+
+- **Battle pacing (ADR-0019).** A cast gathers for 420ms, a volley spreads over about 1.3s (1.9s at most), and hit-stop
+  pauses 40-120ms on heavy hits (220ms on a guardian's fall). Does a turn still feel quick after twenty of them? All
+  in `TIMING` (`apps/client/src/shardrun/fx/timeline.ts`) and `hitStop` (`fx/engine.ts`).
+- **Foe sizes.** Heights per size and how low each stands are in `fx/layout.ts`; which foe is which size is content.
+  Is a colossal guardian at 80% of the stage too much once a second foe joins it?
+- **Shake.** On by default, off in Options, and never with reduced motion. Too strong on a laptop screen?
 
 - **Strike damage.** Failing tests × enemy ATK, capped at 24 per Strike (`enemy_moves.strike_damage_cap`). Casting the
   untouched starter code against the Tally Wisp costs 24 Integrity. Instructive or just punishing?

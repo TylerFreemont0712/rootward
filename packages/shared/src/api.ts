@@ -713,10 +713,15 @@ export const SpellView = z.strictObject({
 });
 export type SpellView = z.infer<typeof SpellView>;
 
+/** How much of the arena a foe fills (ADR-0019): presentation only, never a rule. */
+export const FoeSizeView = z.enum(["small", "medium", "large", "huge", "colossal"]);
+export type FoeSizeView = z.infer<typeof FoeSizeView>;
+
 export const ShardrunFoeView = z.strictObject({
   uid: z.string(),
   name: z.string(),
   sprite: z.string(),
+  size: FoeSizeView,
   hp: z.int(),
   max: z.int(),
   shield: z.int(),
@@ -739,6 +744,15 @@ export const ShardrunLogView = z.strictObject({
   spell: z.string().optional(),
   amount: z.int().optional(),
   element: ElementView.optional(),
+  /** The bolt behind a hit, absorb, glance, or ward, by its place in the volley (ADR-0019). */
+  bolt: z.int().optional(),
+  target: BoltView.shape.target.optional(),
+  pierce: z.literal(true).optional(),
+  /** The bolt's multiplier, when it is not 1. */
+  mult: z.number().optional(),
+  affinity: z.enum(["weak", "resist"]).optional(),
+  /** What a shield took from a hit, or block from an enemy blow. */
+  blocked: z.int().optional(),
 });
 export type ShardrunLogView = z.infer<typeof ShardrunLogView>;
 

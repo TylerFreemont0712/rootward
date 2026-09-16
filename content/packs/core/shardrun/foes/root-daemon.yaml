@@ -1,6 +1,7 @@
 id: root-daemon
 name: The Root Daemon
 sprite: root-daemon
+size: colossal
 hp: 200
 weak: [spark]
 resist: [none]

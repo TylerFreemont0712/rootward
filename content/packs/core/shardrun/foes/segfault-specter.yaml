@@ -1,6 +1,7 @@
 id: segfault-specter
 name: Segfault Specter
 sprite: segfault-specter
+size: medium
 hp: 32
 weak: [spark]
 trait: { kind: nullify-first }

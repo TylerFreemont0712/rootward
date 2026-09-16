@@ -133,12 +133,21 @@ export const FoeTrait = z.discriminatedUnion("kind", [
 ]);
 export type FoeTrait = z.infer<typeof FoeTrait>;
 
+/**
+ * How much of the arena a foe fills (ADR-0019). Presentation only: the rules never read it, so a foe can be drawn larger
+ * without becoming any harder. Guardians are huge, and the last one colossal.
+ */
+export const FOE_SIZES = ["small", "medium", "large", "huge", "colossal"] as const;
+export const FoeSize = z.enum(FOE_SIZES);
+export type FoeSize = z.infer<typeof FoeSize>;
+
 /** `shardrun/foes/<id>.yaml` */
 export const ShardrunFoe = z.strictObject({
   id: Id,
   name: NonEmptyString,
-  /** Art id of its creature sprite. */
+  /** Art id of its creature sprite (and of its battle sprite, `foes/<sprite>`, when one exists). */
   sprite: Id,
+  size: FoeSize.default("medium"),
   hp: PositiveInt,
   weak: z.array(Element).default([]),
   resist: z.array(Element).default([]),

@@ -1,6 +1,7 @@
 id: garbage-collector
 name: Garbage Collector
 sprite: garbage-collector
+size: large
 hp: 60
 resist: [none]
 trait: { kind: thick-hide, threshold: 6 }

@@ -1,6 +1,7 @@
 id: race-condition-imp
 name: Race Condition Imp
 sprite: race-condition-imp
+size: small
 hp: 14
 weak: [frost]
 intents:

@@ -1,6 +1,7 @@
 id: stack-overflow-serpent
 name: Stack Overflow Serpent
 sprite: stack-overflow-serpent
+size: medium
 hp: 40
 weak: [frost]
 intents:

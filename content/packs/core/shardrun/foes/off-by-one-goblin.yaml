@@ -1,6 +1,7 @@
 id: off-by-one-goblin
 name: Off-by-One Goblin
 sprite: off-by-one-goblin
+size: medium
 hp: 22
 weak: [spark]
 intents:
