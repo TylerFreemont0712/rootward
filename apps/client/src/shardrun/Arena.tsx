@@ -27,6 +27,7 @@ export function Arena({ run, battle: current, frozen }: { run: ShardrunView; bat
   const history = useShardrun((s) => s.history);
   const command = useShardrun((s) => s.command);
   const replay = useShardrun((s) => s.replay);
+  const replayFading = useShardrun((s) => s.replayFading);
   const phase = useShardrun((s) => s.phase);
   const pending = useShardrun((s) => s.pending);
   const codeSpeed = useShardrun((s) => s.codeSpeed);
@@ -81,6 +82,8 @@ export function Arena({ run, battle: current, frozen }: { run: ShardrunView; bat
   const pose: BattlePose = held.pose !== "idle" ? held.pose : playingCode ? "channel" : ready !== undefined && !disabled ? "windup" : "idle";
   const castSpell = replay ? run.spells.find((spell) => spell.id === replay.spellId) : undefined;
   const exploreSpell = exploring === undefined ? undefined : run.spells.find((spell) => spell.id === exploring);
+  // The cast's code while it plays, then its lingering score; a spell opened to read replaces the score.
+  const castView = replay !== undefined && castSpell !== undefined && (playingCode || exploreSpell === undefined) ? { replay, spell: castSpell } : undefined;
   const className = classes.find((candidate) => candidate.id === classId)?.name;
 
   return (
@@ -96,8 +99,18 @@ export function Arena({ run, battle: current, frozen }: { run: ShardrunView; bat
         holdPose={holdPose}
         ready={disabled ? undefined : ready}
       >
-        {playingCode && castSpell && (
-          <CodeView key={`cast-${replay.beat}`} run={run} spell={castSpell} spellRun={replay.run} speed={codeSpeed} mode="cast" onDone={finishReplay} />
+        {castView && (
+          <CodeView
+            key={`cast-${castView.replay.beat}`}
+            run={run}
+            spell={castView.spell}
+            spellRun={castView.replay.run}
+            speed={codeSpeed}
+            mode="cast"
+            finished={!playingCode}
+            fading={replayFading}
+            onDone={finishReplay}
+          />
         )}
         {!playingCode && exploreSpell && (
           <CodeView

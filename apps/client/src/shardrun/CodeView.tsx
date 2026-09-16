@@ -5,7 +5,8 @@ import { type CodeSpeed, CODE_SPEEDS, composeSpell, playbackFrames, playbackLeng
 /**
  * A spell as one function, running line by line (ADR-0013). The cursor walks the code at the chosen speed; the damage
  * and block counters change only where the server measured the bolts: the start, after each shard, and the end. In
- * `cast` mode it plays once and hands over to the hits; in `explore` mode it can be replayed and closed.
+ * `cast` mode it plays once and hands over to the hits, then, `finished`, folds down to its final score, which stays
+ * up while the hits land (ADR-0019); in `explore` mode it can be replayed and closed.
  */
 export function CodeView(props: {
   run: ShardrunView;
@@ -13,9 +14,14 @@ export function CodeView(props: {
   spellRun: SpellRunView | undefined;
   speed: CodeSpeed;
   mode: "cast" | "explore";
+  /** The code has run: show only the final score. */
+  finished?: boolean;
+  /** The score is leaving. */
+  fading?: boolean;
   onDone: () => void;
 }) {
   const { run, spell, spellRun, speed, mode, onDone } = props;
+  const finished = props.finished === true;
   const playSpeed = speed === "off" ? "fast" : speed;
   const source = useMemo(
     () => composeSpell(run.language, spell.name, spell.shards, run.shards, run.rules.baseBoltPower),
@@ -33,7 +39,8 @@ export function CodeView(props: {
   const [index, setIndex] = useState(-1);
 
   useEffect(() => {
-    if (frames.length === 0) return;
+    // A cast that is already finished (its code was skipped, or the option is off) has nothing left to play.
+    if (frames.length === 0 || finished) return;
     const timers = frames.map((frame, i) =>
       window.setTimeout(() => {
         setIndex(i);
@@ -43,7 +50,7 @@ export function CodeView(props: {
     return () => {
       for (const timer of timers) window.clearTimeout(timer);
     };
-  }, [frames, mode, onDone, playSpeed, take]);
+  }, [finished, frames, mode, onDone, playSpeed, take]);
 
   useEffect(() => {
     document
@@ -55,7 +62,8 @@ export function CodeView(props: {
   const work = (spellRun?.steps ?? []).reduce((sum, step) => sum + step.work, 0);
   const shown = frames.slice(0, index + 1);
   const current = frames[index];
-  const outcome = [...shown].reverse().find((frame) => frame.outcome)?.outcome;
+  // Once finished, the score is the cast's result, however far the cursor got (a skip, or no playback at all).
+  const outcome = (finished ? spellRun?.result : undefined) ?? [...shown].reverse().find((frame) => frame.outcome)?.outcome;
   const bolts = [...shown].reverse().find((frame) => frame.bolts)?.bolts ?? [];
   const reached = new Map(
     shown
@@ -66,7 +74,10 @@ export function CodeView(props: {
   const activeShard = current ? source.lines[current.line - 1]?.shard : undefined;
 
   return (
-    <section className={`shr-code-view mode-${mode}`} aria-label={`${spell.name} as code`}>
+    <section
+      className={`shr-code-view mode-${mode}${finished ? " finished" : ""}${props.fading === true ? " fading" : ""}`}
+      aria-label={`${spell.name} as code`}
+    >
       <header>
         <h3>{spell.name}</h3>
         <span className="meta">

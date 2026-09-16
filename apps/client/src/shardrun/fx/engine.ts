@@ -54,8 +54,9 @@ export interface FoeArt {
   aura: boolean;
 }
 
-/** Where the Maintainer's casting hand is, as a share of the sprite from its feet and its middle. */
+/** Where the Maintainer's casting hand is, as a share of the sprite from its feet and its middle; and at rest. */
 const HAND = { dx: 0.36, dy: 0.62 };
+const IDLE_HAND = { dx: 0.26, dy: 0.5 };
 const STEEL = "#a9c4de";
 
 export class FxEngine {
@@ -63,6 +64,8 @@ export class FxEngine {
   clock = 0;
   scene: Scene = { width: 0, height: 0, hero: { x: 0, feet: 0, width: 0, height: 0 }, foes: {} };
   foeArt: Readonly<Record<string, FoeArt>> = {};
+  /** The Maintainer stands idle (set every frame by the layer). */
+  idle = false;
   readonly particles: Particles;
   private effects: Effect[] = [];
   private wall = 0;
@@ -672,6 +675,24 @@ export class FxEngine {
         mote.x = -4;
         mote.y = this.random() * height;
       }
+    }
+    // At rest, a mote of mana now and then rises off the open hand: the idle is a mage's, not a statue's.
+    if (this.idle && this.random() < (dt / 1000) * (this.options.reduced ? 0.6 : 2.2)) {
+      const { hero } = this.scene;
+      const look = LOOKS.none;
+      this.particles.add({
+        x: hero.x + hero.width * IDLE_HAND.dx + (this.random() - 0.5) * this.grid * 4,
+        y: hero.feet - hero.height * IDLE_HAND.dy,
+        vx: (this.random() - 0.5) * 14,
+        vy: -18 - this.random() * 16,
+        gravity: -10,
+        drag: 0.6,
+        life: 1300 + this.random() * 700,
+        size: this.grid * (this.random() < 0.3 ? 2 : 1),
+        endSize: this.grid,
+        color: this.random() < 0.35 ? look.core : look.main,
+        shape: this.random() < 0.2 ? "plus" : "square",
+      });
     }
     // Guardians shed embers the whole fight, in the color of their own glow.
     for (const [uid, art] of Object.entries(this.foeArt)) {

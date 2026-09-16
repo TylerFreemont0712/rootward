@@ -421,4 +421,15 @@ language feature took more than a minute to understand.
 - **Reuse a render at another size before rendering again.** A 48px map sprite was cut from a 1024px render that was
   still in the cache; cut again at 96px it is sharper than a new render would be and the same design by construction
   (`raw_from` in the manifest).
+- **`z-index` only compares inside one stacking context.** The Maintainer (z 80) painted over the code view (z 8)
+  although the code view was "on top" in the markup: the stage is a size container, which makes it a stacking context,
+  and the world between them had no z-index, so its children competed directly with the overlays. `z-index: 0` on the
+  world makes it one layer, and the numbers inside it stop mattering outside it (`.shr-world` in `shardrun.css`). Note
+  that a `transform` also makes a stacking context, so before the fix the stacking order flipped whenever the stage shook.
+- **A descendant selector reaches further than the component you wrote it for.** `.shr-reward-part h3` was meant for
+  the section's heading and also matched the title of every card placed inside the section, shrinking shard names to
+  11px. `>` limits it to the section's own children. When a container holds other components, style its own parts with
+  the child combinator or a class of their own.
+- **An idle loop from one frame.** `breathe` lowers everything above the robe's hem a pixel or two, feet planted;
+  stepping through 0, 1, 2, 1 with `steps(4)` reads as breathing, and no frame is redrawn, so the design is untouched.
 

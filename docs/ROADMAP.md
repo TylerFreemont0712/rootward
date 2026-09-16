@@ -157,6 +157,9 @@ Task breakdown:
       king. The Artificer has an eight-pose battle strip (pose-guided renders) and a high-detail battle portrait in a
       lower-left panel with Integrity, block, and mana. Effect sprites, foe battle sprites, the strip and the portrait
       are ComfyUI renders (`battle/`, `foes/`, `fx/`), all optional. Reduced motion and a Shake option are respected.
+      After the player's first look: the code view moved to the middle (it had been painted under the Maintainer by a
+      stacking bug), a cast's final bolts, damage and block now stay up while its hits land, the idle breathes, and
+      reward cards show shard names at full size again (a CSS selector had been shrinking them).
       Still open: sound (the cues are ready for it), battle strips and portraits for the planned classes, and a hand
       playtest of the pacing
 - [x] **Shardrun** (ADR-0012), a separate roguelite mode at the player's request (2026-09-15: "find pieces of code and

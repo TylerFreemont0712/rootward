@@ -195,7 +195,7 @@ const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
     ...RELICS.map((id) => `relic-${id}`),
   ]),
   /** Shardrun's arena (ADR-0019): a class's battle poses as one strip, and its high-detail battle portrait. */
-  battle: new Set([...BATTLE_CLASSES, ...BATTLE_CLASSES.map((id) => `portrait-${id}`)]),
+  battle: new Set(BATTLE_CLASSES.flatMap((id) => [id, `${id}-idle`, `portrait-${id}`])),
   /** Foes drawn at arena scale, a larger cut of the same render as their `creatures` sprite; id is the foe's sprite. */
   foes: new Set([...ENEMIES, ...SHARDRUN_FOES]),
   /** Light effects rendered on black with brightness as alpha, for the effects canvas (ADR-0019). */
@@ -241,6 +241,14 @@ export const BATTLE_FRAME = { width: 96, height: 104 } as const;
 /** A class's battle strip, or undefined when it has none (the arena then poses its walk sprite with transforms). */
 export function battleStripUrl(classSlug: string): string | undefined {
   return assetUrl("battle", classSlug);
+}
+
+/** Frames in an idle strip: the battle strip's idle frame breathing, settling a pixel or two and rising again. */
+export const BATTLE_IDLE_FRAMES = 4;
+
+/** A class's idle breathing strip, or undefined when it has none (the idle frame then breathes by transform). */
+export function battleIdleUrl(classSlug: string): string | undefined {
+  return assetUrl("battle", `${classSlug}-idle`);
 }
 
 /** The portrait shown beside the spells: the high-detail battle one when it exists, else the dialogue portrait. */

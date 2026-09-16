@@ -3,8 +3,10 @@ import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, us
 import {
   assetUrl,
   BATTLE_FRAME,
+  BATTLE_IDLE_FRAMES,
   BATTLE_POSES,
   type BattlePose,
+  battleIdleUrl,
   battleStripUrl,
   foeSpriteUrl,
   walkStripUrl,
@@ -113,7 +115,16 @@ export function Stage({ run, battle, timeline, onStart, pending, classId, pose, 
   }, []);
 
   const strip = battleStripUrl(classId);
+  const idleStrip = strip !== undefined ? battleIdleUrl(classId) : undefined;
   const walk = walkStripUrl(classId, "right");
+  // Both strips load up front: swapping from the idle strip to the poses must not flash an empty sprite on the first cast.
+  useEffect(() => {
+    for (const url of [strip, idleStrip]) {
+      if (url === undefined) continue;
+      const image = new Image();
+      image.src = url;
+    }
+  }, [strip, idleStrip]);
   const frame = strip !== undefined ? BATTLE_FRAME : WALK_FRAME;
   const placements = useMemo<StagePlacements>(
     () => ({
@@ -302,6 +313,7 @@ export function Stage({ run, battle, timeline, onStart, pending, classId, pose, 
           placements={placements}
           foeArt={foeArt}
           ready={ready}
+          idle={pose === "idle"}
           shake={shake}
           worldRef={worldRef}
           onStart={onStart}
@@ -319,7 +331,9 @@ export function Stage({ run, battle, timeline, onStart, pending, classId, pose, 
               ⛨ {battle.block}
             </div>
           )}
-          {strip !== undefined || walk !== undefined ? (
+          {pose === "idle" && idleStrip !== undefined ? (
+            <HeroSprite url={idleStrip} frames={BATTLE_IDLE_FRAMES} frame={0} idling />
+          ) : strip !== undefined || walk !== undefined ? (
             <HeroSprite url={strip ?? walk ?? ""} frames={strip !== undefined ? BATTLE_POSES.length : 5} frame={strip !== undefined ? Math.max(0, frameIndex) : 0} />
           ) : (
             <div className="shr-hero-glyph">@</div>
@@ -411,11 +425,15 @@ function mask(url: string, size = "100% 100%", position = "0 0"): CSSProperties 
   return { maskImage: image, WebkitMaskImage: image, maskSize: size, WebkitMaskSize: size, maskPosition: position, WebkitMaskPosition: position };
 }
 
-function HeroSprite({ url, frames, frame }: { url: string; frames: number; frame: number }) {
+/** `idling` steps through the strip's frames by CSS animation (which overrides the inline frame position). */
+function HeroSprite({ url, frames, frame, idling = false }: { url: string; frames: number; frame: number; idling?: boolean }) {
   const size = `${frames * 100}% 100%`;
   const position = `${frames > 1 ? (frame / (frames - 1)) * 100 : 0}% 0`;
   return (
-    <div className="shr-body shr-hero-sprite" style={{ backgroundImage: `url("${url}")`, backgroundSize: size, backgroundPosition: position }}>
+    <div
+      className={`shr-body shr-hero-sprite${idling ? " idling" : ""}`}
+      style={{ backgroundImage: `url("${url}")`, backgroundSize: size, backgroundPosition: position }}
+    >
       <span className="shr-flash" style={mask(url, size, position)} />
     </div>
   );

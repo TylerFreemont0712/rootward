@@ -23,6 +23,9 @@ const SPEED_KEY = "rootward:shardrun:code-speed";
 const DIFFICULTY_KEY = "rootward:shardrun:difficulty";
 const SHAKE_KEY = "rootward:shardrun:shake";
 const SPEEDS: readonly CodeSpeed[] = ["off", "slow", "normal", "fast"];
+/** How long a cast's score stays up after its hits have landed, then how long it takes to fade. */
+const SCORE_LINGER_MS = 900;
+const SCORE_FADE_MS = 400;
 
 export interface ShardrunStore {
   profileId: string | undefined;
@@ -42,8 +45,13 @@ export interface ShardrunStore {
   history: ShardrunLogView[];
   /** The last battle, held on screen while the log of the command that ended it plays out. */
   afterglow: { run: ShardrunView; battle: Battle } | undefined;
-  /** A cast to play as code before its hits land. */
+  /**
+   * The last cast, step by step. While `phase` is `code` it plays as code; after that its score stays on the stage
+   * while the hits land, and it is cleared a moment after they have (see `settleAll`).
+   */
   replay: { beat: number; spellId: string; run: SpellRunView } | undefined;
+  /** The lingering score is on its way out. */
+  replayFading: boolean;
   /** `code` while a cast plays as code; `log` once its hits may play. */
   phase: "code" | "log";
   /** The battle as it stood before the cast, shown while its code plays, so no HP bar gives the result away early. */
@@ -75,6 +83,24 @@ export interface ShardrunStore {
 
 export const useShardrun = create<ShardrunStore>()((set, get) => {
   let afterglowTimer: number | undefined;
+
+  let replayTimers: number[] = [];
+  const clearReplayTimers = () => {
+    for (const timer of replayTimers) window.clearTimeout(timer);
+    replayTimers = [];
+  };
+  /** Let the cast of `beat` keep its score up a little longer, then fade it and let it go. */
+  const retireReplay = (beat: number) => {
+    clearReplayTimers();
+    replayTimers = [
+      window.setTimeout(() => {
+        if (get().replay?.beat === beat) set({ replayFading: true });
+      }, SCORE_LINGER_MS),
+      window.setTimeout(() => {
+        if (get().replay?.beat === beat) set({ replay: undefined, replayFading: false });
+      }, SCORE_LINGER_MS + SCORE_FADE_MS),
+    ];
+  };
 
   const clearAfterglowIn = (ms: number) => {
     window.clearTimeout(afterglowTimer);
@@ -119,10 +145,14 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
       window.clearTimeout(afterglowTimer);
       const beat = get().beat + 1;
       const history = [...(fresh ? [] : get().history), ...run.log].slice(-HISTORY);
-      const replay = run.replay && get().codeSpeed !== "off" ? { beat, spellId: run.replay.spellId, run: run.replay.run } : undefined;
-      const phase = replay ? "code" : "log";
-      const staged = replay ? before?.battle : undefined;
+      // Every cast is kept, so its score can stay on the stage while its hits land; only its code playing first
+      // depends on the option.
+      const replay = run.replay ? { beat, spellId: run.replay.spellId, run: run.replay.run } : undefined;
+      const playsCode = replay !== undefined && get().codeSpeed !== "off";
+      const phase = playsCode ? "code" : "log";
+      const staged = playsCode ? before?.battle : undefined;
       const pending = pendingOf(run.log);
+      clearReplayTimers();
       if (before?.battle && before.status === "battle" && run.status !== "battle") {
         // The winning (or losing) blow changes the screen at once; keep the arena up until its code and hits have played.
         // The held battle carries the foes' HP *after* the blow, like any other view, so the pending ledger applies to it.
@@ -133,10 +163,10 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
             hp: Math.max(0, Math.min(foe.max, foe.hp - (pending.damage[foe.uid] ?? 0) + (pending.mending[foe.uid] ?? 0))),
           })),
         };
-        set({ run, beat, history, replay, phase, staged, pending, afterglow: { run: { ...run, spells: before.spells }, battle } });
+        set({ run, beat, history, replay, replayFading: false, phase, staged, pending, afterglow: { run: { ...run, spells: before.spells }, battle } });
         if (phase === "log") clearAfterglowLater();
       } else {
-        set({ run, beat, history, replay, phase, staged, pending, afterglow: undefined });
+        set({ run, beat, history, replay, replayFading: false, phase, staged, pending, afterglow: undefined });
       }
       if (run.battle && run.previews === "pending") void loadPreviews(profileId, run.revision);
     } catch (error) {
@@ -160,6 +190,7 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
     history: [],
     afterglow: undefined,
     replay: undefined,
+    replayFading: false,
     phase: "log",
     staged: undefined,
     pending: NOTHING_PENDING,
@@ -169,7 +200,7 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
 
     load: async (profileId) => {
       if (get().profileId !== profileId)
-        set({ profileId, run: undefined, loaded: false, afterglow: undefined, replay: undefined, phase: "log", pending: NOTHING_PENDING });
+        set({ profileId, run: undefined, loaded: false, afterglow: undefined, replay: undefined, replayFading: false, phase: "log", pending: NOTHING_PENDING });
       try {
         const { run, languages, difficulties, dev } = await api.shardrun(profileId);
         if (get().profileId !== profileId) return;
@@ -195,7 +226,8 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
 
     finishReplay: () => {
       if (get().phase === "log") return;
-      set({ phase: "log", replay: undefined, staged: undefined });
+      // The replay stays: its score lingers over the hits that are about to play.
+      set({ phase: "log", staged: undefined });
       if (get().afterglow) clearAfterglowLater();
     },
 
@@ -210,7 +242,11 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
 
     settleAll: () => {
       if (get().pending !== NOTHING_PENDING) set({ pending: NOTHING_PENDING });
-      if (get().afterglow && get().phase === "log") clearAfterglowIn(450);
+      if (get().phase !== "log") return;
+      const replay = get().replay;
+      // A fight's last cast keeps the arena up until its score has faded, so the finishing blow's numbers are seen.
+      if (get().afterglow) clearAfterglowIn(replay ? SCORE_LINGER_MS + SCORE_FADE_MS : 450);
+      if (replay) retireReplay(replay.beat);
     },
 
     setCodeSpeed: (speed) => {

@@ -86,6 +86,7 @@ file needs its id added to that catalog** before the client asks for it.
 | `generated/backgrounds/salvage.png` | A 480x274 underground vault of broken machinery and violet crystal shards. | The Shardrun arena stage and the mode's faint full-screen backdrop. |
 | `generated/brand/shardrun.png` | A 64x64 glowing crystal shard emblem. | The Shardrun start screen. |
 | `generated/battle/artificer.png` | The Artificer's battle poses (ADR-0019): eight 96x104 frames side by side — idle, wind-up, cast, recover, ward, hurt, channel, victory — cut from one pose-guided render, so the design matches in every frame. The order is the contract with `BATTLE_POSES` in `AssetRegistry.ts`. | The arena's hero, posed by the battle timeline; without it the arena uses the walk strip. |
+| `generated/battle/artificer-idle.png` | Four 96x104 frames made from the idle frame by `breathe` (the post option `idle` on the strip): everything above the robe's hem settles 0, 1, 2, 1 pixels, feet planted, in the strip's palette. | The arena's hero while idle, stepped through with a CSS `steps(4)` animation; without it the idle frame breathes by transform. |
 | `generated/battle/portrait-artificer.png` | A 256x256 battle portrait (112 colors), casting, three-quarter view. | The lower-left panel beside the spells; without it, the 128px dialogue portrait. |
 | `generated/foes` | Every Shardrun foe at arena scale: 72px small, 96px medium, 128px large, 168x176 huge, and the Root Daemon at 176x192 (a new render: a colossal machine king). All but the Daemon are the same render their map sprite in `creatures/` was cut from, cut again larger (`raw_from`). | The arena, sized by each foe's `size` in content; `creatures/` is the fallback. |
 | `generated/fx` | Light effects rendered on black with brightness turned into alpha: `burst-<fire\|frost\|spark\|arcane>` (96x96), `circle` (a rune circle, recolored per element in code), `ward` (a barrier sphere, recolored teal for the Maintainer and steel for a foe's shield), `slash`, `flare`. Projectiles are drawn in code instead: rendered ones came back as scenes (frost as ice caves) rather than one object flying one way. | The effects canvas (`apps/client/src/shardrun/fx/`); every effect has a drawn fallback. |
@@ -134,6 +135,10 @@ is cropped to one shared box and scaled by one factor, so a lunge still moves fo
 lowest foot is dropped to the frame's floor. It uses background removal's own mask (pale skin and white eyes survive,
 which a white-background cut would punch holes through). `battle` in `poses.py` is its sheet; in a side view keep
 hands below the head, or the model draws a hand resting on it and turns the figure toward the viewer.
+
+A pose strip can also emit an idle loop: `idle: {out, drops, waist}` lowers everything above `waist` (a share of the
+figure's height) by each of `drops` pixels in turn, from the strip's first frame and in its palette. It is the pixel
+artist's breathing idle, made without redrawing anything.
 
 A `glow` asset is light rendered on black. Its brightness becomes alpha (color divided back out), stepped into a few
 levels like the palette, with the edges faded so rays that ran off the render do not end in a square. It draws

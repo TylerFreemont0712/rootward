@@ -568,13 +568,35 @@ def post_walk_cycle(rgba: np.ndarray, post: dict, job: dict) -> list[tuple[str, 
     return outputs
 
 
-def post_pose_strip(rgba: np.ndarray, post: dict, job: dict) -> Image.Image:
+def breathe(canvas: np.ndarray, drop: int, waist: float) -> np.ndarray:
+    """A still frame with everything above `waist` (a share of the figure's height, from the top) lowered `drop` pixels,
+    feet planted.
+
+    LEARN: this is the pixel artist's idle. On a figure standing still, a body that settles a pixel or two and rises
+    again reads as breathing, and because it moves pixels that already exist rather than redrawing any, every frame
+    stays exactly the same design. The lowered part covers the top rows of what is below it, so nothing tears open."""
+    if drop <= 0:
+        return canvas.copy()
+    rows = np.nonzero((canvas[..., 3] > 0.5).any(axis=1))[0]
+    top, bottom = int(rows.min()), int(rows.max())
+    cut = top + round((bottom - top) * waist)
+    upper = canvas[:cut].copy()
+    out = canvas.copy()
+    out[:cut] = 0
+    below = out[drop : cut + drop]
+    out[drop : cut + drop] = np.where(upper[..., 3:4] > 0.5, upper, below)
+    return out
+
+
+def post_pose_strip(rgba: np.ndarray, post: dict, job: dict) -> list[tuple[str, Image.Image]]:
     """A pose-guided sheet cut into one strip of registered frames: the battle poses of one character, in sheet order.
 
     Unlike a walk cycle, a battle pose moves the whole body (a lunge carries it forward, a hurt knocks it back), so frames
     are not centered on the figure. Every cell is cropped to the same box, the union of all the figures, and scaled by one
     factor, so a body keeps the place the pose sheet gave it. Only height is re-anchored, lowest foot to the bottom row,
-    so no frame floats. All frames share one palette."""
+    so no frame floats. All frames share one palette.
+
+    With `idle: {out, drops, waist}`, a second strip breathes the first frame (see `breathe`), in the same palette."""
     frame_w, frame_h = post["size"]
     rows, columns = post["rows"], post["columns"]
     pad = 1
@@ -604,14 +626,20 @@ def post_pose_strip(rgba: np.ndarray, post: dict, job: dict) -> Image.Image:
         frames.append(canvas)
     cut = post.get("alpha_cut", 0.5)
     palette = palette_of(np.concatenate([np.round(f[..., :3][f[..., 3] > cut] * 255) for f in frames]), post.get("colors", 24))
-    strip = []
-    for canvas in frames:
+
+    def finish(canvas: np.ndarray) -> np.ndarray:
         opaque = canvas[..., 3] > cut
         out = np.zeros((frame_h, frame_w, 4), dtype=np.uint8)
         out[opaque, :3] = apply_palette(np.round(canvas[..., :3] * 255), palette)[opaque]
         out[opaque, 3] = 255
-        strip.append(outline(out, post.get("outline_color", "#140c1c")))
-    return Image.fromarray(np.concatenate(strip, axis=1), "RGBA")
+        return outline(out, post.get("outline_color", "#140c1c"))
+
+    outputs = [(job["out"], Image.fromarray(np.concatenate([finish(canvas) for canvas in frames], axis=1), "RGBA"))]
+    idle = post.get("idle")
+    if idle:
+        breaths = [finish(breathe(frames[0], drop, idle.get("waist", 0.75))) for drop in idle["drops"]]
+        outputs.append((idle["out"], Image.fromarray(np.concatenate(breaths, axis=1), "RGBA")))
+    return outputs
 
 
 def post_glow(raw: np.ndarray, post: dict) -> Image.Image:
@@ -675,7 +703,7 @@ def process(job: dict, raw: np.ndarray) -> list[tuple[str, Image.Image]]:
         # Background removal's own mask, unless told to cut the white instead: on a sheet of well-spaced figures it keeps
         # pale skin and white eyes that a white cut would punch holes through.
         alpha = sheet_alpha(raw, post) if post.get("alpha") == "white" else raw
-        return [(job["out"], post_pose_strip(alpha, post, job))]
+        return post_pose_strip(alpha, post, job)
     if kind == "glow":
         return [(job["out"], post_glow(raw, post))]
     if kind == "sprite":

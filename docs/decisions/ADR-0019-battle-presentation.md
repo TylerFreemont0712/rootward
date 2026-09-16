@@ -97,3 +97,20 @@ Option 3, in these parts.
   hard, and when.
 - The battle log's English (ADR-0018's first open item) is untouched; new stage text (WEAK, nullified, the guardian
   banner) is in the client catalog in both languages.
+
+## Amendment (2026-09-16, after the player's first look)
+
+- **The code view moved to the middle, and was never meant to sit under the Maintainer.** The stage is a size container,
+  so it is a stacking context, but the world inside it had no z-index of its own: the Maintainer (z 80) and the effects
+  canvas painted over the code view (z 8). `.shr-world` now has `z-index: 0`, so everything inside the world paints
+  under every overlay on the stage. The code view is centered, a little higher and larger, and sits below a guardian's
+  health bar in a boss fight.
+- **A cast's score outlives its code.** Every cast response is kept (`replay`), not only when its code plays. When the
+  code has run (or was skipped, or the option is off), the view folds down to the spell's name and its final bolts,
+  damage and block, which stay up while the hits land and fade 900ms after the last cue; a fight's finishing cast keeps
+  the arena up until its score has faded. Reading a spell's code replaces the score.
+- **The idle breathes.** `battle/artificer-idle` is four frames made from the idle frame by `breathe` in
+  `scripts/art/generate.py`: everything above the robe's hem settles one and two pixels and rises again, feet planted,
+  in the same palette, so the design cannot drift. The stage steps through it with a CSS `steps(4)` animation and a
+  slow sway over the feet, and a mote of mana now and then rises off the open hand.
+

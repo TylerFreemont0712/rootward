@@ -3,6 +3,20 @@
 Friction found while playing, newest first. Each entry: date, commit, what happened, severity (blocker / annoying /
 polish), and the follow-up (a ROADMAP item or the commit that fixed it).
 
+## 2026-09-16 — the player's first look at the battle stage (ADR-0019 amendment)
+
+What the player reported after playing, and what changed:
+
+- **The code view was blocked by the character sprite.** Annoying; a stacking bug (the world's sprites out-ranked the
+  overlays). The world is now one layer under every overlay, and the code view is centered, higher, and larger.
+- **The damage and block of a cast vanished with its code.** Polish; the view folds down to its final bolts, damage
+  and block, which stay up while the hits land and then fade.
+- **A slightly different idle.** Polish; a four-frame breathing strip, a slow sway, and motes of mana off the hand.
+- **Shard names on the reward cards were tiny** ("Lazy Fork", "Rewind"). Annoying; a bug, not a size choice: the rule
+  for a reward section's heading (`.shr-reward-part h3`, 11px uppercase) matched every card title inside the section
+  too, and won by coming later. Scoped to the section's own heading; card titles are 28px again, and card meta text and
+  spell flows went up a pixel.
+
 ## 2026-09-16 — the battle stage, from screenshots mid-effect (ADR-0019)
 
 Checked by driving a dev sandbox run in headless Chromium (a throwaway script, not the smoke test): two-foe fights and a

@@ -94,7 +94,8 @@
 /* Shard cards and chips */
 .shr-card { border: 1px solid var(--line); background: var(--panel); padding: 10px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .shr-card header { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
-.shr-card h3 { margin: 0; font-family: var(--font-crt); font-weight: 400; font-size: 25px; line-height: 1; color: var(--amber); }
+.shr-card h3 { margin: 0; font-family: var(--font-crt); font-weight: 400; font-size: 28px; line-height: 1; color: var(--amber); }
+.shr-card .meta { font-size: 12px; }
 .shr-card p { margin: 0; }
 .shr-card.rarity-uncommon { border-color: var(--teal-dim); }
 .shr-card.rarity-uncommon h3 { color: var(--teal); }
@@ -152,8 +153,11 @@
 }
 .shr-stage.boss-fight { --stage-h: clamp(420px, 66vh, 640px); border-color: #6b2a2a; }
 /* The world overhangs the stage a little on every side, so a shake never shows its edge. */
+/* z-index 0 makes the world one stacking layer: the stage (a size container, so already a stacking context) then
+ * paints every overlay above all of it, whatever z-index a sprite or the effects canvas has inside. Without it the
+ * Maintainer (z 80) painted over the code view (z 8). */
 .shr-world {
-  position: absolute; inset: -16px;
+  position: absolute; inset: -16px; z-index: 0;
   background-color: #0d0a12; background-size: cover; background-position: center 65%; image-rendering: pixelated;
 }
 .shr-stage-shade {
@@ -188,6 +192,7 @@
 }
 .shr-hero-glyph, .shr-foe-glyph { font-family: var(--font-crt); font-size: 20cqh; color: var(--amber); line-height: 1; }
 /* Poses: the strip's frame does the drawing; these add the motion between frames. */
+.shr-hero-sprite.idling { animation: shr-breath 2.6s steps(4) infinite, shr-sway 6.4s ease-in-out infinite; }
 .shr-hero.pose-windup .shr-hero-sprite { animation: none; transform: translateX(-3%) scaleY(0.985); filter: drop-shadow(0 0 10px var(--shard)); }
 .shr-hero.pose-cast .shr-hero-sprite { animation: shr-thrust 0.28s ease-out both; filter: drop-shadow(0 0 16px var(--shard)) brightness(1.15); }
 .shr-hero.pose-recover .shr-hero-sprite { animation: none; }
@@ -356,7 +361,7 @@
 .shr-spell h3 { margin: 0; flex: 1; font-family: var(--font-crt); font-weight: 400; font-size: 26px; line-height: 1; color: var(--amber); }
 .shr-spell.spent { opacity: 0.5; }
 .shr-spell.casting { box-shadow: 0 0 0 1px var(--shard), 0 0 22px var(--shard-glow); }
-.shr-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 11px; }
+.shr-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 12px; }
 .shr-flow-shard { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px 1px 2px; border: 1px solid var(--line); background: var(--panel-3); }
 .shr-count { min-width: 18px; padding: 0 4px; text-align: center; border-radius: 8px; background: var(--shard-dim); color: #fff; font-size: 10px; font-variant-numeric: tabular-nums; }
 .shr-predict { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; }
@@ -368,6 +373,9 @@
 @keyframes shr-idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2.5%); } }
 @keyframes shr-heave { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.012, 1.028); } }
 @keyframes shr-breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.012); } }
+/* Steps through an idle strip's four frames: at N frames, frame k sits at k/(N-1) of the way, so 0 to 4/3 in N steps. */
+@keyframes shr-breath { from { background-position: 0% 0; } to { background-position: 133.333% 0; } }
+@keyframes shr-sway { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-0.7deg); } }
 @keyframes shr-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
 @keyframes shr-thrust { 0% { transform: translateX(-3%); } 40% { transform: translateX(6%) scaleX(1.03); } 100% { transform: translateX(2%); } }
 @keyframes shr-recoil { 0% { transform: translateX(0) rotate(0); } 30% { transform: translateX(-9%) rotate(-5deg); } 60% { transform: translateX(-4%) rotate(-2deg); } 100% { transform: translateX(0) rotate(0); } }
@@ -421,7 +429,8 @@
 .shr-relic-card h3 { color: var(--warn); }
 .shr-flavor { font-size: 11px; color: var(--muted); font-style: italic; }
 .shr-reward-part { display: flex; flex-direction: column; gap: 6px; padding: 8px 0 12px; border-bottom: 1px solid var(--line-soft); margin-bottom: 8px; }
-.shr-reward-part h3 { margin: 0; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+/* Only the section's own heading: a card's title inside the section is an h3 too, and must keep its size. */
+.shr-reward-part > h3 { margin: 0; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
 .shr-new-spell b { color: var(--shard); font-weight: 500; }
 
 /* The layer map: bottom to top */
@@ -457,28 +466,46 @@
 .shr-map-legend li { display: inline-flex; align-items: center; gap: 4px; }
 .shr-map-legend img { width: 20px; height: 20px; image-rendering: pixelated; }
 
-/* The whole spell as code */
+/* The whole spell as code: centered over the stage, clear of the Maintainer. When a cast's code has run it folds away to
+ * its score, which stays up while the hits land and then fades (ADR-0019). */
 .shr-code-view {
-  position: absolute; z-index: 8; left: 2%; top: 4%; bottom: 4%; width: min(46%, 620px);
-  display: flex; flex-direction: column; gap: 8px; padding: 10px 12px;
+  position: absolute; z-index: 8; left: 50%; top: 2.5%; translate: -50% 0; width: min(60%, 800px); max-height: 90%;
+  display: flex; flex-direction: column; padding: 12px 14px;
   border: 1px solid var(--shard-dim); background: rgb(12 9 16 / 94%); box-shadow: 0 0 30px rgb(0 0 0 / 70%), 0 0 18px var(--shard-glow);
+  transition: opacity 0.4s ease, background-color 0.3s ease;
 }
+.shr-code-view > * + * { margin-top: 8px; }
+/* A guardian's health bar owns the top of the stage, so the code sits below it. */
+.shr-stage.boss-fight .shr-code-view { top: 132px; max-height: calc(100% - 144px); }
+.shr-code-view.finished { pointer-events: none; background: rgb(12 9 16 / 82%); }
+.shr-code-view.finished .shr-code-actions { visibility: hidden; }
+.shr-code-view.finished .shr-code-lines,
+.shr-code-view.finished .shr-bolt-row,
+.shr-code-view.finished .shr-console,
+.shr-code-view.finished .shr-code-hint {
+  max-height: 0; margin-top: 0; padding-top: 0; padding-bottom: 0; border-width: 0; opacity: 0; overflow: hidden;
+}
+.shr-code-view.fading { opacity: 0; }
 .shr-code-view header { display: flex; align-items: baseline; gap: 10px; }
 .shr-code-view h3 { margin: 0; font-family: var(--font-crt); font-weight: 400; font-size: 26px; color: var(--shard); line-height: 1; }
 .shr-code-actions { margin-left: auto; display: flex; gap: 6px; }
 .shr-code-hint { margin: 0; }
 .shr-scoreboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .shr-score { display: flex; flex-direction: column; align-items: center; padding: 4px; border: 1px solid var(--line); background: #0b0806; }
-.shr-score span { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
-.shr-score b { font-family: var(--font-crt); font-weight: 400; font-size: 40px; line-height: 1; animation: shr-count-pop 0.35s ease-out; }
+.shr-score span { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.shr-score b { font-family: var(--font-crt); font-weight: 400; font-size: 46px; line-height: 1; animation: shr-count-pop 0.35s ease-out; }
 .shr-score.damage b { color: var(--amber); text-shadow: 0 0 12px var(--amber-glow); }
 .shr-score.block b { color: var(--teal); text-shadow: 0 0 12px var(--teal-glow); }
 .shr-score.bolts b { color: var(--shard); text-shadow: 0 0 12px var(--shard-glow); }
-.shr-bolt-row { display: flex; flex-wrap: wrap; gap: 4px; max-height: 58px; overflow: auto; }
+.shr-bolt-row { display: flex; flex-wrap: wrap; gap: 4px; max-height: 58px; overflow: auto; transition: max-height 0.35s ease-in, opacity 0.2s ease-in; }
 .shr-bolt-chip { padding: 0 6px; font-size: 11px; border: 1px solid currentColor; border-radius: 8px; background: rgb(0 0 0 / 40%); animation: shr-count-pop 0.3s ease-out; }
 .shr-bolt-chip.ward { border-style: dashed; }
-.shr-code-lines { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 6px 0; list-style: none; background: #070508; border: 1px solid var(--line-soft); font-size: 12px; line-height: 1.55; }
-.shr-code-lines li { display: grid; grid-template-columns: 34px minmax(0, auto) 1fr; align-items: baseline; gap: 8px; padding: 0 8px 0 0; white-space: pre; }
+.shr-code-lines {
+  flex: 1 1 auto; min-height: 0; max-height: 64cqh; overflow: auto; margin: 0; padding: 6px 0; list-style: none;
+  background: #070508; border: 1px solid var(--line-soft); font-size: 13px; line-height: 1.6;
+  transition: max-height 0.4s ease-in, opacity 0.25s ease-in, margin-top 0.4s ease-in, padding 0.4s ease-in;
+}
+.shr-code-lines li { display: grid; grid-template-columns: 36px minmax(0, auto) 1fr; align-items: baseline; gap: 8px; padding: 0 8px 0 0; white-space: pre; }
 .shr-code-lines code { background: none; padding: 0; color: var(--text); }
 .shr-gutter { text-align: right; color: var(--faint); font-size: 10px; user-select: none; }
 .shr-code-lines li.kind-comment code { color: var(--faint); }

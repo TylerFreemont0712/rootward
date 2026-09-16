@@ -26,6 +26,8 @@ export interface FxLayerProps {
   foeArt: Readonly<Record<string, FoeArt>>;
   /** The element of the spell under the pointer, for the gathering circle. */
   ready: ElementView | undefined;
+  /** The Maintainer is standing idle: a little mana drifts up from the hand. */
+  idle: boolean;
   shake: boolean;
   /** The element that shakes: the stage's world, not its overlays. */
   worldRef: RefObject<HTMLDivElement | null>;
@@ -82,6 +84,7 @@ export function FxLayer(props: FxLayerProps) {
       engine.scene = toScene(current.placements, size.width, size.height);
       engine.foeArt = current.foeArt;
       engine.setReady(current.ready);
+      engine.idle = current.idle;
       engine.update(dt);
       const playing = runner.current;
       if (playing) {
