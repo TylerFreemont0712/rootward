@@ -31,6 +31,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 
+import layouts
 import poses
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -41,6 +42,7 @@ CACHE_DIR = ROOT / "assets" / ".art-cache"
 GENERATION_KEYS = (
     "checkpoint", "lora", "lora_strength", "prefix", "prompt", "suffix", "negative",
     "width", "height", "steps", "cfg", "sampler", "scheduler", "seed", "candidates", "rmbg", "control", "control_digest",
+    "init", "init_digest",
 )
 
 
@@ -82,9 +84,10 @@ def generation_hash(job: dict) -> str:
 # ComfyUI
 
 
-def build_graph(job: dict, prefix: str, control_image: str | None = None) -> dict:
-    """An API-format txt2img graph; with `rmbg`, BiRefNet's mask is saved beside the render as its own image, and with
-    `control`, an uploaded pose sheet steers where the bodies go."""
+def build_graph(job: dict, prefix: str, control_image: str | None = None, init_image: str | None = None) -> dict:
+    """An API-format txt2img graph; with `rmbg`, BiRefNet's mask is saved beside the render as its own image, with
+    `control`, an uploaded pose sheet steers where the bodies go, and with `init`, the render starts from an uploaded
+    layout sketch instead of noise (img2img), keeping the sketch's big shapes at `denoise` below 1."""
     graph: dict[str, dict] = {"1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": job["checkpoint"]}}}
     model, clip = ["1", 0], ["1", 1]
     if job.get("lora"):
@@ -101,6 +104,16 @@ def build_graph(job: dict, prefix: str, control_image: str | None = None) -> dic
         "class_type": "EmptyLatentImage",
         "inputs": {"width": job["width"], "height": job["height"], "batch_size": job["candidates"]},
     }
+    latent, denoise = ["5", 0], 1.0
+    init = job.get("init")
+    if init and init_image:
+        # LEARN: img2img is the same sampler started from an encoded picture plus partial noise. `denoise` is how much
+        # noise: 1.0 forgets the picture entirely, 0.8 keeps its composition and colors and repaints every detail.
+        del graph["5"]
+        graph["15"] = {"class_type": "LoadImage", "inputs": {"image": init_image}}
+        graph["16"] = {"class_type": "VAEEncode", "inputs": {"pixels": ["15", 0], "vae": ["1", 2]}}
+        graph["17"] = {"class_type": "RepeatLatentBatch", "inputs": {"samples": ["16", 0], "amount": job["candidates"]}}
+        latent, denoise = ["17", 0], init.get("denoise", 0.8)
     positive, negative = ["3", 0], ["4", 0]
     control = job.get("control")
     if control and control_image:
@@ -118,9 +131,9 @@ def build_graph(job: dict, prefix: str, control_image: str | None = None) -> dic
     graph["6"] = {
         "class_type": "KSampler",
         "inputs": {
-            "model": model, "positive": positive, "negative": negative, "latent_image": ["5", 0],
+            "model": model, "positive": positive, "negative": negative, "latent_image": latent,
             "seed": job["seed"], "steps": job["steps"], "cfg": job["cfg"],
-            "sampler_name": job["sampler"], "scheduler": job["scheduler"], "denoise": 1.0,
+            "sampler_name": job["sampler"], "scheduler": job["scheduler"], "denoise": denoise,
         },
     }
     graph["7"] = {"class_type": "VAEDecode", "inputs": {"samples": ["6", 0], "vae": ["1", 2]}}
@@ -155,6 +168,11 @@ def pose_sheet(job: dict) -> Image.Image | None:
     return poses.sheet(control["pose"], job["width"], job["height"]) if control else None
 
 
+def layout_sketch(job: dict) -> Image.Image | None:
+    init = job.get("init")
+    return layouts.sheet(init["layout"], job["width"], job["height"]) if init else None
+
+
 def upload_image(comfy: str, image: Image.Image, name: str) -> str:
     """Put an image in ComfyUI's input folder (its /upload/image endpoint takes a multipart form) and return its name."""
     buffer = io.BytesIO()
@@ -179,7 +197,10 @@ def render(comfy: str, job: dict) -> tuple[list[Image.Image], list[Image.Image] 
     prefix = f"rootward-art/{job['id']}"
     pose = pose_sheet(job)
     control_image = upload_image(comfy, pose, f"rootward-pose-{job['id']}.png") if pose else None
-    queued = http_json(f"{comfy}/prompt", {"prompt": build_graph(job, prefix, control_image), "client_id": str(uuid.uuid4())})
+    sketch = layout_sketch(job)
+    init_image = upload_image(comfy, sketch, f"rootward-layout-{job['id']}.png") if sketch else None
+    graph = build_graph(job, prefix, control_image, init_image)
+    queued = http_json(f"{comfy}/prompt", {"prompt": graph, "client_id": str(uuid.uuid4())})
     prompt_id = queued["prompt_id"]
     started = time.monotonic()
     while True:
@@ -221,6 +242,9 @@ def ensure_raws(comfy: str, job: dict, force: bool, reprocess_only: bool) -> lis
     if pose is not None:
         # Editing poses.py changes the sheet, and a changed sheet must render again even though the manifest did not.
         job["control_digest"] = hashlib.sha256(pose.tobytes()).hexdigest()
+    sketch = layout_sketch(job)
+    if sketch is not None:
+        job["init_digest"] = hashlib.sha256(sketch.tobytes()).hexdigest()
     digest = generation_hash(job)
     cached = meta_path.exists() and json.loads(meta_path.read_text()).get("hash") == digest
     if not cached or force:
@@ -232,6 +256,8 @@ def ensure_raws(comfy: str, job: dict, force: bool, reprocess_only: bool) -> lis
         folder.mkdir(parents=True, exist_ok=True)
         if pose is not None:
             pose.save(folder / "pose.png")
+        if sketch is not None:
+            sketch.save(folder / "layout.png")
         for i, rgb in enumerate(rgbs):
             rgb.convert("RGB").save(folder / f"rgb_{i}.png")
             if masks:

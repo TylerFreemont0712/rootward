@@ -1,6 +1,31 @@
 {
   "comfy_url": "http://127.0.0.1:8188",
   "styles": {
+    "arena": {
+      "checkpoint": "novaAnimeXL_ilV190.safetensors",
+      "prefix": "masterpiece, best quality, scenery, no humans, ",
+      "suffix": ", wide shot, side view, 2d game battle stage background, empty open floor in the foreground, depth, atmospheric perspective, volumetric light, highly detailed background",
+      "negative": "worst quality, low quality, blurry, text, watermark, signature, logo, people, person, character, creature, monster, animal, statue, ui, frame, border, cropped, split screen, lens flare, star, sparkle",
+      "width": 1536,
+      "height": 640,
+      "steps": 30,
+      "cfg": 6,
+      "sampler": "euler_ancestral",
+      "scheduler": "normal",
+      "rmbg": false,
+      "candidates": 2,
+      "init": {
+        "denoise": 0.8
+      },
+      "post": {
+        "kind": "picture",
+        "size": [
+          720,
+          300
+        ],
+        "colors": 128
+      }
+    },
     "fx": {
       "checkpoint": "sd_xl_base_1.0.safetensors",
       "lora": "pixel-art-xl-v1.1.safetensors",
@@ -236,9 +261,9 @@
     {"id": "shardrun-shard-echo", "out": "shardrun/shard-echo", "style": "prop", "seed": 1246, "prompt": "(single object:1.3), game item icon, two overlapping ghostly translucent crystal shards", "post": {"size": [32, 32], "anchor": "center", "colors": 20, "saturation": 1.05}, "pick": 1},
     {"id": "shardrun-shard-overclock", "out": "shardrun/shard-overclock", "style": "prop", "seed": 1247, "prompt": "(single object:1.3), game item icon, crystal shard wrapped in red glowing gears with dark smoke", "post": {"size": [32, 32], "anchor": "center", "colors": 20, "saturation": 1.05}},
 
-    {"id": "shardrun-arena-salvage", "out": "backgrounds/arena-salvage", "style": "backdrop", "seed": 1301, "suffix": ", 2d game battle background, side view, cinematic lighting, highly detailed, no characters", "post": {"size": [640, 366], "colors": 96}, "prompt": "underground battle arena inside a ruined ancient machine vault, wide flat cracked stone floor across the lower third, broken brass pillars and giant gears on both sides, glowing violet crystal shards growing from the walls, hanging amber lanterns, depth"},
-    {"id": "shardrun-arena-heap", "out": "backgrounds/arena-heap", "style": "backdrop", "seed": 1302, "suffix": ", 2d game battle background, side view, cinematic lighting, highly detailed, no characters", "post": {"size": [640, 366], "colors": 96}, "prompt": "vast cavern built from stacked glowing memory blocks and tangled cables, wide flat metal platform floor across the lower third, floating cyan data fragments, teal and magenta glow, depth"},
-    {"id": "shardrun-arena-kernel", "out": "backgrounds/arena-kernel", "style": "backdrop", "seed": 1303, "suffix": ", 2d game battle background, side view, cinematic lighting, highly detailed, no characters", "post": {"size": [640, 366], "colors": 96}, "prompt": "throne hall at the core of a colossal machine, wide polished obsidian floor across the lower third, towering circuitry pillars, a giant glowing red core in the distance, drifting embers, crimson and gold light, depth"},
+    {"id": "shardrun-arena-salvage", "out": "backgrounds/arena-salvage", "style": "arena", "seed": 3301, "candidates": 4, "prompt": "ruined ancient machine hall, warm brown stone walls and tarnished brass machinery, giant broken bronze gears and thick cables along the walls, receding stone arches, glowing amber lanterns hanging on the walls, a few small violet crystal shards in the cracks, warm golden light far in the distance, wide dusty cracked flagstone floor, dust in the air, quiet, melancholic, (warm earthy tones:1.2)", "init": {"layout": "salvage", "denoise": 0.8}, "post": {"brightness": 0.78, "saturation": 0.8, "contrast": 1.1}, "pick": 2, "negative": "worst quality, low quality, blurry, text, watermark, signature, logo, people, person, character, creature, monster, animal, statue, ui, frame, border, cropped, split screen, lens flare, star, sparkle, lava, fire on the floor"},
+    {"id": "shardrun-arena-heap", "out": "backgrounds/arena-heap", "style": "arena", "seed": 3302, "candidates": 4, "prompt": "vast damp underground cavern, walls of giant cracked slate blocks piled like forgotten crates, tangled cables and roots hanging from the rocky ceiling, faint teal mist far in the distance, a small glowing green puddle on the floor, wide flat wet stone floor, dripping water, eerie, quiet, (muted cold colors:1.2)", "init": {"layout": "heap", "denoise": 0.8}, "pick": 2, "negative": "worst quality, low quality, blurry, text, watermark, signature, logo, people, person, character, creature, monster, animal, statue, ui, frame, border, cropped, split screen, lens flare, star, sparkle, server room, shelves, grid, cage, fence, fluorescent lights, door, neon"},
+    {"id": "shardrun-arena-kernel", "out": "backgrounds/arena-kernel", "style": "arena", "seed": 3303, "candidates": 3, "prompt": "cathedral at the core of a colossal machine, obsidian walls inlaid with thin gold circuitry, towering black pillars, a soft white gold light far in the distance, floating golden sparks, wide polished obsidian floor reflecting the light, sacred, ominous", "init": {"layout": "kernel", "denoise": 0.8}, "pick": 1},
     {"id": "creature-memory-leak-ooze", "out": "creatures/memory-leak-ooze", "style": "creature", "seed": 1320, "prompt": "dripping translucent green slime blob monster leaking glowing binary droplets, one big eye", "pick": 1},
     {"id": "creature-race-condition-imp", "out": "creatures/race-condition-imp", "style": "creature", "seed": 1321, "prompt": "small mischievous imp demon made of flickering blue and orange light, two tails, holding two tiny daggers"},
     {"id": "creature-dangling-pointer", "out": "creatures/dangling-pointer", "style": "creature", "seed": 1322, "prompt": "floating ghostly arrow-shaped spirit with a broken chain trailing behind it, pale cyan glow", "pick": 1},
@@ -328,6 +353,9 @@
     {"id": "foe-garbage-collector", "out": "foes/garbage-collector", "style": "creature", "raw_from": "creature-garbage-collector", "post": {"size": [128, 128], "colors": 40}, "pick": 1},
     {"id": "foe-fork-bomb", "out": "foes/fork-bomb", "style": "creature", "raw_from": "creature-fork-bomb", "post": {"size": [128, 128], "colors": 40}, "pick": 1},
     {"id": "foe-kiln-warden", "out": "foes/kiln-warden", "style": "creature", "raw_from": "creature-kiln-warden", "post": {"size": [168, 176], "colors": 40}, "pick": 1},
-    {"id": "foe-deadlock-golem", "out": "foes/deadlock-golem", "style": "creature", "raw_from": "creature-deadlock-golem", "post": {"size": [168, 176], "colors": 40}}
+    {"id": "foe-deadlock-golem", "out": "foes/deadlock-golem", "style": "creature", "raw_from": "creature-deadlock-golem", "post": {"size": [168, 176], "colors": 40}},
+    {"id": "shardrun-arena-kiln", "out": "backgrounds/arena-kiln", "style": "arena", "seed": 3304, "candidates": 3, "prompt": "enormous ancient kiln forge chamber, cold soot blackened stone walls, a huge furnace mouth roaring with orange fire at the back, chains and anvils in the shadows, drifting embers, wide scorched stone floor", "init": {"layout": "kiln", "denoise": 0.8}, "pick": 2},
+    {"id": "shardrun-arena-vault", "out": "backgrounds/arena-vault", "style": "arena", "seed": 3305, "candidates": 3, "prompt": "great underground vault, a colossal round bronze vault door glowing with warm lamplight at the back, heavy chains and giant padlocks hanging on the walls, brass pipes, wide polished bronze floor, warm amber light, dusty", "init": {"layout": "vault", "denoise": 0.8}, "pick": 2},
+    {"id": "shardrun-arena-throne", "out": "backgrounds/arena-throne", "style": "arena", "seed": 3306, "candidates": 3, "prompt": "throne room of a machine king, a colossal black iron throne beneath a blinding white gold core at the back, obsidian walls with gold circuitry, thick cables coiled along the edges, wide dark obsidian floor, ominous, epic", "init": {"layout": "throne", "denoise": 0.8}, "post": {"brightness": 0.85, "saturation": 0.72}, "pick": 0}
   ]
 }

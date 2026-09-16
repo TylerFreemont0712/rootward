@@ -78,7 +78,7 @@ file needs its id added to that catalog** before the client asks for it.
 | `generated/portraits` | 128x128 dialogue portraits for every NPC and for the Artificer. | `DialogueBox` (`portrait` id). |
 | `generated/creatures` | Map sprites for the six enemies (48x48; the Kiln Warden boss 80x96), standing on world markers. | `WorldRenderer` markers, keyed by enemy template id. |
 | `generated/avatars` | `artificer.png` (32x50, standing, facing the viewer) and three walk strips, `artificer-walk-down.png`, `-up.png`, and `-right.png`: five 32x50 frames each (standing, then contact, passing, contact, passing). All fifteen figures come from one pose-guided render (an OpenPose ControlNet over stick figures from `scripts/art/poses.py`), so the design matches from every side and the legs really move; every frame shares one scale and one palette. | `WorldRenderer` shows the standing frame and cycles the four walk frames for the facing direction (left mirrors right); `TileMapRenderer`, the title screen, and the Shardrun arena use the sprites too; `@` without either. |
-| `generated/backgrounds/arena-*.png` | Shardrun arenas (ADR-0013), one per layer: `arena-salvage`, `arena-heap`, `arena-kernel`, 640x366 with 96 colors (twice the resolution and colors of the first backdrops), composed as side-view battlefields with a wide floor. | The Shardrun stage and screen backdrop, per layer. |
+| `generated/backgrounds/arena-*.png` | Shardrun's arenas (ADR-0019), 720x300 with 128 colors, painted for the stage's wide shape: one per layer (`arena-salvage`, `arena-heap`, `arena-kernel`) and one for each guardian's room (`arena-kiln`, `arena-vault`, `arena-throne`). Each starts from a layout sketch (`scripts/art/layouts.py`): a dark ceiling for the code view and a guardian's health bar, a broad lit floor where the fighters stand, an open middle for bolts, a distant glow for depth (behind the guardian in its room), and framed edges. Picked on a mock stage with each layer's hardest foe standing in it; the Salvage and the Throne are graded darker in post. | The Shardrun stage (a layer's arena, or its guardian's room in a boss fight, as `boss_backdrop` in `shardrun/run.yaml` says) and the mode's faint full-screen backdrop. |
 | `generated/creatures` (Shardrun foes) | Nine foes for the Heap and the Kernel: memory-leak-ooze, race-condition-imp, dangling-pointer, garbage-collector (64x64), deadlock-golem (80x96), stack-overflow-serpent, segfault-specter, fork-bomb (64x64), root-daemon (80x96). | Arena sprites and map boss nodes. |
 | `generated/shardrun/map-*.png`, `relic-*.png` | Map node icons (fight, elite, boss, rest, forge, treasure) and one icon per relic, 32x32. | The layer map and relic cards and bar. |
 | `generated/portraits`, `generated/avatars` (classes) | Portraits (128x128) and map sprites (32x48) for the six planned classes: warden, shade, oracle, keeper, necromancer, summoner. | The class picker and the main menu. |
@@ -139,6 +139,12 @@ hands below the head, or the model draws a hand resting on it and turns the figu
 A pose strip can also emit an idle loop: `idle: {out, drops, waist}` lowers everything above `waist` (a share of the
 figure's height) by each of `drops` pixels in turn, from the strip's first frame and in its palette. It is the pixel
 artist's breathing idle, made without redrawing anything.
+
+An asset with `init: {layout, denoise}` starts its render from a layout sketch instead of noise (img2img). The sketch
+comes from `scripts/art/layouts.py`, which draws broad, blurred shapes of value and color; at `denoise` 0.8 the model
+repaints every detail but keeps the composition. It is how an arena gets a floor where the fighters stand and a dark
+band where text sits, which no prompt could guarantee. Editing a sketch re-renders the asset (its digest is part of the
+cache key). Preview one with `$PY scripts/art/layouts.py salvage 1536 640 /tmp/salvage.png`.
 
 A `glow` asset is light rendered on black. Its brightness becomes alpha (color divided back out), stepped into a few
 levels like the palette, with the edges faded so rays that ran off the render do not end in a square. It draws
