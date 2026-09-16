@@ -153,7 +153,28 @@ export function ForgePanel({ run }: { run: ShardrunView }) {
       <h2 id="shr-forge-title" className="crt-title">
         An abandoned forge
       </h2>
-      <p className="narr">Do one thing here: rework a shard (upgrade it, or repair a broken one), or widen a spell by one slot.</p>
+      <p className="narr">
+        Do one thing here: rework a shard (upgrade it, or repair a broken one), widen a spell by one slot, or bind a new spell to your book.
+      </p>
+
+      {forge.bind && (
+        <div className="shr-reward-part">
+          <h3>Bind a new spell</h3>
+          <p className="meta">
+            An empty spell with {forge.bind.capacity} slots, ready for the spare shards you are carrying.
+          </p>
+          <button
+            type="button"
+            className="btn primary"
+            disabled={busy}
+            onClick={() => {
+              void command({ type: "bind" });
+            }}
+          >
+            Bind {forge.bind.name}
+          </button>
+        </div>
+      )}
 
       {forge.spells.length > 0 && (
         <div className="shr-reward-part">

@@ -767,7 +767,14 @@ export const ShardrunView = z.strictObject({
     })
     .optional(),
   /** At a forge: held shards that can be reworked, and spells that can be widened. */
-  forge: z.strictObject({ shards: z.array(z.string()), spells: z.array(z.string()) }).optional(),
+  forge: z
+    .strictObject({
+      shards: z.array(z.string()),
+      spells: z.array(z.string()),
+      /** The new spell this forge could bind, when the run still has a name for one and room in the book. */
+      bind: z.strictObject({ name: z.string(), capacity: z.int() }).optional(),
+    })
+    .optional(),
   /** Integrity resting would restore, while resting. */
   restHeal: z.int().optional(),
   /** In the response to a cast: that cast, step by step, with every value shown. */
@@ -902,6 +909,7 @@ export const ShardrunCommandRequest = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("rest") }),
   z.strictObject({ type: z.literal("forge"), shardId: z.string().nullable() }),
   z.strictObject({ type: z.literal("widen"), spellId: z.string().min(1) }),
+  z.strictObject({ type: z.literal("bind") }),
   z.strictObject({ type: z.literal("abandon") }),
 ]);
 export type ShardrunCommandRequest = z.infer<typeof ShardrunCommandRequest>;

@@ -1,0 +1,30 @@
+id: tally
+name: Tally
+rarity: common
+cost: 1
+function: tally
+summary: "Adds 1 power to every bolt for each bolt in the volley."
+tags: [len, lists]
+code:
+  python: |
+    def tally(bolts, battle):
+        return [{**bolt, "power": bolt["power"] + len(bolts)} for bolt in bolts]
+  javascript: |
+    function tally(bolts, battle) {
+      return bolts.map((bolt) => ({ ...bolt, power: bolt.power + bolts.length }));
+    }
+examples:
+  - name: three bolts each gain three
+    bolts:
+      - { power: 5, element: none, target: front, pierce: false, ward: false }
+      - { power: 5, element: fire, target: front, pierce: false, ward: false }
+      - { power: 2, element: frost, target: back, pierce: false, ward: false }
+    expect:
+      - { power: 8, element: none, target: front, pierce: false, ward: false }
+      - { power: 8, element: fire, target: front, pierce: false, ward: false }
+      - { power: 5, element: frost, target: back, pierce: false, ward: false }
+  - name: one bolt alone gains one
+    bolts:
+      - { power: 4, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 5, element: none, target: front, pierce: false, ward: false }

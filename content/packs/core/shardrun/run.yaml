@@ -8,6 +8,12 @@ start:
   inventory: [kindle]
   relics: []
 
+# Empty spells a forge can bind, or a Second Grimoire can grant, in order. Each name is used at most once in a run, and
+# `max_spells` in config/balance.yaml still caps the book. The guardians' own spells (below) have names of their own.
+spell_slots:
+  names: [Volley, Requiem, Lattice]
+  capacity: 3
+
 difficulties:
   - id: beginner
     name: Beginner

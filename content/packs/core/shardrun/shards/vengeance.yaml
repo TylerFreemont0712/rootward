@@ -1,0 +1,38 @@
+id: vengeance
+name: Vengeance
+rarity: uncommon
+cost: 1
+function: vengeance
+summary: "While your Integrity is at half or less, every bolt gains 4 power."
+tags: [conditionals, battle-state]
+code:
+  python: |
+    def vengeance(bolts, battle):
+        me = battle["me"]
+        if me["hp"] * 2 > me["max"]:
+            return bolts
+        return [{**bolt, "power": bolt["power"] + 4} for bolt in bolts]
+  javascript: |
+    function vengeance(bolts, battle) {
+      const me = battle.me;
+      if (me.hp * 2 > me.max) return bolts;
+      return bolts.map((bolt) => ({ ...bolt, power: bolt.power + 4 }));
+    }
+examples:
+  - name: unhurt, nothing changes
+    bolts:
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+  - name: wounded, every bolt bites harder
+    battle:
+      turn: 2
+      me: { hp: 10, max: 30, block: 0, mana: 6 }
+      foes:
+        - { name: Training Dummy, hp: 20, max: 20, shield: 0, weak: [], resist: [] }
+    bolts:
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+      - { power: 2, element: fire, target: back, pierce: false, ward: false }
+    expect:
+      - { power: 10, element: none, target: front, pierce: false, ward: false }
+      - { power: 6, element: fire, target: back, pierce: false, ward: false }

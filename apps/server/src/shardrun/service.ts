@@ -12,6 +12,7 @@ import {
 } from "@rootward/content-schema";
 import {
   baseBolt,
+  bindableSpell,
   difficultyOf,
   encounterFor,
   type FoeState,
@@ -322,6 +323,7 @@ export class ShardrunService {
     const layer = layerOf(state, catalog);
     const battle = state.battle;
     const reward = state.reward;
+    const bind = bindableSpell(state, catalog);
 
     const mentioned = new Set([...state.spells.flatMap((spell) => spell.shards), ...state.inventory, ...(reward?.shards ?? [])]);
     for (const shardId of [...mentioned]) {
@@ -418,6 +420,7 @@ export class ShardrunService {
             forge: {
               shards: owned.filter((shardId) => catalog.shards.get(shardId)?.forge !== undefined),
               spells: state.spells.filter((spell) => spell.capacity < balance.max_spell_capacity).map((spell) => spell.id),
+              ...(bind ? { bind } : {}),
             },
           }
         : {}),

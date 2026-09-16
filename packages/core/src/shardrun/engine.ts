@@ -47,6 +47,7 @@ export type ShardrunCommand =
   | { type: "rest" }
   | { type: "forge"; shardId: string | null }
   | { type: "widen"; spellId: string }
+  | { type: "bind" }
   | { type: "abandon" }
   // Dev commands (ADR-0013). Every one refuses unless the run is a sandbox, so they cannot touch an ordinary run.
   | { type: "dev-grant-shard"; shardId: string }
@@ -272,6 +273,15 @@ export function stepShardrun(state: ShardrunState, command: ShardrunCommand, cat
       return accept();
     }
 
+    case "bind": {
+      if (next.status !== "forge") return refuse("no-forge", "There is no forge here.");
+      const bound = bindSpell(next, catalog);
+      if (!bound) return refuse("cannot-bind", "There is no room in your spellbook for another spell.");
+      log(next, { kind: "spell", spell: bound.id, text: `You bind a new spell, ${bound.name}, with ${bound.capacity} empty slots.` });
+      afterRoom(next, catalog);
+      return accept();
+    }
+
     case "abandon": {
       next.status = "abandoned";
       log(next, { kind: "loss", text: "You climb back out of the Salvage. The shards stay behind." });
@@ -440,6 +450,7 @@ export function relicModifiers(state: Pick<ShardrunState, "relics">, catalog: Sh
           break;
         case "spell-capacity":
         case "max-integrity":
+        case "spell-slot":
           // One-time effects, applied when the relic is claimed.
           break;
       }
@@ -606,6 +617,27 @@ function afterRoom(state: ShardrunState, catalog: ShardrunCatalog): void {
   log(state, { kind: "layer", amount: healed, text: `You descend into ${nextLayer.name}, recovering ${healed} Integrity. ${nextLayer.flavor}` });
 }
 
+/**
+ * The spell a forge could bind right now, if any: the first name of the run's pool that no spell already carries, as
+ * long as the spellbook has room. The client shows it, and `bindSpell` binds exactly it.
+ */
+export function bindableSpell(state: ShardrunState, catalog: ShardrunCatalog): { name: string; capacity: number } | undefined {
+  const slots = catalog.config.spell_slots;
+  if (!slots || state.spells.length >= catalog.balance.max_spells) return undefined;
+  const taken = new Set(state.spells.map((spell) => spell.name));
+  const name = slots.names.find((candidate) => !taken.has(candidate));
+  return name === undefined ? undefined : { name, capacity: slots.capacity };
+}
+
+/** Add the bindable spell to the book, or nothing if there is none. A forge and a spell-slot relic both come here. */
+function bindSpell(state: ShardrunState, catalog: ShardrunCatalog): SpellState | undefined {
+  const next = bindableSpell(state, catalog);
+  if (!next) return undefined;
+  const spell: SpellState = { id: `spell-${state.spells.length + 1}`, name: next.name, capacity: next.capacity, shards: [] };
+  state.spells.push(spell);
+  return spell;
+}
+
 function gainRelic(state: ShardrunState, relic: Relic, catalog: ShardrunCatalog): void {
   state.relics.push(relic.id);
   state.stats.relics += 1;
@@ -615,6 +647,8 @@ function gainRelic(state: ShardrunState, relic: Relic, catalog: ShardrunCatalog)
     } else if (effect.kind === "max-integrity") {
       state.integrityMax += effect.add;
       state.integrity += effect.add;
+    } else if (effect.kind === "spell-slot") {
+      for (let added = 0; added < effect.add; added++) bindSpell(state, catalog);
     }
   }
   log(state, { kind: "relic", text: `You claim ${relic.name}: ${relic.summary}` });

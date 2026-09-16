@@ -1,0 +1,23 @@
+id: rewind
+name: Rewind
+rarity: common
+cost: 0
+function: rewind
+summary: "Fires the volley back to front: the last bolt becomes the first."
+tags: [lists, slicing]
+code:
+  python: |
+    def rewind(bolts, battle):
+        return bolts[::-1]
+  javascript: |
+    function rewind(bolts, battle) {
+      return [...bolts].reverse();
+    }
+examples:
+  - name: last becomes first
+    bolts:
+      - { power: 3, element: none, target: front, pierce: false, ward: false }
+      - { power: 7, element: fire, target: back, pierce: false, ward: false }
+    expect:
+      - { power: 7, element: fire, target: back, pierce: false, ward: false }
+      - { power: 3, element: none, target: front, pierce: false, ward: false }

@@ -1,0 +1,44 @@
+id: overflow
+name: Overflow
+rarity: rare
+cost: 1
+function: overflow
+summary: "Power above 20 spills into another bolt: a 50-power bolt becomes 20, 20, and 10."
+tags: [loops, accumulator]
+code:
+  python: |
+    def overflow(bolts, battle):
+        spilled = []
+        for bolt in bolts:
+            power = bolt["power"]
+            while power > 20:
+                spilled.append({**bolt, "power": 20})
+                power = power - 20
+            spilled.append({**bolt, "power": power})
+        return spilled
+  javascript: |
+    function overflow(bolts, battle) {
+      const spilled = [];
+      for (const bolt of bolts) {
+        let power = bolt.power;
+        while (power > 20) {
+          spilled.push({ ...bolt, power: 20 });
+          power = power - 20;
+        }
+        spilled.push({ ...bolt, power });
+      }
+      return spilled;
+    }
+examples:
+  - name: a huge bolt spills twice
+    bolts:
+      - { power: 50, element: fire, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 20, element: fire, target: front, pierce: false, ward: false }
+      - { power: 20, element: fire, target: front, pierce: false, ward: false }
+      - { power: 10, element: fire, target: front, pierce: false, ward: false }
+  - name: a small bolt passes through
+    bolts:
+      - { power: 12, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 12, element: none, target: front, pierce: false, ward: false }

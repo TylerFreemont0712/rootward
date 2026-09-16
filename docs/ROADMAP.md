@@ -143,8 +143,11 @@ Task breakdown:
       showing the rules a run plays by (naming the relic behind every changed number), its totals, and damage by
       spell; and **Shardrun (DEV)**, a sandbox run that can be granted any shard or relic, given a spell, set to any
       Integrity or mana, made to spawn any encounter, end a fight either way, or jump between layers — guarded by both
-      `ROOTWARD_DEV=1` on the server and the run's own mark, so an ordinary run can never answer one. Still open from
-      the same notes: spell slots (forges, elites, a relic), starting kits, and a batch of new shards
+      `ROOTWARD_DEV=1` on the server and the run's own mark, so an ordinary run can never answer one. Alongside it,
+      spells got room to grow: a forge can bind a new spell from the run's name pool and the Second Grimoire relic
+      grants one, and nine new shards (Apex, Tally, Rewind, Temper, Triage, Vengeance, Patience, Overflow, Siphon) are
+      real functions in both languages with worked examples that run in validation. Still open from the same notes:
+      starting kits (a chosen loadout at the start of a run)
 - [x] **Shardrun** (ADR-0012), a separate roguelite mode at the player's request (2026-09-15: "find pieces of code and
       plug and play them into powerful attacks and spells", turn-based, same art): 23 shards that are real Python and
       JavaScript functions, 6 foes with rule-bending traits, a seven-floor run with fights, elites, rests, forges, and a

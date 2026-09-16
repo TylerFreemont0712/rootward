@@ -1,0 +1,37 @@
+id: apex
+name: Apex
+rarity: uncommon
+cost: 1
+function: apex
+summary: "Keeps only the strongest bolt, and gives it 3 more power."
+tags: [lists, min-max]
+code:
+  python: |
+    def apex(bolts, battle):
+        if not bolts:
+            return bolts
+        best = bolts[0]
+        for bolt in bolts:
+            if bolt["power"] > best["power"]:
+                best = bolt
+        return [{**best, "power": best["power"] + 3}]
+  javascript: |
+    function apex(bolts, battle) {
+      if (bolts.length === 0) return bolts;
+      let best = bolts[0];
+      for (const bolt of bolts) {
+        if (bolt.power > best.power) best = bolt;
+      }
+      return [{ ...best, power: best.power + 3 }];
+    }
+examples:
+  - name: only the strongest survives
+    bolts:
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+      - { power: 11, element: fire, target: back, pierce: false, ward: false }
+      - { power: 4, element: frost, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 14, element: fire, target: back, pierce: false, ward: false }
+  - name: nothing to pick from
+    bolts: []
+    expect: []

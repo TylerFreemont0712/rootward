@@ -1,0 +1,8 @@
+id: second-grimoire
+name: Second Grimoire
+rarity: rare
+icon: second-grimoire
+summary: "Bind a new, empty spell to your book at once."
+flavor: "Someone else's book, half burned. The empty pages still take ink."
+effects:
+  - { kind: spell-slot, add: 1 }

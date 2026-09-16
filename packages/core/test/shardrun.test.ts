@@ -79,6 +79,7 @@ const RELICS = [
   relic("page", [{ kind: "spell-capacity", add: 1 }], "rare"),
   relic("capacitor", [{ kind: "mana-per-turn", add: 1 }], "boss"),
   relic("core", [{ kind: "damage-multiplier", factor: 2 }], "boss"),
+  relic("grimoire", [{ kind: "spell-slot", add: 1 }], "rare"),
 ];
 
 function layer(id: string, extra: Partial<ShardrunLayer> = {}): ShardrunLayer {
@@ -108,6 +109,7 @@ const CONFIG: ShardrunConfig = {
     inventory: ["fork"],
     relics: [],
   },
+  spell_slots: { names: ["Volley", "Requiem"], capacity: 2 },
   difficulties: [
     { id: "normal", name: "Normal", summary: "Test.", show_summaries: true, show_predictions: true, foe_hp: 1 },
     { id: "soft", name: "Soft", summary: "Test.", show_summaries: true, show_predictions: true, foe_hp: 0.5 },
@@ -522,5 +524,34 @@ describe("the dev sandbox", () => {
     const after = play(fight, [cast([bolt(5)])]);
     // The damage-multiplier relic doubles a granted cast exactly as a claimed one would.
     expect(before - (after.battle?.foes[0]?.hp ?? 0)).toBe(10);
+  });
+});
+
+describe("spell slots", () => {
+  // A run can hold `max_spells` spells (4 here), starting with two, and the pool below offers two more names.
+  it("binds a new spell at a forge, one name at a time, until there is no room left", () => {
+    const bound = play(standingAt(start(), "forge"), [{ type: "bind" }]);
+    expect(bound.spells.map((spell) => spell.name)).toEqual(["Bolt", "Ward", "Volley"]);
+    expect(bound.spells.at(-1)).toMatchObject({ capacity: 2, shards: [] });
+
+    const again = play(standingAt(bound, "forge"), [{ type: "bind" }]);
+    expect(again.spells.map((spell) => spell.name)).toEqual(["Bolt", "Ward", "Volley", "Requiem"]);
+
+    // Now neither a free name nor room in the book is left.
+    expect(stepShardrun(standingAt(again, "forge"), { type: "bind" }, CATALOG)).toMatchObject({
+      ok: false,
+      error: { code: "cannot-bind" },
+    });
+  });
+
+  it("refuses a bind anywhere but a forge", () => {
+    expect(stepShardrun(start(), { type: "bind" }, CATALOG)).toMatchObject({ ok: false, error: { code: "no-forge" } });
+  });
+
+  it("grants a spell the moment a spell-slot relic is claimed", () => {
+    const state = startShardrun(CATALOG, { seed: "seed-1", language: "python", difficulty: "normal", sandbox: true });
+    const granted = play(state, [{ type: "dev-grant-relic", relicId: "grimoire" }]);
+    expect(granted.spells.map((spell) => spell.name)).toEqual(["Bolt", "Ward", "Volley"]);
+    expect(granted.spells.at(-1)).toMatchObject({ capacity: 2, shards: [] });
   });
 });

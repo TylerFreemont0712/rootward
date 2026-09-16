@@ -118,6 +118,10 @@ every rule number is under `shardrun` in `config/balance.yaml`. Routes are under
    (and, on an error, the shard and line). It is an ordinary io job for `Sandbox.runJob`, with the usual limits; if an
    endless loop stops the job early, the service re-runs the spells one at a time to find it. `readSpellRuns` turns
    the output into runs.
+3b. **Growing a spellbook.** A run starts with the spells in `run.yaml`. A boss may grant one, a forge can bind one
+   from the `spell_slots` name pool (`bindableSpell` decides what is offered), and a `spell-slot` relic binds one when
+   claimed; `max_spells` caps the book. Adding a shard needs no engine change: any `draftable` shard joins the reward
+   pool by rarity.
 4. **Resolving.** The engine prices the cast (base + shard costs + work), validates and clamps the bolts, and applies
    them: wards become block, other bolts hit their target through weaknesses, resistances, shields, and traits. Ending
    a turn lets every living foe play its next intent.

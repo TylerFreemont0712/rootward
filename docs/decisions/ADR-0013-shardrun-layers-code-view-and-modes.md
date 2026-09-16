@@ -86,7 +86,9 @@ Relics are content (`shardrun/relics/`), made from a small set of effect primiti
 - one-time: extra spell slots and maximum Integrity.
 
 Elites and treasure rooms offer relics. A boss offers a choice of guardian relics, plus a new empty spell when its layer
-defines one. Forges can widen a spell as an alternative to reworking a shard. Rewards are claimed part by part, and
+defines one. Forges can widen a spell as an alternative to reworking a shard, or bind a new one: `spell_slots` in
+`run.yaml` names the empty spells a run can still gain, each name used at most once, and the Second Grimoire relic
+(`spell-slot`) binds one the moment it is claimed. `max_spells` in the balance caps the book either way. Rewards are claimed part by part, and
 leaving forfeits the rest.
 
 ### Saved runs

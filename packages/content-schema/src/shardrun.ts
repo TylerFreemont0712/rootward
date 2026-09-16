@@ -132,7 +132,7 @@ export const RELIC_RARITIES = ["common", "uncommon", "rare", "boss"] as const;
 export const RelicRarity = z.enum(RELIC_RARITIES);
 export type RelicRarity = z.infer<typeof RelicRarity>;
 
-/** What a relic changes. The first seven apply all run long; the last two apply once, when the relic is claimed. */
+/** What a relic changes. The first seven apply all run long; the last three apply once, when the relic is claimed. */
 export const RelicEffect = z.discriminatedUnion("kind", [
   /** Added to every bolt after its spell's last shard. */
   z.strictObject({ kind: z.literal("bolt-power"), add: z.number() }),
@@ -148,6 +148,8 @@ export const RelicEffect = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("heal-after-fight"), amount: PositiveInt }),
   z.strictObject({ kind: z.literal("spell-capacity"), add: PositiveInt }),
   z.strictObject({ kind: z.literal("max-integrity"), add: PositiveInt }),
+  /** Binds this many new, empty spells at once, from the run's pool of spell names. */
+  z.strictObject({ kind: z.literal("spell-slot"), add: PositiveInt }),
 ]);
 export type RelicEffect = z.infer<typeof RelicEffect>;
 
@@ -223,6 +225,11 @@ export const ShardrunConfig = z.strictObject({
     inventory: z.array(Id).default([]),
     relics: z.array(Id).default([]),
   }),
+  /**
+   * Empty spells a forge can bind, or a spell-slot relic can grant, in order. Each name is used at most once in a run,
+   * and `max_spells` in the balance still caps the spellbook.
+   */
+  spell_slots: z.strictObject({ names: z.array(NonEmptyString).min(1), capacity: z.int().min(1).max(8) }).optional(),
   difficulties: z.array(ShardrunDifficulty).min(1),
   layers: z.array(ShardrunLayer).min(1),
   rewards: z.strictObject({

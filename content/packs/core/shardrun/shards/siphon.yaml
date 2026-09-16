@@ -1,0 +1,40 @@
+id: siphon
+name: Siphon
+rarity: rare
+cost: 2
+function: siphon
+summary: "Turns the weakest bolt into a ward at double power. The rest still fly."
+tags: [enumerate, min-max]
+code:
+  python: |
+    def siphon(bolts, battle):
+        if not bolts:
+            return bolts
+        weakest = 0
+        for index, bolt in enumerate(bolts):
+            if bolt["power"] < bolts[weakest]["power"]:
+                weakest = index
+        warded = []
+        for index, bolt in enumerate(bolts):
+            if index == weakest:
+                warded.append({**bolt, "ward": True, "power": bolt["power"] * 2})
+            else:
+                warded.append(bolt)
+        return warded
+  javascript: |
+    function siphon(bolts, battle) {
+      if (bolts.length === 0) return bolts;
+      let weakest = 0;
+      bolts.forEach((bolt, index) => {
+        if (bolt.power < bolts[weakest].power) weakest = index;
+      });
+      return bolts.map((bolt, index) => (index === weakest ? { ...bolt, ward: true, power: bolt.power * 2 } : bolt));
+    }
+examples:
+  - name: the weakest becomes a ward
+    bolts:
+      - { power: 9, element: none, target: front, pierce: false, ward: false }
+      - { power: 4, element: fire, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 9, element: none, target: front, pierce: false, ward: false }
+      - { power: 8, element: fire, target: front, pierce: false, ward: true }

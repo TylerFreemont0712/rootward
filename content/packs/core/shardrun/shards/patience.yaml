@@ -1,0 +1,35 @@
+id: patience
+name: Patience
+rarity: uncommon
+cost: 1
+function: patience
+summary: "Adds 3 power to every bolt for every turn the fight has already lasted."
+tags: [battle-state, comprehension]
+code:
+  python: |
+    def patience(bolts, battle):
+        bonus = (battle["turn"] - 1) * 3
+        return [{**bolt, "power": bolt["power"] + bonus} for bolt in bolts]
+  javascript: |
+    function patience(bolts, battle) {
+      const bonus = (battle.turn - 1) * 3;
+      return bolts.map((bolt) => ({ ...bolt, power: bolt.power + bonus }));
+    }
+examples:
+  - name: on the first turn it adds nothing
+    bolts:
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+    expect:
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+  - name: by the fourth turn it has been waiting
+    battle:
+      turn: 4
+      me: { hp: 30, max: 30, block: 0, mana: 6 }
+      foes:
+        - { name: Training Dummy, hp: 20, max: 20, shield: 0, weak: [], resist: [] }
+    bolts:
+      - { power: 6, element: none, target: front, pierce: false, ward: false }
+      - { power: 1, element: frost, target: back, pierce: false, ward: false }
+    expect:
+      - { power: 15, element: none, target: front, pierce: false, ward: false }
+      - { power: 10, element: frost, target: back, pierce: false, ward: false }
