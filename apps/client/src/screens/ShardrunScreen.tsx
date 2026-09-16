@@ -192,6 +192,7 @@ function StartPanel({ run }: { run: ShardrunView | undefined }) {
   const difficulty = useShardrun((s) => s.difficulty);
   const setDifficulty = useShardrun((s) => s.setDifficulty);
   const showMenu = useGame((s) => s.showMenu);
+  const showCodex = useGame((s) => s.showCodex);
   const emblem = assetUrl("brand", "shardrun");
   return (
     <section className="shr-start">
@@ -236,6 +237,9 @@ function StartPanel({ run }: { run: ShardrunView | undefined }) {
           </button>
         ))}
         {languages.length === 0 && <span className="meta">No Python or JavaScript sandbox is available on this machine yet.</span>}
+        <button type="button" className="btn" onClick={showCodex}>
+          Codex
+        </button>
         <button type="button" className="btn" onClick={showMenu}>
           Main menu
         </button>

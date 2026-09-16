@@ -766,6 +766,74 @@ export const ShardrunView = z.strictObject({
 });
 export type ShardrunView = z.infer<typeof ShardrunView>;
 
+/** One shard in the Codex: everything about it, plus where a run can find it. */
+export const CodexShardView = z.strictObject({
+  shard: ShardView,
+  draftable: z.boolean(),
+  /** In plain words: "fights", "elites", "guardians", "a forge". */
+  found: z.array(z.string()),
+});
+export type CodexShardView = z.infer<typeof CodexShardView>;
+
+export const CodexRelicView = z.strictObject({ relic: RelicView, found: z.array(z.string()) });
+export type CodexRelicView = z.infer<typeof CodexRelicView>;
+
+export const CodexFoeView = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+  sprite: z.string(),
+  hp: z.int(),
+  weak: z.array(ElementView),
+  resist: z.array(ElementView),
+  trait: z.strictObject({ kind: z.string(), name: z.string(), text: z.string() }).optional(),
+  /** Its intents in order, as the arena shows them. */
+  intents: z.array(z.strictObject({ kind: z.string(), text: z.string() })),
+  flavor: z.string(),
+  /** Where it is met. */
+  layers: z.array(z.strictObject({ id: z.string(), name: z.string(), role: z.enum(["fight", "elite", "boss"]) })),
+});
+export type CodexFoeView = z.infer<typeof CodexFoeView>;
+
+export const CodexLayerView = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+  flavor: z.string(),
+  backdrop: z.string(),
+  rows: z.int(),
+  bosses: z.array(z.string()),
+});
+export type CodexLayerView = z.infer<typeof CodexLayerView>;
+
+/** The numbers every run plays by, before relics change them. */
+export const ShardrunRulesView = z.strictObject({
+  manaPerTurn: z.int(),
+  baseBoltPower: z.int(),
+  spellBaseCost: z.int(),
+  workPerMana: z.int(),
+  maxBolts: z.int(),
+  maxBoltPower: z.int(),
+  maxSpells: z.int(),
+  maxSpellCapacity: z.int(),
+  weakMultiplier: z.number(),
+  resistMultiplier: z.number(),
+  scatterMultiplier: z.number(),
+  patternOffMultiplier: z.number(),
+  restHealFraction: z.number(),
+  layerHealFraction: z.number(),
+});
+export type ShardrunRulesView = z.infer<typeof ShardrunRulesView>;
+
+/** Everything Shardrun content holds, for the Codex screen. Not scoped to a character or a run. */
+export const ShardrunCodexResponse = z.strictObject({
+  language: z.string(),
+  shards: z.array(CodexShardView),
+  relics: z.array(CodexRelicView),
+  foes: z.array(CodexFoeView),
+  layers: z.array(CodexLayerView),
+  rules: ShardrunRulesView,
+});
+export type ShardrunCodexResponse = z.infer<typeof ShardrunCodexResponse>;
+
 export const ShardrunResponse = z.strictObject({ run: ShardrunView });
 export type ShardrunResponse = z.infer<typeof ShardrunResponse>;
 

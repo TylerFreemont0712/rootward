@@ -14,6 +14,7 @@ import {
   ProfileResponse,
   type ResolveMarkerRequest,
   RunResponse,
+  ShardrunCodexResponse,
   type ShardrunCommandRequest,
   ShardrunPreviewsResponse,
   ShardrunResponse,
@@ -128,4 +129,6 @@ export const api = {
   shardrunCommand: (profileId: string, body: ShardrunCommandRequest) =>
     request("POST", profileUrl(profileId, "/shardrun/command"), ShardrunResponse, body),
   shardrunPreviews: (profileId: string) => request("GET", profileUrl(profileId, "/shardrun/previews"), ShardrunPreviewsResponse),
+  /** All Shardrun content, for the Codex; not scoped to a character. */
+  shardrunCodex: (language: string) => request("GET", `/api/shardrun/codex?language=${encodeURIComponent(language)}`, ShardrunCodexResponse),
 };

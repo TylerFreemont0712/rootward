@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { DebriefScreen } from "../screens/DebriefScreen.tsx";
 import { EncounterScreen } from "../screens/EncounterScreen.tsx";
 import { ExpeditionScreen } from "../screens/ExpeditionScreen.tsx";
+import { CodexScreen } from "../screens/CodexScreen.tsx";
 import { GuildBoard } from "../screens/GuildBoard.tsx";
 import { MainMenu } from "../screens/MainMenu.tsx";
 import { ShardrunScreen } from "../screens/ShardrunScreen.tsx";
@@ -22,6 +23,7 @@ export function App() {
   const showWorld = useGame((s) => s.showWorld);
   const showBoard = useGame((s) => s.showBoard);
   const showMenu = useGame((s) => s.showMenu);
+  const showCodex = useGame((s) => s.showCodex);
 
   useEffect(() => {
     void restoreProfile();
@@ -66,8 +68,9 @@ export function App() {
   const expedition = screen === "map" ? run?.expedition : undefined;
   const inWorld = screen === "world";
   const inShardrun = screen === "shardrun";
+  const inCodex = screen === "codex";
 
-  let body = inWorld ? <WorldScreen /> : inShardrun ? <ShardrunScreen /> : <GuildBoard />;
+  let body = inWorld ? <WorldScreen /> : inShardrun ? <ShardrunScreen /> : inCodex ? <CodexScreen /> : <GuildBoard />;
   if (screen === "debrief" && debrief) body = <DebriefScreen debrief={debrief} />;
   else if (run && encounter) body = <EncounterScreen view={encounter} />;
   else if (run && expedition) body = <ExpeditionScreen run={run} expedition={expedition} />;
@@ -78,15 +81,20 @@ export function App() {
       <div className="crt" aria-hidden="true" />
       <header className="topbar">
         <div className="brand">
-          ROOTWARD<small>{inShardrun ? "Shardrun" : "The World · the Bastion"}</small>
+          ROOTWARD<small>{inShardrun || inCodex ? "Shardrun" : "The World · the Bastion"}</small>
         </div>
         {betweenRuns && (
           <nav className="topnav" aria-label="Places">
             <button type="button" className="btn" onClick={showMenu}>
               ☰ Main menu
             </button>
+            {(inShardrun || inCodex) && (
+              <button type="button" className="btn" aria-current={inCodex ? "page" : undefined} onClick={showCodex}>
+                Codex
+              </button>
+            )}
             {/* The Guild Board belongs to the World: it is the Guild Hall's board, so it is only offered there. */}
-            {!inShardrun && (
+            {!inShardrun && !inCodex && (
               <>
                 <button type="button" className="btn" aria-current={inWorld ? "page" : undefined} onClick={showWorld}>
                   The world
@@ -153,6 +161,11 @@ export function App() {
               <kbd>1</kbd>-<kbd>3</kbd> cast · <kbd>E</kbd> end turn
             </span>
             <span>click a shard, then a slot, to move it · or drag it</span>
+          </>
+        ) : inCodex ? (
+          <>
+            <span>every shard, relic, and foe in the Salvage</span>
+            <span>search by name, code, or tag · switch the language the code is shown in</span>
           </>
         ) : (
           <>

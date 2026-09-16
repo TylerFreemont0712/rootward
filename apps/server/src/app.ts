@@ -19,6 +19,7 @@ import {
   ProfileResponse,
   ResolveMarkerRequest,
   RunResponse,
+  ShardrunCodexResponse,
   ShardrunCommandRequest,
   ShardrunPreviewsResponse,
   ShardrunResponse,
@@ -191,6 +192,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
     // Shardrun (ADR-0012): the roguelite mode. One run at a time per character; every change is a command.
     if (shardrun) {
+      // The Codex: every shard, relic, foe, and layer in the content, for reading outside a run. Not scoped to a character.
+      app.get<{ Querystring: { language?: string } }>("/api/shardrun/codex", (request) =>
+        ShardrunCodexResponse.parse(shardrun.codex(request.query.language ?? "python")),
+      );
+
       app.get<{ Params: { profileId: string } }>("/api/profiles/:profileId/shardrun", async (request) =>
         ShardrunStatusResponse.parse({
           run: await shardrun.latest(request.params.profileId),

@@ -148,6 +148,36 @@ describe("ShardrunService", () => {
     expect(spells["spell-1"]?.result?.bolts).toBe(1);
   });
 
+  it("lists all content in the Codex, with where each thing is found", async () => {
+    const { service } = await character();
+    const codex = service.codex("javascript");
+    expect(codex.shards.length).toBe(content.index.shards.size);
+    expect(codex.relics.length).toBe(content.index.shardrunRelics.size);
+    expect(codex.foes.length).toBe(content.index.shardrunFoes.size);
+    expect(codex.layers.map((layer) => layer.id)).toEqual(["salvage", "heap", "kernel"]);
+
+    const amplify = codex.shards.find((entry) => entry.shard.id === "amplify");
+    expect(amplify?.shard.summary).toBe("Adds 3 power to every bolt.");
+    expect(amplify?.shard.code).toContain("function amplify");
+    expect(amplify?.found).toContain("fights");
+    expect(amplify?.found).toContain("the Bolt spell you start with");
+    // Upgrades are never offered as rewards; the forge is the only way to them.
+    const plus = codex.shards.find((entry) => entry.shard.id === "amplify-plus");
+    expect(plus?.draftable).toBe(false);
+    expect(plus?.found).toEqual(["upgrading Amplify at a forge"]);
+
+    const duck = codex.relics.find((entry) => entry.relic.id === "debugger-duck");
+    expect(duck?.found).toEqual(["elites", "treasure rooms"]);
+    const capacitor = codex.relics.find((entry) => entry.relic.id === "mana-capacitor");
+    expect(capacitor?.found).toEqual(["guardians"]);
+
+    const warden = codex.foes.find((entry) => entry.id === "kiln-warden");
+    expect(warden?.layers).toEqual([{ id: "salvage", name: "The Salvage", role: "boss" }]);
+    expect(warden?.trait?.name).toBe("Thick hide");
+    expect(warden?.intents[0]?.text).toBe("Strike for 8");
+    expect(codex.rules).toMatchObject({ manaPerTurn: 6, baseBoltPower: 4, weakMultiplier: 1.5 });
+  });
+
   it("closes a run saved under older rules instead of failing on it", async () => {
     const { db, service, id } = await character();
     const now = new Date().toISOString();

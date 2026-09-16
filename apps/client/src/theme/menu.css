@@ -52,3 +52,6 @@
 .class-option:disabled img { filter: grayscale(0.85) brightness(0.7); }
 .class-subjects { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .class-subjects span { padding: 0 6px; font-size: 10px; border: 1px solid var(--line); color: var(--muted); }
+
+.menu-extra { display: flex; justify-content: center; }
+.menu-extra .btn { background: rgb(18 14 10 / 86%); }

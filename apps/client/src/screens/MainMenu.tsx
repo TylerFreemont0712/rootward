@@ -18,6 +18,7 @@ export function MainMenu() {
   const classes = useGame((s) => s.classes);
   const showWorld = useGame((s) => s.showWorld);
   const showShardrun = useGame((s) => s.showShardrun);
+  const showCodex = useGame((s) => s.showCodex);
   const switchProfile = useGame((s) => s.switchProfile);
   const loadProfiles = useGame((s) => s.loadProfiles);
   const shardrun = useShardrun((s) => s.run);
@@ -89,6 +90,12 @@ export function MainMenu() {
                 ? `Run in progress: ${runInProgress.layer.name}, Integrity ${runInProgress.integrity}/${runInProgress.integrityMax}`
                 : "No run in progress"}
             </span>
+          </button>
+        </div>
+
+        <div className="menu-extra">
+          <button type="button" className="btn" onClick={showCodex}>
+            Shardrun Codex: every shard, relic, and foe
           </button>
         </div>
       </div>

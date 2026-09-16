@@ -347,3 +347,23 @@
 @keyframes shr-march { to { stroke-dashoffset: -30; } }
 @keyframes shr-pulse { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.9; } }
 @keyframes shr-count-pop { from { transform: scale(1.35); filter: brightness(1.6); } to { transform: scale(1); filter: none; } }
+
+/* ---- The Codex: every shard, relic, and foe, readable outside a run ---- */
+
+.codex-screen .shr-header { margin-bottom: 4px; }
+.codex-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); background: rgb(26 20 16 / 94%); }
+.codex-tabs { display: flex; gap: 6px; }
+.codex-controls .text-input { flex: 1; min-width: 200px; }
+.codex-grid { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); align-items: start; }
+.codex-grid .shr-code { max-height: none; }
+.codex-grid .shr-code code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.codex-foe-sprite { width: 56px; height: 56px; object-fit: contain; image-rendering: pixelated; }
+.codex-foe .shr-flavor { margin-top: auto; }
+.codex-intents { margin: 0; padding-left: 18px; font-size: 11px; color: var(--muted); display: grid; gap: 2px; }
+.codex-rules dl { display: grid; grid-template-columns: minmax(220px, auto) 1fr; gap: 4px 14px; margin: 0 0 12px; font-size: 12px; }
+.codex-rules dl > div { display: contents; }
+.codex-rules dt { color: var(--muted); }
+.codex-rules dd { margin: 0; color: var(--text); }
+.codex-rules h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.codex-layers { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 12px; }
+.codex-layers b { color: var(--amber); font-weight: 500; }

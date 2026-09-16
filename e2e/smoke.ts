@@ -147,7 +147,7 @@ async function main(): Promise<void> {
     // Shardrun (ADR-0012, ADR-0013) from the main menu: pick Beginner, climb into the first room of the map, cast a spell
     // whose shards run in the real sandbox (it plays as code first), end the turn, then abandon the run.
     await page.getByRole("button", { name: /Main menu/ }).click();
-    await page.getByRole("button", { name: /Shardrun/ }).click();
+    await page.getByRole("button", { name: /Roguelite/ }).click();
     await page.getByRole("radio", { name: /Beginner/ }).click();
     await page.getByRole("button", { name: "Descend in javascript" }).click();
     await page.locator(".shr-map-node.state-open").first().click();

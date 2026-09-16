@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import { Bolt, type FoeIntent, type FoeTrait, type Relic, type Shard } from "@rootward/content-schema";
+import { Bolt, type FoeIntent, type FoeTrait, RELIC_RARITIES, type Relic, SHARD_RARITIES, type Shard } from "@rootward/content-schema";
 import {
   baseBolt,
   difficultyOf,
@@ -33,12 +33,15 @@ import {
 } from "@rootward/content-tools";
 import type {
   BoltView,
+  CodexFoeView,
   RelicView,
   ShardrunCommandRequest,
   ShardrunDifficultyView,
   ShardrunFoeView,
   ShardrunMapNodeView,
+  ShardrunCodexResponse,
   ShardrunPreviewsResponse,
+  ShardrunRulesView,
   ShardrunView,
   ShardView,
   SpellRunView,
@@ -196,6 +199,75 @@ export class ShardrunService {
       revision: state.revision,
       spells: Object.fromEntries(state.spells.map((spell) => [spell.id, this.spellRunView(state, spell, runs.get(spell.id) ?? NO_RESULT, reveal)])),
     };
+  }
+
+
+  /** Everything Shardrun content holds, for the Codex: shards, relics, foes, layers, and the rules they play by. */
+  codex(language: string): ShardrunCodexResponse {
+    const catalog = this.requireCatalog();
+    const lang = isShardrunLanguage(language) ? language : "python";
+    const { config } = catalog;
+
+    // Where each shard comes from: the rarities each kind of fight can offer, the forge, and the starting loadout.
+    const sources = new Map<string, string[]>([...catalog.shards.keys()].map((id) => [id, []]));
+    const fightLabels = { fight: "fights", elite: "elites", boss: "guardians" } as const;
+    for (const shard of catalog.shards.values()) {
+      if (!shard.draftable) continue;
+      for (const kind of ["fight", "elite", "boss"] as const) {
+        if (config.rewards.shards[kind][shard.rarity] > 0) sources.get(shard.id)?.push(fightLabels[kind]);
+      }
+    }
+    for (const shard of catalog.shards.values()) {
+      if (!shard.forge) continue;
+      const verb = shard.forge.verb === "repair" ? "repairing" : "upgrading";
+      sources.get(shard.forge.into)?.push(`${verb} ${shard.name} at a forge`);
+    }
+    for (const spell of config.start.spells) {
+      for (const id of spell.shards) sources.get(id)?.push(`the ${spell.name} spell you start with`);
+    }
+    for (const id of config.start.inventory) sources.get(id)?.push("your starting spare shards");
+
+    const shards = [...catalog.shards.values()]
+      .sort((a, b) => SHARD_RARITIES.indexOf(a.rarity) - SHARD_RARITIES.indexOf(b.rarity) || a.name.localeCompare(b.name))
+      .map((shard) => ({ shard: shardView(shard, lang, catalog, true), draftable: shard.draftable, found: sources.get(shard.id) ?? [] }));
+
+    const relicLabels = { elite: "elites", treasure: "treasure rooms", boss: "guardians" } as const;
+    const relics = [...catalog.relics.values()]
+      .sort((a, b) => RELIC_RARITIES.indexOf(a.rarity) - RELIC_RARITIES.indexOf(b.rarity) || a.name.localeCompare(b.name))
+      .map((relic) => ({
+        relic: relicView(relic),
+        found: (["elite", "treasure", "boss"] as const).flatMap((where) => (config.rewards.relics[where][relic.rarity] > 0 ? [relicLabels[where]] : [])),
+      }));
+
+    const foes: CodexFoeView[] = [...catalog.foes.values()]
+      .map((foe) => ({
+        id: foe.id,
+        name: foe.name,
+        sprite: foe.sprite,
+        hp: foe.hp,
+        weak: [...foe.weak],
+        resist: [...foe.resist],
+        ...(foe.trait ? { trait: traitView(foe.trait) } : {}),
+        intents: foe.intents.map((intent) => ({ kind: intent.kind, text: intentText(intent, false) })),
+        flavor: foe.flavor,
+        layers: config.layers.flatMap((layer) =>
+          (["fight", "elite", "boss"] as const).flatMap((role) =>
+            layer.encounters[role].some((group) => group.includes(foe.id)) ? [{ id: layer.id, name: layer.name, role }] : [],
+          ),
+        ),
+      }))
+      .sort((a, b) => a.hp - b.hp);
+
+    const layers = config.layers.map((layer) => ({
+      id: layer.id,
+      name: layer.name,
+      flavor: layer.flavor,
+      backdrop: layer.backdrop,
+      rows: layer.rows,
+      bosses: [...new Set(layer.encounters.boss.flat())].map((id) => catalog.foes.get(id)?.name ?? id),
+    }));
+
+    return { language: lang, shards, relics, foes, layers, rules: rulesView(catalog) };
   }
 
   // --- Views ------------------------------------------------------------------------------------------------------
@@ -553,6 +625,27 @@ function shardView(shard: Shard, language: ShardrunLanguage, catalog: ShardrunCa
     tags: [...shard.tags],
     ...(shard.curse ? { curse: shard.curse.integrity } : {}),
     ...(shard.forge && into ? { forge: { into: into.id, intoName: into.name, verb: shard.forge.verb } } : {}),
+  };
+}
+
+/** The numbers a run plays by, before any relic changes them. */
+function rulesView(catalog: ShardrunCatalog): ShardrunRulesView {
+  const { balance } = catalog;
+  return {
+    manaPerTurn: balance.mana_per_turn,
+    baseBoltPower: balance.base_bolt_power,
+    spellBaseCost: balance.spell_base_cost,
+    workPerMana: balance.work_per_mana,
+    maxBolts: balance.max_bolts,
+    maxBoltPower: balance.max_bolt_power,
+    maxSpells: balance.max_spells,
+    maxSpellCapacity: balance.max_spell_capacity,
+    weakMultiplier: balance.weak_multiplier,
+    resistMultiplier: balance.resist_multiplier,
+    scatterMultiplier: balance.scatter_multiplier,
+    patternOffMultiplier: balance.pattern_off_multiplier,
+    restHealFraction: balance.rest_heal_fraction,
+    layerHealFraction: balance.layer_heal_fraction,
   };
 }
 

@@ -34,7 +34,7 @@ export type Busy = "loading" | "start" | "enter" | "probe" | "cast" | "hint" | "
 export type CenterTab = "task" | "editor";
 /** Character select, the main menu, the walkable world, the Guild Board, the expedition map, a fight, a finished run's
  * debrief, or Shardrun, the roguelite mode (ADR-0012). */
-export type Screen = "profiles" | "menu" | "world" | "board" | "map" | "encounter" | "debrief" | "shardrun";
+export type Screen = "profiles" | "menu" | "world" | "board" | "map" | "encounter" | "debrief" | "shardrun" | "codex";
 /** A part of the Guild Board the world can send the player straight to. */
 export type BoardSection = "chronicle" | "practice";
 
@@ -109,6 +109,8 @@ export interface GameStore {
   clearBoardSection: () => void;
   /** Shardrun keeps its own run state (state/shardrun.ts); this only switches to its screen. */
   showShardrun: () => void;
+  /** The Codex: every shard, relic, and foe in the content, readable with or without a run. */
+  showCodex: () => void;
   loadWorld: () => Promise<void>;
   /** Arrive in the world, or change the language its fights are played in. */
   startWorld: (language: string) => Promise<void>;
@@ -413,6 +415,10 @@ export const useGame = create<GameStore>()((set, get) => {
 
     showShardrun: () => {
       set({ screen: "shardrun", notice: undefined });
+    },
+
+    showCodex: () => {
+      set({ screen: "codex", notice: undefined });
     },
 
     loadWorld: async () => {
