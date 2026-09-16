@@ -153,7 +153,8 @@ start_server() {
   pnpm run build >>"$LOG" 2>&1 || { fail "Building the client failed. The log says why."; return 1; }
 
   log "Starting the server at ${URL}"
-  ROOTWARD_PORT="$PORT" setsid node apps/server/src/main.ts >>"$LOG" 2>&1 </dev/null &
+  # This is the developer's own machine, so Shardrun's dev sandbox is available; ROOTWARD_DEV=0 turns it off.
+  ROOTWARD_PORT="$PORT" ROOTWARD_DEV="${ROOTWARD_DEV:-1}" setsid node apps/server/src/main.ts >>"$LOG" 2>&1 </dev/null &
   local pid=$! _
   echo "$pid" >"$PIDFILE"
 

@@ -22,6 +22,7 @@ export function MainMenu() {
   const switchProfile = useGame((s) => s.switchProfile);
   const loadProfiles = useGame((s) => s.loadProfiles);
   const shardrun = useShardrun((s) => s.run);
+  const dev = useShardrun((s) => s.dev);
   const loadShardrun = useShardrun((s) => s.load);
   const profileId = profile?.id;
 
@@ -91,6 +92,18 @@ export function MainMenu() {
                 : "No run in progress"}
             </span>
           </button>
+          {dev && (
+            <button type="button" className="menu-mode shardrun dev" onClick={showShardrun}>
+              {shardrunArt && <span className="menu-mode-art" style={{ backgroundImage: `url("${shardrunArt}")` }} aria-hidden="true" />}
+              <span className="menu-mode-tag">Sandbox</span>
+              <span className="menu-mode-name">Shardrun (DEV)</span>
+              <span className="menu-mode-text">
+                The same mode with the shelves open: grant any shard or relic, add a spell, set Integrity and mana, spawn any fight, and jump
+                between layers. Start one with the Sandbox buttons.
+              </span>
+              <span className="menu-mode-status">This server runs with ROOTWARD_DEV</span>
+            </button>
+          )}
         </div>
 
         <div className="menu-extra">

@@ -128,6 +128,13 @@ every rule number is under `shardrun` in `config/balance.yaml`. Routes are under
    input, so a cast reuses its preview's run and answers without the sandbox; its response carries a full replay.
    Relics (content) change resolution through `relicModifiers`. Encounters on the map come from the seed
    (`encounterFor`), so the map shows who waits where.
+6. **Seeing it all.** `GET /api/shardrun/codex` lists every shard, relic, foe, and layer with where each one is found
+   (derived from the reward weights, the forge chains, and the starting loadout, so it cannot drift from the rules).
+   Every view carries the rules the run plays by (`rulesView`) and what its relics changed (`modifierViews`) for the
+   Stats panel, plus the run's own counters. A run marked `sandbox: true` also answers `POST .../shardrun/dev`: grant
+   or remove a shard or relic, add a spell, set Integrity or mana, spawn an encounter, end a fight either way, or jump
+   to a layer. That needs both `ROOTWARD_DEV=1` on the server and the run's own mark, and changes nothing else about
+   how the run plays (ADR-0013).
 
 ## State: events, state, artifacts
 
@@ -192,6 +199,7 @@ See `docs/CONTENT_AUTHORING.md`. Optional generated art is described in `assets/
 | Shard code runs only in a sandbox, and an endless loop only misfires the spell | `pipelineJob` jobs through `Sandbox.runJob` | `apps/server/test/shardrun.test.ts` |
 | A spell's code view shows only measured values (the start, after each shard, the result) | `playbackFrames` in `apps/client/src/shardrun/source.ts`, values from `ShardrunService.spellRunView` | `apps/client/test/shardrun-source.test.ts` |
 | Programmer difficulty sends no summaries or predictions | `ShardrunService.view` and `spellRunView` | `apps/server/test/shardrun.test.ts` |
+| Dev tools cannot touch an ordinary run | `ShardrunService.dev` (needs `ROOTWARD_DEV` *and* `state.sandbox`) and `stepShardrun` (refuses every `dev-*` command with `not-a-sandbox`) | `apps/server/test/shardrun.test.ts`, `packages/core/test/shardrun.test.ts` |
 | Map paths never cross, and every room reaches the boss | `generateLayerMap` | `packages/core/test/shardrun.test.ts` |
 | Planned classes cannot be chosen | `POST /api/profiles` in `apps/server/src/app.ts` | `apps/server/test/profile-routes.test.ts` |
 | No number a shard computes is trusted as damage (bolts parsed, clamped, capped, and priced) | `normalizeBolts` and `spellCost` in `packages/core/src/shardrun/engine.ts` | `packages/core/test/shardrun.test.ts` |

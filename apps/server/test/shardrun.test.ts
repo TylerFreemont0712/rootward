@@ -24,12 +24,13 @@ afterAll(async () => {
   await sandbox.dispose();
 });
 
-async function character(using: GameContent = content) {
+async function character(using: GameContent = content, dev = false) {
   const db = openDatabase(MEMORY);
   const service = new ShardrunService({
     db,
     content: using,
     sandbox,
+    dev,
     onBackgroundError: (error) => {
       throw error;
     },
@@ -188,6 +189,32 @@ describe("ShardrunService", () => {
     expect(warden?.trait?.name).toBe("Thick hide");
     expect(warden?.intents[0]?.text).toBe("Strike for 8");
     expect(codex.rules).toMatchObject({ manaPerTurn: 6, baseBoltPower: 4, weakMultiplier: 1.5 });
+  });
+
+  it("keeps the dev sandbox behind both the server flag and the run's own mark", SLOW, async () => {
+    const plain = await character();
+    expect(plain.service.devEnabled()).toBe(false);
+    // Without ROOTWARD_DEV there is no way in at all: not a sandbox run, and not a single dev command.
+    await expect(plain.service.start(plain.id, "javascript", "beginner", true)).rejects.toThrow("ROOTWARD_DEV=1");
+    expect((await plain.service.start(plain.id, "javascript", "beginner")).sandbox).toBe(false);
+    await expect(plain.service.dev(plain.id, { type: "grant-relic", relicId: "debugger-duck" })).rejects.toThrow("ROOTWARD_DEV=1");
+
+    // With the flag, an ordinary run is still an ordinary run.
+    const devd = await character(content, true);
+    expect(devd.service.devEnabled()).toBe(true);
+    expect((await devd.service.start(devd.id, "javascript", "beginner")).sandbox).toBe(false);
+    await expect(devd.service.dev(devd.id, { type: "grant-relic", relicId: "debugger-duck" })).rejects.toThrow("sandbox run");
+    await devd.service.command(devd.id, { type: "abandon" });
+
+    const box = await devd.service.start(devd.id, "javascript", "beginner", true);
+    expect(box.sandbox).toBe(true);
+    const granted = await devd.service.dev(devd.id, { type: "grant-relic", relicId: "debugger-duck" });
+    expect(granted.relics).toContain("debugger-duck");
+    const spawned = await devd.service.dev(devd.id, { type: "spawn", kind: "elite", foes: ["kiln-warden"] });
+    expect(spawned.status).toBe("battle");
+    expect(spawned.battle?.foes[0]?.name).toBe("Kiln Warden");
+    // A spawned fight is a real fight: its spells are previewed in the sandbox like any other.
+    expect((await devd.service.previews(devd.id)).spells["spell-1"]?.cost).toBeGreaterThan(0);
   });
 
   it("closes a run saved under older rules instead of failing on it", async () => {

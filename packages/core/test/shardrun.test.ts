@@ -424,3 +424,103 @@ describe("rooms and rewards", () => {
     expect(midFight.ok ? undefined : midFight.error.code).toBe("cannot-arrange");
   });
 });
+
+describe("the dev sandbox", () => {
+  // The sandbox is a run like any other, plus the commands below. Ordinary runs must never answer one of them, which is
+  // the guarantee these tests exist to hold: content can be granted freely, but only where the run says so.
+  const sandbox = (using: ShardrunCatalog = CATALOG) =>
+    startShardrun(using, { seed: "seed-1", language: "python", difficulty: "normal", sandbox: true });
+
+  it("refuses every dev command on an ordinary run", () => {
+    const state = start();
+    expect(state.sandbox).toBe(false);
+    for (const command of [
+      { type: "dev-grant-shard", shardId: "fork" },
+      { type: "dev-grant-relic", relicId: "duck" },
+      { type: "dev-set", integrity: 1 },
+      { type: "dev-goto-layer", layer: 1 },
+    ] satisfies ShardrunCommand[]) {
+      expect(stepShardrun(state, command, CATALOG)).toMatchObject({ ok: false, error: { code: "not-a-sandbox" } });
+    }
+  });
+
+  it("grants and removes shards and relics", () => {
+    const granted = play(sandbox(), [
+      { type: "dev-grant-shard", shardId: "chill" },
+      { type: "dev-grant-relic", relicId: "duck" },
+    ]);
+    expect(granted.inventory).toContain("chill");
+    expect(granted.relics).toContain("duck");
+
+    const removed = play(granted, [
+      { type: "dev-remove-shard", shardId: "chill" },
+      { type: "dev-remove-relic", relicId: "duck" },
+    ]);
+    expect(removed.inventory).not.toContain("chill");
+    expect(removed.relics).not.toContain("duck");
+  });
+
+  it("grants a relic's effect, not just its name", () => {
+    const granted = play(sandbox(), [{ type: "dev-grant-relic", relicId: "page" }]);
+    // A spell-capacity relic widens the spells already held, exactly as claiming it in a run would.
+    expect(granted.spells[0]?.capacity).toBe(3);
+    expect(stepShardrun(granted, { type: "dev-grant-relic", relicId: "page" }, CATALOG)).toMatchObject({
+      ok: false,
+      error: { code: "already-held" },
+    });
+  });
+
+  it("refuses what the content does not have", () => {
+    const state = sandbox();
+    expect(stepShardrun(state, { type: "dev-grant-shard", shardId: "nope" }, CATALOG)).toMatchObject({ error: { code: "unknown-shard" } });
+    expect(stepShardrun(state, { type: "dev-grant-relic", relicId: "nope" }, CATALOG)).toMatchObject({ error: { code: "unknown-relic" } });
+    expect(stepShardrun(state, { type: "dev-goto-layer", layer: 9 }, CATALOG)).toMatchObject({ error: { code: "unknown-layer" } });
+    expect(stepShardrun(state, { type: "dev-spawn", kind: "fight", foes: ["nope"] }, CATALOG)).toMatchObject({ error: { code: "unknown-foe" } });
+    expect(stepShardrun(state, { type: "dev-end-battle", outcome: "win" }, CATALOG)).toMatchObject({ error: { code: "not-in-battle" } });
+  });
+
+  it("sets Integrity within the run's own limits, and mana only in a fight", () => {
+    const hurt = play(sandbox(), [{ type: "dev-set", integrity: 5 }]);
+    expect(hurt.integrity).toBe(5);
+    expect(play(hurt, [{ type: "dev-set", integrity: 9999 }]).integrity).toBe(hurt.integrityMax);
+
+    const fight = play(sandbox(), [{ type: "dev-spawn", kind: "fight", foes: ["dummy"] }, { type: "dev-set", mana: 40 }]);
+    expect(fight.battle?.mana).toBe(40);
+  });
+
+  it("spawns a fight of any foes, and ends one either way", () => {
+    const fight = play(sandbox(), [{ type: "dev-spawn", kind: "elite", foes: ["wraith", "wraith"] }]);
+    expect(fight.status).toBe("battle");
+    expect(fight.battle?.kind).toBe("elite");
+    expect(fight.battle?.foes.map((foe) => foe.id)).toEqual(["wraith", "wraith"]);
+    // Two of the same foe are still two foes: separate uids, and different steps of the intent pattern.
+    expect(new Set(fight.battle?.foes.map((foe) => foe.uid)).size).toBe(2);
+
+    expect(play(fight, [{ type: "dev-end-battle", outcome: "win" }]).status).not.toBe("battle");
+    const lost = play(fight, [{ type: "dev-end-battle", outcome: "lose" }]);
+    expect(lost.status).toBe("lost");
+    expect(lost.integrity).toBe(0);
+  });
+
+  it("adds a spell, and jumps to a layer leaving the fight behind", () => {
+    const withSpell = play(sandbox(), [{ type: "dev-grant-spell", name: "Scratch", capacity: 4 }]);
+    expect(withSpell.spells.at(-1)).toMatchObject({ name: "Scratch", capacity: 4, shards: [] });
+
+    const jumped = play(withSpell, [{ type: "dev-spawn", kind: "fight", foes: ["dummy"] }, { type: "dev-goto-layer", layer: 1 }]);
+    expect(jumped.layer).toBe(1);
+    expect(jumped.status).toBe("map");
+    expect(jumped.battle).toBeUndefined();
+    expect(jumped.position).toBeNull();
+  });
+
+  it("plays by the ordinary rules once something is granted", () => {
+    const fight = play(sandbox(), [
+      { type: "dev-grant-relic", relicId: "core" },
+      { type: "dev-spawn", kind: "fight", foes: ["dummy"] },
+    ]);
+    const before = fight.battle?.foes[0]?.hp ?? 0;
+    const after = play(fight, [cast([bolt(5)])]);
+    // The damage-multiplier relic doubles a granted cast exactly as a claimed one would.
+    expect(before - (after.battle?.foes[0]?.hp ?? 0)).toBe(10);
+  });
+});

@@ -3,6 +3,7 @@ import type { ShardrunView } from "@rootward/shared";
 import { useEffect, useState } from "react";
 import { assetUrl } from "../assets/AssetRegistry.ts";
 import { Arena } from "../shardrun/Arena.tsx";
+import { DevDrawer } from "../shardrun/DevDrawer.tsx";
 import { SPEED_CHOICES } from "../shardrun/CodeView.tsx";
 import { LayerMap } from "../shardrun/LayerMap.tsx";
 import { RelicBar } from "../shardrun/parts.tsx";
@@ -89,9 +90,9 @@ function RunHeader({ run }: { run: ShardrunView }) {
   const command = useShardrun((s) => s.command);
   const busy = useShardrun((s) => s.busy);
   const [confirming, setConfirming] = useState(false);
-  // One drawer at a time: opening Stats closes Options, and the other way round.
-  const [drawer, setDrawer] = useState<"none" | "stats" | "options">("none");
-  const toggle = (which: "stats" | "options") => {
+  // One drawer at a time: opening one closes the others.
+  const [drawer, setDrawer] = useState<"none" | "stats" | "options" | "dev">("none");
+  const toggle = (which: "stats" | "options" | "dev") => {
     setDrawer((open) => (open === which ? "none" : which));
   };
   return (
@@ -107,7 +108,8 @@ function RunHeader({ run }: { run: ShardrunView }) {
         </b>
       </div>
       <span className="meta">
-        {run.layer.name} ({run.layer.index + 1}/{run.layer.count}) · {run.difficulty.name} · {run.language}
+        {run.sandbox && <b className="shr-dev-tag">DEV</b>} {run.layer.name} ({run.layer.index + 1}/{run.layer.count}) · {run.difficulty.name} ·{" "}
+        {run.language}
       </span>
       <RelicBar relics={run.relics} info={run.relicInfo} />
       <span className="shr-header-end">
@@ -121,6 +123,18 @@ function RunHeader({ run }: { run: ShardrunView }) {
         >
           Stats
         </button>
+        {run.sandbox && (
+          <button
+            type="button"
+            className="btn dev"
+            aria-expanded={drawer === "dev"}
+            onClick={() => {
+              toggle("dev");
+            }}
+          >
+            Dev
+          </button>
+        )}
         <button
           type="button"
           className="btn"
@@ -169,6 +183,7 @@ function RunHeader({ run }: { run: ShardrunView }) {
       </span>
       {drawer === "options" && <OptionsPanel />}
       {drawer === "stats" && <StatsPanel run={run} />}
+      {drawer === "dev" && <DevDrawer run={run} />}
     </header>
   );
 }
@@ -207,6 +222,7 @@ function StartPanel({ run }: { run: ShardrunView | undefined }) {
   const difficulties = useShardrun((s) => s.difficulties);
   const difficulty = useShardrun((s) => s.difficulty);
   const setDifficulty = useShardrun((s) => s.setDifficulty);
+  const dev = useShardrun((s) => s.dev);
   const showMenu = useGame((s) => s.showMenu);
   const showCodex = useGame((s) => s.showCodex);
   const emblem = assetUrl("brand", "shardrun");
@@ -252,6 +268,20 @@ function StartPanel({ run }: { run: ShardrunView | undefined }) {
             {run ? "New run" : "Descend"} in {language}
           </button>
         ))}
+        {dev &&
+          languages.map((language) => (
+            <button
+              key={`sandbox-${language}`}
+              type="button"
+              className="btn dev"
+              disabled={busy}
+              onClick={() => {
+                void start(language, true);
+              }}
+            >
+              Sandbox in {language}
+            </button>
+          ))}
         {languages.length === 0 && <span className="meta">No Python or JavaScript sandbox is available on this machine yet.</span>}
         <button type="button" className="btn" onClick={showCodex}>
           Codex

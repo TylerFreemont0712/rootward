@@ -137,6 +137,14 @@ Task breakdown:
       backdrops; the cast lag is gone (one sandbox job per turn, answer first and preview after, warm JavaScript and
       Python spares); a main menu picks The World or Shardrun, the Guild Board lives in the World without Descend, and six
       planned classes (Warden, Shade, Oracle, Keeper, Necromancer, Summoner) appear at character creation with art
+- [x] **Codex, Stats, and a dev sandbox** (ADR-0013, 2026-09-16, from the player's second pass of notes): the cast
+      function now reads first in the code view, with each shard below it in call order; a Codex of every shard, relic,
+      foe, and layer with where each one is found, readable outside a run and in either language; a Stats drawer
+      showing the rules a run plays by (naming the relic behind every changed number), its totals, and damage by
+      spell; and **Shardrun (DEV)**, a sandbox run that can be granted any shard or relic, given a spell, set to any
+      Integrity or mana, made to spawn any encounter, end a fight either way, or jump between layers — guarded by both
+      `ROOTWARD_DEV=1` on the server and the run's own mark, so an ordinary run can never answer one. Still open from
+      the same notes: spell slots (forges, elites, a relic), starting kits, and a batch of new shards
 - [x] **Shardrun** (ADR-0012), a separate roguelite mode at the player's request (2026-09-15: "find pieces of code and
       plug and play them into powerful attacks and spells", turn-based, same art): 23 shards that are real Python and
       JavaScript functions, 6 foes with rule-bending traits, a seven-floor run with fights, elites, rests, forges, and a

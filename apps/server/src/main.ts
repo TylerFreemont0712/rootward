@@ -43,7 +43,7 @@ async function main(): Promise<void> {
     registry,
     world: new WorldService({ db, content, registry }),
     content,
-    shardrun: new ShardrunService({ db, content, sandbox }),
+    shardrun: new ShardrunService({ db, content, sandbox, dev: env.dev }),
   };
   const app = await buildApp({
     service,

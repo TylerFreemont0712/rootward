@@ -135,6 +135,8 @@ export const ShardrunState = z.strictObject({
   reward: RewardState.optional(),
   /** Counts accepted commands, so a view computed for an older state can be told apart from the current one. */
   revision: z.int().min(0),
+  /** A dev sandbox run (ADR-0013): the same rules, plus commands that grant and set things. Never true by accident. */
+  sandbox: z.boolean().default(false),
   /** What the most recent command did. */
   log: z.array(LogEntry),
   stats: z.strictObject({

@@ -47,7 +47,17 @@ export type ShardrunCommand =
   | { type: "rest" }
   | { type: "forge"; shardId: string | null }
   | { type: "widen"; spellId: string }
-  | { type: "abandon" };
+  | { type: "abandon" }
+  // Dev commands (ADR-0013). Every one refuses unless the run is a sandbox, so they cannot touch an ordinary run.
+  | { type: "dev-grant-shard"; shardId: string }
+  | { type: "dev-remove-shard"; shardId: string }
+  | { type: "dev-grant-relic"; relicId: string }
+  | { type: "dev-remove-relic"; relicId: string }
+  | { type: "dev-grant-spell"; name: string; capacity: number }
+  | { type: "dev-set"; integrity?: number; mana?: number }
+  | { type: "dev-spawn"; kind: BattleKind; foes: readonly string[] }
+  | { type: "dev-end-battle"; outcome: "win" | "lose" }
+  | { type: "dev-goto-layer"; layer: number };
 
 export type StepResult = { ok: true; state: ShardrunState } | { ok: false; error: DomainError };
 
@@ -69,6 +79,8 @@ export interface StartOptions {
   seed: string;
   language: string;
   difficulty: string;
+  /** A dev sandbox run: ordinary rules, plus the dev commands. */
+  sandbox?: boolean;
 }
 
 export function startShardrun(catalog: ShardrunCatalog, options: StartOptions): ShardrunState {
@@ -93,6 +105,7 @@ export function startShardrun(catalog: ShardrunCatalog, options: StartOptions): 
     inventory: [...config.start.inventory],
     relics: [],
     revision: 0,
+    sandbox: options.sandbox ?? false,
     log: [],
     stats: { fights: 0, turns: 0, casts: 0, damage: 0, shards: 0, relics: 0, layers: 0, manaSpent: 0, bolts: 0, fizzled: 0, damageBySpell: {} },
   };
@@ -264,6 +277,116 @@ export function stepShardrun(state: ShardrunState, command: ShardrunCommand, cat
       log(next, { kind: "loss", text: "You climb back out of the Salvage. The shards stay behind." });
       return accept();
     }
+
+    default: {
+      if (!next.sandbox) return refuse("not-a-sandbox", "Dev commands only work in a sandbox run.");
+      const refusal = devCommand(next, command, catalog);
+      return refusal ? { ok: false, error: refusal } : accept();
+    }
+  }
+}
+
+/** The dev commands, already known to be running against a sandbox run. */
+function devCommand(state: ShardrunState, command: ShardrunCommand, catalog: ShardrunCatalog): DomainError | undefined {
+  const note = (text: string) => {
+    log(state, { kind: "note", text: `[dev] ${text}` });
+  };
+  switch (command.type) {
+    case "dev-grant-shard": {
+      const shard = catalog.shards.get(command.shardId);
+      if (!shard) return { code: "unknown-shard", message: "No such shard." };
+      state.inventory.push(shard.id);
+      note(`granted ${shard.name}`);
+      return undefined;
+    }
+    case "dev-remove-shard": {
+      const spare = state.inventory.indexOf(command.shardId);
+      if (spare >= 0) state.inventory.splice(spare, 1);
+      else {
+        const spell = state.spells.find((candidate) => candidate.shards.includes(command.shardId));
+        if (!spell) return { code: "not-owned", message: "That shard is not in this run." };
+        spell.shards.splice(spell.shards.indexOf(command.shardId), 1);
+      }
+      note(`removed ${catalog.shards.get(command.shardId)?.name ?? command.shardId}`);
+      return undefined;
+    }
+    case "dev-grant-relic": {
+      const relic = catalog.relics.get(command.relicId);
+      if (!relic) return { code: "unknown-relic", message: "No such relic." };
+      if (state.relics.includes(relic.id)) return { code: "already-held", message: `${relic.name} is already held.` };
+      gainRelic(state, relic, catalog);
+      return undefined;
+    }
+    case "dev-remove-relic": {
+      const index = state.relics.indexOf(command.relicId);
+      if (index < 0) return { code: "not-owned", message: "That relic is not in this run." };
+      state.relics.splice(index, 1);
+      note(`removed ${catalog.relics.get(command.relicId)?.name ?? command.relicId}`);
+      return undefined;
+    }
+    case "dev-grant-spell": {
+      const id = `spell-${state.spells.length + 1}`;
+      state.spells.push({ id, name: command.name, capacity: command.capacity, shards: [] });
+      note(`added the spell ${command.name}`);
+      return undefined;
+    }
+    case "dev-set": {
+      if (command.integrity !== undefined) {
+        state.integrity = Math.max(0, Math.min(state.integrityMax, command.integrity));
+        note(`Integrity set to ${state.integrity}`);
+      }
+      if (command.mana !== undefined && state.battle) {
+        state.battle.mana = Math.max(0, command.mana);
+        note(`mana set to ${state.battle.mana}`);
+      }
+      return undefined;
+    }
+    case "dev-spawn": {
+      const foes = foeStates(state, command.foes, `dev-${state.revision}`, catalog);
+      if (foes.length === 0) return { code: "unknown-foe", message: "No such foes." };
+      delete state.reward;
+      const battle: BattleState = {
+        kind: command.kind,
+        turn: 1,
+        mana: manaPerTurn(state, catalog),
+        block: relicModifiers(state, catalog).turnBlock,
+        foes,
+        cast: [],
+      };
+      beginTurn(battle);
+      state.battle = battle;
+      state.status = "battle";
+      note(`spawned ${foes.map((foe) => foe.name).join(" and ")}`);
+      return undefined;
+    }
+    case "dev-end-battle": {
+      const battle = state.battle;
+      if (!battle) return { code: "not-in-battle", message: "There is no fight to end." };
+      if (command.outcome === "lose") {
+        state.integrity = 0;
+        lose(state);
+        return undefined;
+      }
+      for (const foe of battle.foes) foe.hp = 0;
+      note("won the fight");
+      win(state, battle, catalog);
+      return undefined;
+    }
+    case "dev-goto-layer": {
+      const layer = catalog.config.layers[command.layer];
+      if (!layer) return { code: "unknown-layer", message: "No such layer." };
+      state.layer = command.layer;
+      state.map = generateLayerMap(state.seed, command.layer, layer);
+      state.position = null;
+      state.visited = [];
+      delete state.battle;
+      delete state.reward;
+      state.status = "map";
+      note(`jumped to ${layer.name}`);
+      return undefined;
+    }
+    default:
+      return { code: "unknown-command", message: "That is not a dev command." };
   }
 }
 
@@ -500,16 +623,25 @@ function gainRelic(state: ShardrunState, relic: Relic, catalog: ShardrunCatalog)
 // --- Battles --------------------------------------------------------------------------------------------------------
 
 function startBattle(state: ShardrunState, node: MapNode, kind: BattleKind, catalog: ShardrunCatalog): void {
+  const foes = foeStates(state, encounterFor(state.seed, node, layerOf(state, catalog)), node.id, catalog);
+  startBattleWith(state, kind, foes, catalog);
+}
+
+/**
+ * The fighting state of a list of foes, scaled by the layer and the difficulty. A foe the content no longer has is
+ * skipped rather than failing the run, so a pack can be edited while a snapshot naming an old foe still loads. The
+ * prefix keeps uids apart between encounters, so a log entry always names one foe of one fight.
+ */
+function foeStates(state: ShardrunState, foeIds: readonly string[], prefix: string, catalog: ShardrunCatalog): FoeState[] {
   const layer = layerOf(state, catalog);
   const difficulty = difficultyOf(catalog, state.difficulty);
-  const group = encounterFor(state.seed, node, layer);
-  const foes = group.flatMap((foeId, index): FoeState[] => {
+  return foeIds.flatMap((foeId, index) => {
     const def = catalog.foes.get(foeId);
     if (!def) return [];
     const hp = Math.max(1, Math.round(def.hp * layer.foe_hp * difficulty.foe_hp));
     return [
       {
-        uid: `${node.id}-${index}`,
+        uid: `${prefix}-${index}`,
         id: def.id,
         name: def.name,
         sprite: def.sprite,
@@ -528,6 +660,9 @@ function startBattle(state: ShardrunState, node: MapNode, kind: BattleKind, cata
       },
     ];
   });
+}
+
+function startBattleWith(state: ShardrunState, kind: BattleKind, foes: FoeState[], catalog: ShardrunCatalog): void {
   if (foes.length === 0) {
     afterRoom(state, catalog);
     return;

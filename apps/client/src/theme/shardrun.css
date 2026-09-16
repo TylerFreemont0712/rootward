@@ -387,3 +387,22 @@
 .shr-stat-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--amber-dim), var(--amber)); }
 .shr-end .shr-stat-list { margin-top: 6px; text-align: left; }
 @media (max-width: 820px) { .shr-stats { grid-template-columns: 1fr; } .shr-stats section:first-child { grid-row: auto; } }
+
+/* The dev drawer and the sandbox marks (ADR-0013): only ever rendered for a sandbox run on a dev server. */
+.btn.dev { border-color: #6ddf9a; color: #6ddf9a; }
+.btn.dev:hover { box-shadow: 0 0 12px rgb(109 223 154 / 30%); }
+.shr-dev-tag { padding: 0 5px; font-size: 10px; letter-spacing: 0.12em; color: #08110b; background: #6ddf9a; }
+.shr-dev { width: min(880px, 94vw); display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.shr-dev-wide { grid-column: 1 / -1; }
+.shr-dev h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #6ddf9a; font-weight: 500; }
+.shr-dev p.meta { margin: 0 0 6px; }
+.shr-dev input { width: 100%; padding: 4px 6px; border: 1px solid var(--line); background: var(--panel-3); color: var(--text); font: inherit; font-size: 12px; }
+.shr-dev input[type="number"] { width: 70px; }
+.shr-dev label { font-size: 12px; color: var(--muted); }
+.shr-dev-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.shr-dev-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.shr-dev-scroll { max-height: 150px; overflow-y: auto; padding-right: 2px; }
+.shr-dev-chip { padding: 2px 7px; font-size: 11px; border: 1px solid var(--line); background: var(--panel-3); color: var(--text); cursor: pointer; }
+.shr-dev-chip:hover:not(:disabled) { border-color: #6ddf9a; color: #6ddf9a; }
+.shr-dev-chip.on { border-color: #6ddf9a; color: #6ddf9a; }
+.shr-dev-chip:disabled { opacity: 0.5; cursor: not-allowed; }

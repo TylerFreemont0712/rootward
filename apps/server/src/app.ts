@@ -21,6 +21,7 @@ import {
   RunResponse,
   ShardrunCodexResponse,
   ShardrunCommandRequest,
+  ShardrunDevRequest,
   ShardrunPreviewsResponse,
   ShardrunResponse,
   ShardrunStatusResponse,
@@ -202,6 +203,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
           run: await shardrun.latest(request.params.profileId),
           languages: await shardrun.languages(),
           difficulties: shardrun.difficulties(),
+          dev: shardrun.devEnabled(),
         }),
       );
 
@@ -209,7 +211,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         ShardrunResponse.parse({
           run: await (async () => {
             const body = parseBody(StartShardrunRequest, request.body);
-            return shardrun.start(request.params.profileId, body.language, body.difficulty);
+            return shardrun.start(request.params.profileId, body.language, body.difficulty, body.sandbox ?? false);
           })(),
         }),
       );
@@ -218,6 +220,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       // waits for them (ADR-0013), so a cast never waits on previews it does not need.
       app.get<{ Params: { profileId: string } }>("/api/profiles/:profileId/shardrun/previews", async (request) =>
         ShardrunPreviewsResponse.parse(await shardrun.previews(request.params.profileId)),
+      );
+
+      // Dev tools: refused unless the server runs with ROOTWARD_DEV and the run is a sandbox (ADR-0013).
+      app.post<{ Params: { profileId: string } }>("/api/profiles/:profileId/shardrun/dev", async (request) =>
+        ShardrunResponse.parse({ run: await shardrun.dev(request.params.profileId, parseBody(ShardrunDevRequest, request.body)) }),
       );
 
       app.post<{ Params: { profileId: string } }>("/api/profiles/:profileId/shardrun/command", async (request) =>

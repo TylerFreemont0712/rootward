@@ -772,6 +772,8 @@ export const ShardrunView = z.strictObject({
   restHeal: z.int().optional(),
   /** In the response to a cast: that cast, step by step, with every value shown. */
   replay: z.strictObject({ spellId: z.string(), run: SpellRunView }).optional(),
+  /** A dev sandbox run: the same rules, plus the dev drawer. */
+  sandbox: z.boolean(),
   /** What the last command did, in order. */
   log: z.array(ShardrunLogView),
   stats: z.strictObject({
@@ -853,6 +855,8 @@ export const ShardrunStatusResponse = z.strictObject({
   run: ShardrunView.nullable(),
   languages: z.array(z.string()),
   difficulties: z.array(ShardrunDifficultyView),
+  /** Whether this server allows sandbox runs (ROOTWARD_DEV). */
+  dev: z.boolean(),
 });
 export type ShardrunStatusResponse = z.infer<typeof ShardrunStatusResponse>;
 
@@ -860,8 +864,27 @@ export type ShardrunStatusResponse = z.infer<typeof ShardrunStatusResponse>;
 export const ShardrunPreviewsResponse = z.strictObject({ revision: z.int(), spells: z.record(z.string(), SpellRunView) });
 export type ShardrunPreviewsResponse = z.infer<typeof ShardrunPreviewsResponse>;
 
-export const StartShardrunRequest = z.strictObject({ language: z.string().min(1), difficulty: z.string().min(1) });
+export const StartShardrunRequest = z.strictObject({
+  language: z.string().min(1),
+  difficulty: z.string().min(1),
+  /** Start a dev sandbox run; refused unless the server runs with ROOTWARD_DEV. */
+  sandbox: z.boolean().optional(),
+});
 export type StartShardrunRequest = z.infer<typeof StartShardrunRequest>;
+
+/** Dev tools (ADR-0013). They only work on a sandbox run, on a server started with ROOTWARD_DEV. */
+export const ShardrunDevRequest = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("grant-shard"), shardId: z.string().min(1) }),
+  z.strictObject({ type: z.literal("remove-shard"), shardId: z.string().min(1) }),
+  z.strictObject({ type: z.literal("grant-relic"), relicId: z.string().min(1) }),
+  z.strictObject({ type: z.literal("remove-relic"), relicId: z.string().min(1) }),
+  z.strictObject({ type: z.literal("grant-spell"), name: z.string().min(1).max(40), capacity: z.int().min(1).max(8) }),
+  z.strictObject({ type: z.literal("set"), integrity: z.int().min(0).optional(), mana: z.int().min(0).optional() }),
+  z.strictObject({ type: z.literal("spawn"), kind: z.enum(["fight", "elite", "boss"]), foes: z.array(z.string().min(1)).min(1).max(4) }),
+  z.strictObject({ type: z.literal("end-battle"), outcome: z.enum(["win", "lose"]) }),
+  z.strictObject({ type: z.literal("goto-layer"), layer: z.int().min(0) }),
+]);
+export type ShardrunDevRequest = z.infer<typeof ShardrunDevRequest>;
 
 export const ShardrunCommandRequest = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("enter"), nodeId: z.string().min(1) }),

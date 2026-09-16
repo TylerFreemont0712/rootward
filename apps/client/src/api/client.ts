@@ -16,6 +16,7 @@ import {
   RunResponse,
   ShardrunCodexResponse,
   type ShardrunCommandRequest,
+  type ShardrunDevRequest,
   ShardrunPreviewsResponse,
   ShardrunResponse,
   ShardrunStatusResponse,
@@ -128,6 +129,8 @@ export const api = {
     request("POST", profileUrl(profileId, "/shardrun/start"), ShardrunResponse, body),
   shardrunCommand: (profileId: string, body: ShardrunCommandRequest) =>
     request("POST", profileUrl(profileId, "/shardrun/command"), ShardrunResponse, body),
+  shardrunDev: (profileId: string, body: ShardrunDevRequest) =>
+    request("POST", profileUrl(profileId, "/shardrun/dev"), ShardrunResponse, body),
   shardrunPreviews: (profileId: string) => request("GET", profileUrl(profileId, "/shardrun/previews"), ShardrunPreviewsResponse),
   /** All Shardrun content, for the Codex; not scoped to a character. */
   shardrunCodex: (language: string) => request("GET", `/api/shardrun/codex?language=${encodeURIComponent(language)}`, ShardrunCodexResponse),

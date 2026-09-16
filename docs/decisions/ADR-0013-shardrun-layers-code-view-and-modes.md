@@ -105,6 +105,26 @@ exist as planned content with portraits and sprites: Warden (infrastructure and 
 (testing), Keeper (data), Necromancer (legacy code), and Summoner (AI). Creating a character with a planned class is
 refused.
 
+### The Codex, the Stats panel, and the dev sandbox
+
+Three ways to see the mode, all reading the same server numbers rather than recomputing anything in the client:
+
+- **The Codex** (`GET /api/shardrun/codex`) lists every shard, relic, foe, and layer in the content, with where each
+  one is found (derived from the reward weights, the forge chains, and the starting loadout, so it cannot drift from
+  the rules). It is readable outside a run, in either language.
+- **The Stats panel** shows the rules a run plays by as base/now/from rows — every relic that changed a number says so
+  — plus the run's totals and its damage by spell. The run snapshot gained the counters behind it (mana spent, bolts
+  fired, bolts fizzled, damage by spell), each with a zod default so older snapshots still load.
+- **The dev sandbox** is an ordinary run marked `sandbox: true`, plus commands that grant and set things: grant or
+  remove a shard or relic, add a spell, set Integrity or mana, spawn any encounter, end a fight either way, and jump to
+  a layer. Nothing else changes: costs, the cap, the sandbox, and every rule stay exactly as they are, so what is
+  learned in a sandbox is true of a real run.
+
+The sandbox is guarded twice, and both guards are on the server. The process must run with `ROOTWARD_DEV=1` (a run
+started without it cannot be a sandbox), and the run itself must carry the mark (the engine refuses every dev command
+with `not-a-sandbox` otherwise). The client only ever hides buttons; it decides nothing. `POST
+/api/profiles/:id/shardrun/dev` is the one route, and the launcher sets `ROOTWARD_DEV=1` for local play.
+
 ## Consequences
 
 - A turn costs one sandbox job, started after the response is sent. Python stays interactive as long as two spares
@@ -113,3 +133,6 @@ refused.
 - Old Shardrun runs are closed on upgrade. Only in-development test runs existed.
 - How planned classes will play Shardrun (shards in bash or SQL?) is still open. They are placeholders by design.
 - Shardrun still records no mastery evidence (see ADR-0012).
+- Dev tooling exists in the shipped build rather than behind a compile flag. Both guards are server-side and tested, so
+  a client cannot reach it; the cost is that the checks must stay in place as the commands grow.
+- A sandbox run is saved like any other run, so a character can only be in one sandbox or one real run at a time.

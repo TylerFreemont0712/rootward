@@ -1,4 +1,11 @@
-import type { ShardrunCommandRequest, ShardrunDifficultyView, ShardrunLogView, ShardrunView, SpellRunView } from "@rootward/shared";
+import type {
+  ShardrunCommandRequest,
+  ShardrunDevRequest,
+  ShardrunDifficultyView,
+  ShardrunLogView,
+  ShardrunView,
+  SpellRunView,
+} from "@rootward/shared";
 import { create } from "zustand";
 import { api, ApiError } from "../api/client.ts";
 import { playbackMs } from "../shardrun/playback.ts";
@@ -21,6 +28,8 @@ export interface ShardrunStore {
   languages: string[];
   difficulties: ShardrunDifficultyView[];
   loaded: boolean;
+  /** Whether this server was started with ROOTWARD_DEV: sandbox runs and the dev drawer only exist when it was. */
+  dev: boolean;
   busy: boolean;
   error: string | undefined;
   /** Counts responses, so the arena replays each new log exactly once. */
@@ -38,8 +47,10 @@ export interface ShardrunStore {
   codeSpeed: CodeSpeed;
   difficulty: string;
   load: (profileId: string) => Promise<void>;
-  start: (language: string) => Promise<void>;
+  start: (language: string, sandbox?: boolean) => Promise<void>;
   command: (request: ShardrunCommandRequest) => Promise<void>;
+  /** A dev tool: only answered for a sandbox run on a dev server. */
+  devCommand: (request: ShardrunDevRequest) => Promise<void>;
   /** The code playback finished or was skipped: let the hits play. */
   finishReplay: () => void;
   setCodeSpeed: (speed: CodeSpeed) => void;
@@ -113,6 +124,7 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
     languages: [],
     difficulties: [],
     loaded: false,
+    dev: false,
     busy: false,
     error: undefined,
     beat: 0,
@@ -127,13 +139,14 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
     load: async (profileId) => {
       if (get().profileId !== profileId) set({ profileId, run: undefined, loaded: false, afterglow: undefined, replay: undefined, phase: "log" });
       try {
-        const { run, languages, difficulties } = await api.shardrun(profileId);
+        const { run, languages, difficulties, dev } = await api.shardrun(profileId);
         if (get().profileId !== profileId) return;
         const known = difficulties.some((difficulty) => difficulty.id === get().difficulty);
         set({
           run: run ?? undefined,
           languages,
           difficulties,
+          dev,
           loaded: true,
           ...(known ? {} : { difficulty: difficulties[0]?.id ?? "beginner" }),
         });
@@ -143,8 +156,10 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
       }
     },
 
-    start: (language) => send(async (profileId) => (await api.startShardrun(profileId, { language, difficulty: get().difficulty })).run, true),
+    start: (language, sandbox = false) =>
+      send(async (profileId) => (await api.startShardrun(profileId, { language, difficulty: get().difficulty, sandbox })).run, true),
     command: (request) => send(async (profileId) => (await api.shardrunCommand(profileId, request)).run),
+    devCommand: (request) => send(async (profileId) => (await api.shardrunDev(profileId, request)).run),
 
     finishReplay: () => {
       if (get().phase === "log") return;

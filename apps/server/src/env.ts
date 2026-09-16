@@ -14,6 +14,8 @@ const EnvSchema = z.object({
   ROOTWARD_HOST: z.preprocess(emptyToUndefined, z.string().default("127.0.0.1")),
   ROOTWARD_ROOT: z.preprocess(emptyToUndefined, z.string().optional()),
   ROOTWARD_DATA_DIR: z.preprocess(emptyToUndefined, z.string().optional()),
+  // Dev tooling (the Shardrun sandbox). Off unless asked for, so a normal run can never be touched by it.
+  ROOTWARD_DEV: z.preprocess(emptyToUndefined, z.enum(["0", "1", "true", "false"]).default("0")),
   XDG_DATA_HOME: z.preprocess(emptyToUndefined, z.string().optional()),
 });
 
@@ -24,6 +26,8 @@ export interface ServerEnv {
   rootDir: string;
   /** Where the SQLite database lives (ADR-0006). */
   dataDir: string;
+  /** Dev tooling is available: Shardrun sandbox runs and their commands. */
+  dev: boolean;
 }
 
 /** The repository root, found from this file's location. */
@@ -51,5 +55,6 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
     host: parsed.data.ROOTWARD_HOST,
     rootDir: path.resolve(parsed.data.ROOTWARD_ROOT ?? defaultRootDir()),
     dataDir: path.resolve(parsed.data.ROOTWARD_DATA_DIR ?? defaultDataDir),
+    dev: parsed.data.ROOTWARD_DEV === "1" || parsed.data.ROOTWARD_DEV === "true",
   };
 }

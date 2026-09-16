@@ -44,6 +44,7 @@ import {
 import type {
   BoltView,
   CodexFoeView,
+  ShardrunDevRequest,
   RelicView,
   ShardrunCommandRequest,
   ShardrunDifficultyView,
@@ -79,6 +80,8 @@ export interface ShardrunDeps {
   db: DatabaseSync;
   content: GameContent;
   sandbox: Sandbox;
+  /** Whether dev tooling is allowed on this server (ROOTWARD_DEV). Sandbox runs and dev commands need it. */
+  dev?: boolean;
   /** Where a failure of previews warmed in the background is reported. Defaults to the console. */
   onBackgroundError?: (error: unknown) => void;
 }
@@ -92,6 +95,7 @@ export class ShardrunService {
   private readonly db: DatabaseSync;
   private readonly sandbox: Sandbox;
   private readonly catalog: ShardrunCatalog | undefined;
+  private readonly devEnabledFlag: boolean;
   private readonly onBackgroundError: (error: unknown) => void;
   /** Finished spell runs, by exact input. */
   private readonly runs = new Map<string, PipelineRun>();
@@ -102,6 +106,7 @@ export class ShardrunService {
   constructor(deps: ShardrunDeps) {
     this.db = deps.db;
     this.sandbox = deps.sandbox;
+    this.devEnabledFlag = deps.dev ?? false;
     this.onBackgroundError =
       deps.onBackgroundError ??
       ((error: unknown) => {
@@ -124,6 +129,11 @@ export class ShardrunService {
     return usable.flat();
   }
 
+  /** Whether this server allows sandbox runs at all. */
+  devEnabled(): boolean {
+    return this.devEnabledFlag;
+  }
+
   difficulties(): ShardrunDifficultyView[] {
     return (this.catalog?.config.difficulties ?? []).map((difficulty) => ({ id: difficulty.id, name: difficulty.name, summary: difficulty.summary }));
   }
@@ -139,7 +149,7 @@ export class ShardrunService {
     return loaded ? this.view(loaded) : null;
   }
 
-  async start(profileId: string, language: string, difficulty: string): Promise<ShardrunView> {
+  async start(profileId: string, language: string, difficulty: string, sandbox = false): Promise<ShardrunView> {
     return this.serialize(profileId, async () => {
       const catalog = this.requireCatalog();
       this.requireProfile(profileId);
@@ -149,11 +159,14 @@ export class ShardrunService {
       if (!catalog.config.difficulties.some((candidate) => candidate.id === difficulty)) {
         throw new ServiceError(400, "unknown-difficulty", `There is no ${difficulty} difficulty.`);
       }
+      if (sandbox && !this.devEnabledFlag) {
+        throw new ServiceError(403, "dev-disabled", "Sandbox runs need a server started with ROOTWARD_DEV=1.");
+      }
       if (this.active(profileId)) {
         throw new ServiceError(409, "run-in-progress", "A run is already underway. Finish or abandon it first.");
       }
       const id = randomUUID();
-      const state = startShardrun(catalog, { seed: randomUUID(), language, difficulty });
+      const state = startShardrun(catalog, { seed: randomUUID(), language, difficulty, sandbox });
       const now = new Date().toISOString();
       this.db
         .prepare("INSERT INTO shardrun_runs (id, profile_id, status, state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
@@ -194,6 +207,25 @@ export class ShardrunService {
       if (result.state.battle) this.warm(result.state);
       const replay = cast && { spellId: cast.spell.id, run: this.spellRunView(before, cast.spell, cast.run, true) };
       return this.view({ id: run.id, state: result.state }, replay);
+    });
+  }
+
+  /** A dev command: only on a sandbox run, and only when this server allows dev tooling. */
+  async dev(profileId: string, request: ShardrunDevRequest): Promise<ShardrunView> {
+    return this.serialize(profileId, () => {
+      const catalog = this.requireCatalog();
+      this.requireProfile(profileId);
+      if (!this.devEnabledFlag) throw new ServiceError(403, "dev-disabled", "This server was not started with ROOTWARD_DEV=1.");
+      const run = this.active(profileId);
+      if (!run) throw new ServiceError(404, "no-run", "There is no run underway.");
+      if (!run.state.sandbox) throw new ServiceError(409, "not-a-sandbox", "Dev tools only work in a sandbox run.");
+      const result = stepShardrun(run.state, devToCommand(request), catalog);
+      if (!result.ok) throw new ServiceError(409, result.error.code, result.error.message);
+      this.db
+        .prepare("UPDATE shardrun_runs SET status = ?, state = ?, updated_at = ? WHERE id = ?")
+        .run(result.state.status, JSON.stringify(result.state), new Date().toISOString(), run.id);
+      if (result.state.battle) this.warm(result.state);
+      return Promise.resolve(this.view({ id: run.id, state: result.state }));
     });
   }
 
@@ -393,6 +425,7 @@ export class ShardrunService {
         ? { restHeal: Math.min(state.integrityMax - state.integrity, Math.ceil(state.integrityMax * balance.rest_heal_fraction)) }
         : {}),
       ...(replay ? { replay } : {}),
+      sandbox: state.sandbox,
       log: state.log.map((entry) => ({ ...entry })),
       stats: { ...state.stats, damageBySpell: { ...state.stats.damageBySpell } },
       rules: rulesView(catalog),
@@ -591,6 +624,34 @@ export class ShardrunService {
   private requireCatalog(): ShardrunCatalog {
     if (!this.catalog) throw new ServiceError(404, "shardrun-unavailable", "No content pack defines Shardrun.");
     return this.catalog;
+  }
+}
+
+/** The engine command behind each dev request; the engine refuses every one of them outside a sandbox run. */
+function devToCommand(request: ShardrunDevRequest): ShardrunCommand {
+  switch (request.type) {
+    case "grant-shard":
+      return { type: "dev-grant-shard", shardId: request.shardId };
+    case "remove-shard":
+      return { type: "dev-remove-shard", shardId: request.shardId };
+    case "grant-relic":
+      return { type: "dev-grant-relic", relicId: request.relicId };
+    case "remove-relic":
+      return { type: "dev-remove-relic", relicId: request.relicId };
+    case "grant-spell":
+      return { type: "dev-grant-spell", name: request.name, capacity: request.capacity };
+    case "set":
+      return {
+        type: "dev-set",
+        ...(request.integrity === undefined ? {} : { integrity: request.integrity }),
+        ...(request.mana === undefined ? {} : { mana: request.mana }),
+      };
+    case "spawn":
+      return { type: "dev-spawn", kind: request.kind, foes: request.foes };
+    case "end-battle":
+      return { type: "dev-end-battle", outcome: request.outcome };
+    case "goto-layer":
+      return { type: "dev-goto-layer", layer: request.layer };
   }
 }
 
