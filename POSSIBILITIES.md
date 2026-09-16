@@ -1,10 +1,11 @@
 # POSSIBILITIES.md — making the numbers get out of hand
 
-Ideas. **Phase 1 of section 7 has since shipped (ADR-0014);** everything else here is still a proposal, and each
-piece needs an ADR first, because most of it changes the Shardrun damage contract (ADR-0012, ADR-0013). Written 2026-09-16 from the player's note: *the fun of a Balatro-like
+Ideas. **Phases 1 and 3 of section 7 have since shipped (ADR-0014, ADR-0015);** everything else here is still a
+proposal, and each piece needs an ADR first, because most of it changes the Shardrun damage contract (ADR-0012,
+ADR-0013). Written 2026-09-16 from the player's note: *the fun of a Balatro-like
 is the insane final number, and in a programming game the functions themselves should be what compound.*
 
-## 1. Why Shardrun cannot explode today
+## 1. Why Shardrun could not explode (before ADR-0014 and ADR-0015)
 
 The ceiling is hard, and it is arithmetic, not balance:
 
@@ -102,11 +103,12 @@ mechanic. And complexity pricing is what keeps the whole thing honest: it replac
 a cost curve, so a thousand-bolt build is not forbidden, it is simply expensive — until you find the relic that bills
 you logarithmically, and then it is a build.
 
-## 5. Making the numbers *necessary*
+## 5. Making the numbers *necessary* (the first bullet shipped in ADR-0015)
 
 Big numbers are only fun against big requirements. Today foe HP is roughly linear, so a 10× build just wins faster.
 
-- Foe HP per layer as `base × r^layer` (r ≈ 2.5–4), so layer 6 genuinely needs six figures.
+- ~~Foe HP per layer as `base × r^layer` (r ≈ 2.5–4)~~ — shipped as content in ADR-0015: ×1, ×2.6, ×6.8 across the
+  three layers. Whether that is the right growth is a playtest question, and it is an edit to `run.yaml`.
 - **Endless mode** past the Kernel: layers keep coming, HP keeps compounding, and the run ends when you finally
   cannot keep up. "How deep did your function go" is the score, and it is a far better long-term hook than "you won."
 - A per-run **best cast** record in the Stats panel, and a personal all-time best. Balatro's real loop is beating your
@@ -143,9 +145,25 @@ Big numbers are only fun against big requirements. Today foe HP is roughly linea
    because paying for a wide build is now the binding constraint rather than computing one. A first cheap step would
    be relics and shards that give mana or discount work, so a big build is reachable before the deep mechanics land.
 2. **Phase 2 — higher-order shards.** `twice`, `compose`, `repeat`. Needs the sandbox spike first.
-3. **Phase 3 — complexity pricing.** Replace flat shard costs with a cost function of work, plus a log-billing relic.
-4. **Phase 4 — recursion, exponent tier, endless layers, scaling shards.** The deep end, once the arithmetic is
-   settled and the big-number representation is decided.
+3. **Phase 3 — complexity pricing. ✅ Done 2026-09-16, ADR-0015.** A cast is now one bill on a curve: each step pays
+   its shard's complexity class applied to the bolts it was handed (`constant` / `linear` / `linearithmic` /
+   `quadratic`), *plus that shard's own cost priced as work* — the flat half of the old bill was the actual wall — and
+   the total is billed as its square root, or its logarithm with the Amortized Ledger relic. Mana per turn, the bolt
+   cap and foe HP stopped being constants at the same time.
 
-Phase 1 alone is probably one session's work and would answer the question "does this actually feel better?" before
-anything expensive is built.
+   **Measured through the real server and the real sandbox.** The build Phase 1 could not cast —
+   `echo ×4 → amplify-plus ×2 → charge → resonate` at 23 mana against an income of 6 — now costs **5 mana** and is
+   castable on the first turn of the first layer. An eight-slot `echo ×7 → crosslink` hands 128 bolts to a shard that
+   compares every pair: 16 639 work units, **46 mana amortized and 12 with the Ledger**, and it kills the Root Daemon
+   in one cast. Both are assertions in `apps/server/test/shardrun.test.ts`.
+
+   **What this leaves as the binding constraint: slots and the clamps.** `max_bolt_power` (40) and `max_bolt_mult`
+   (25) are the ceiling again, exactly as ADR-0014 predicted, and they are deliberately *not* balance — they are the
+   rule that the engine never trusts player code's arithmetic. Past them, the next real growth has to come from the
+   exponent tier or from a damage representation that is not a clamped `number`, which is Phase 4's decision.
+4. **Phase 2 — higher-order shards.** `twice`, `compose`, `repeat`. Needs the sandbox spike first. Now the obvious
+   next one: with the bill on a curve, a retrigger is affordable, and `twice(crosslink)` is a sentence a player would
+   want to write.
+5. **Phase 4 — recursion, exponent tier, endless layers, scaling shards.** The deep end, once the big-number
+   representation is decided. Endless layers are cheap now that foe HP compounds and the caps scale — the layer index
+   already drives both.

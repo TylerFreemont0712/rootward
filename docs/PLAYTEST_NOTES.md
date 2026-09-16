@@ -99,8 +99,11 @@ and service tests. Not yet played by hand end to end: balance across three layer
 - **The first quest's bar.** Three wins in the Foundry to open the kiln gate (`quests/the-foundry-cools.yaml`).
 - **Shardrun pacing.** `mana_per_turn: 6` casts all three starting spells every turn. Does a turn ever involve a real
   choice, or should mana be tighter (5) so one spell waits?
-- **Shardrun work cost.** One extra mana per 8 bolts handed to shards (`work_per_mana`). Fork chains stay cheap until
-  about three forks deep. Too generous?
+- **Shardrun work cost.** Replaced in ADR-0015: a cast is one bill on a curve (`work_billing`), each step priced by
+  its shard's complexity class plus its own cost. Open questions now: is `sqrt` too generous on a narrow spell (a
+  three-slot starting spell costs 2 mana), and does `quadratic` bite hard enough before the Amortized Ledger?
+- **Shardrun scaling (ADR-0015).** Mana per turn grows +3 a layer, the bolt cap +12 a layer, foe HP x1 / x2.6 / x6.8.
+  All three are guesses. Does the Heap feel like a step up or a wall, and does the Kernel need the Ledger to clear?
 - **Guardian difficulty.** The Kiln Warden has 95 HP, ignores bolts under 5 power, resists fire, and hits up to 12 a
   turn. Beatable with the shards a typical run finds by floor 7?
 - **Shardrun length.** Three layers of 8 to 9 rows plus a boss is about 27 rooms. Too long for "short runs"? Levers: `rows`

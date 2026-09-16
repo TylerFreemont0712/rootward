@@ -5,7 +5,7 @@ task list, what is done, what is next, and decisions made in conversation. Updat
 (`AGENT.md` section 7).
 
 - **Current milestone:** M1 — Vertical slice (in progress). M0 is done.
-- **Last updated:** 2026-09-15
+- **Last updated:** 2026-09-16
 
 ## Kickoff decisions (2026-09-13)
 
@@ -194,8 +194,18 @@ These three come from the player directly and outrank the generic milestone orde
       **Phase 1 landed 2026-09-16 (ADR-0014):** a bolt now deals `power x mult`, `mult` is clamped by a new
       `max_bolt_mult`, a `bolt-mult` relic effect exists, and three shards move the new axis (Charge +2, Cascade
       +1/+2/+3 by position, Resonate doubles). Every shard written before it still works untouched, because they all
-      copy bolts by spreading. Next: Phase 2, higher-order shards (`twice`, `compose`, `repeat`), which needs a
-      sandbox spike first because a shard would receive another shard.
+      copy bolts by spreading.
+      **Phase 3 landed 2026-09-16 (ADR-0015)**, pulled ahead of Phase 2 because Phase 1 proved that *paying* for a
+      wide build, not computing one, was the binding constraint. A cast is now one bill on a curve: each step pays its
+      shard's complexity class (`constant`/`linear`/`linearithmic`/`quadratic`, declared in content) applied to the
+      bolts it was handed, plus that shard's own cost priced as work, and the total is billed as its square root — or
+      its logarithm, with the new Amortized Ledger relic. Mana per turn (+3 a layer), the bolt cap (+12 a layer, up to
+      96, plus a `bolt-cap` relic effect) and foe HP (x1, x2.6, x6.8) stopped being constants at the same time.
+      Measured for real: the 23-mana build Phase 1 could not cast now costs **5**, and an eight-slot
+      `echo x7 -> crosslink` costs 46 amortized and 12 with the Ledger.
+      Next: Phase 2, higher-order shards (`twice`, `compose`, `repeat`), which needs a sandbox spike first because a
+      shard would receive another shard; and the big-number decision before the exponent tier, since `max_bolt_power`
+      and `max_bolt_mult` are the ceiling again by design.
 - [ ] **The Apprentice class** — a teaching class for young beginners (the player's daughters are the intended
       players). A class is the right shape for this because classes already carry `subjects`, their own fights, and
       their own difficulty of explanation. Wants: a very gentle challenge ladder (one idea per fight, no timers, no

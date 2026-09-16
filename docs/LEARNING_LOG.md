@@ -280,3 +280,30 @@ language feature took more than a minute to understand.
   so it cannot be cast at all. The rules were right and the mode was still not playable, which is not something a unit
   test was ever going to say.
 
+
+## Complexity pricing and curves (ADR-0015)
+
+- **A constraint you cannot grow is a wall, not a difficulty.** Every remaining limit in Shardrun was a literal in
+  `config/balance.yaml`: 6 mana a turn, 16 bolts, 1 mana per 8 bolts of work. Turning three of them into functions of
+  the layer (`mana_per_turn: { base, per_layer }`, `bolt_cap: { base, per_layer, max }`, foe HP per layer in content)
+  changed the feel of the mode more than any new mechanic did. Worth asking of any tuning number: what does it do on
+  turn 40? See `packages/core/src/shardrun/engine.ts` — `manaPerTurn`, `boltCap`.
+- **Half a curve is no curve.** Billing the *work* sublinearly while shard costs stayed flat mana moved the
+  ADR-0014 build from 23 mana to 17, of which 13 was still flat. A cost function only helps the part of the cost it is
+  given; the part outside it becomes the whole constraint. `pipelineWork` now prices a shard's own cost as work
+  (`cost × per_mana` units) so one curve covers the whole cast.
+- **Sublinear growth flattens differences you meant to keep.** The same √ that made a wide build payable also made a
+  rare cost-2 shard and a common cost-0 shard differ by about one mana on a narrow spell. Every monotone transform of a
+  quantity compresses the distinctions inside it — a trade, not a free win. Recorded in ADR-0015's consequences rather
+  than discovered later.
+- **Where a rule lives decides what it can know.** Work used to arrive at the rules as one number (`work: number`),
+  which was enough while a bolt handled cost a flat amount. Pricing by complexity needs the shard's own class, so
+  `PipelineOutcome` now carries `{ shard, given }` per step and `packages/core` looks each one up. The harness still
+  only *measures*; the pricing stayed in the pure layer, which is where it can be unit-tested with no sandbox.
+- **Only some clamps are balance.** `bolt_cap` was a ceiling pretending to be a safety rail, and became balance.
+  `max_bolt_power` and `max_bolt_mult` are genuine rails — the engine never trusts a number player code computed
+  (ADR-0012) — so they stayed flat. Telling the two apart is the whole of the "what is a tunable" question.
+- **A thing worth teaching should cost something.** `complexity` is a claim a shard makes about its own code, and the
+  engine bills it: `constant → 1`, `linear → n`, `linearithmic → ⌈n log₂(n+1)⌉`, `quadratic → n²`. Crosslink compares
+  every pair of 128 bolts and owes 16 384 units for it. Big-O stops being a fact to recite and becomes a number on the
+  line that produced it, in the code view.
