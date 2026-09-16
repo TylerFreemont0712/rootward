@@ -54,6 +54,7 @@ const RELICS = [
   "mana-capacitor",
   "overclocked-core",
   "second-grimoire",
+  "tuning-fork",
 ];
 const SHARD_ICONS = [
   "fork",
@@ -87,6 +88,9 @@ const SHARD_ICONS = [
   "patience",
   "overflow",
   "siphon",
+  "charge",
+  "cascade",
+  "resonate",
 ];
 
 const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
