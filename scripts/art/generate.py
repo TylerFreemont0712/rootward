@@ -206,7 +206,15 @@ def render(comfy: str, job: dict) -> tuple[list[Image.Image], list[Image.Image] 
 
 
 def ensure_raws(comfy: str, job: dict, force: bool, reprocess_only: bool) -> list[np.ndarray] | None:
-    """Float RGBA arrays in 0..1, one per candidate, rendering only when the cache is missing or stale."""
+    """Float RGBA arrays in 0..1, one per candidate, rendering only when the cache is missing or stale. An asset with
+    `raw_from` renders nothing of its own: it post-processes another asset's cached render (a larger battle sprite from
+    the render a map sprite was cut from, so the two stay one design)."""
+    if job.get("raw_from"):
+        source = CACHE_DIR / job["raw_from"]
+        if not (source / "meta.json").exists():
+            print(f"  skip {job['id']}: {job['raw_from']} has no cached render yet (render it first)")
+            return None
+        return read_raws(source, job["candidates"])
     folder = CACHE_DIR / job["id"]
     meta_path = folder / "meta.json"
     pose = pose_sheet(job)
@@ -229,8 +237,12 @@ def ensure_raws(comfy: str, job: dict, force: bool, reprocess_only: bool) -> lis
             if masks:
                 masks[i].convert("L").save(folder / f"mask_{i}.png")
         meta_path.write_text(json.dumps({"hash": digest, "prompt": job["prompt"], "seed": job["seed"]}, indent=2))
+    return read_raws(folder, job["candidates"])
+
+
+def read_raws(folder: Path, candidates: int) -> list[np.ndarray]:
     raws = []
-    for i in range(job["candidates"]):
+    for i in range(candidates):
         rgb = np.asarray(Image.open(folder / f"rgb_{i}.png").convert("RGB"), dtype=np.float32) / 255
         mask_path = folder / f"mask_{i}.png"
         alpha = (
@@ -556,9 +568,116 @@ def post_walk_cycle(rgba: np.ndarray, post: dict, job: dict) -> list[tuple[str, 
     return outputs
 
 
+def post_pose_strip(rgba: np.ndarray, post: dict, job: dict) -> Image.Image:
+    """A pose-guided sheet cut into one strip of registered frames: the battle poses of one character, in sheet order.
+
+    Unlike a walk cycle, a battle pose moves the whole body (a lunge carries it forward, a hurt knocks it back), so frames
+    are not centered on the figure. Every cell is cropped to the same box, the union of all the figures, and scaled by one
+    factor, so a body keeps the place the pose sheet gave it. Only height is re-anchored, lowest foot to the bottom row,
+    so no frame floats. All frames share one palette."""
+    frame_w, frame_h = post["size"]
+    rows, columns = post["rows"], post["columns"]
+    pad = 1
+    cell_h, cell_w = rgba.shape[0] // rows, rgba.shape[1] // columns
+    cells = []
+    for r in range(rows):
+        for c in range(columns):
+            cell = drop_fragments(rgba[r * cell_h : (r + 1) * cell_h, c * cell_w : (c + 1) * cell_w], post.get("keep_fraction", 0.2))
+            ys, xs = np.nonzero(cell[..., 3] > 0.5)
+            if len(xs) == 0:
+                raise ValueError(f"{job['id']}: no figure in row {r} column {c}")
+            cells.append((cell, ys, xs))
+    left = min(int(xs.min()) for _, _, xs in cells)
+    right = max(int(xs.max()) for _, _, xs in cells) + 1
+    tallest = max(int(ys.max() - ys.min()) + 1 for _, ys, _ in cells)
+    scale = min((frame_w - 2 * pad) / (right - left), (frame_h - 2 * pad) / tallest)
+    frames = []
+    for cell, ys, _ in cells:
+        top, bottom = int(ys.min()), int(ys.max()) + 1
+        crop = cell[top:bottom, left:right]
+        size = (max(1, round(crop.shape[1] * scale)), max(1, round(crop.shape[0] * scale)))
+        small = resize_premultiplied(crop, size)
+        small = np.dstack([adjust(small[..., :3], post), small[..., 3:4]])
+        canvas = np.zeros((frame_h, frame_w, 4), dtype=np.float32)
+        y0, x0 = frame_h - pad - size[1], (frame_w - size[0]) // 2
+        canvas[max(0, y0) : y0 + size[1], x0 : x0 + size[0]] = small[max(0, -y0) :]
+        frames.append(canvas)
+    cut = post.get("alpha_cut", 0.5)
+    palette = palette_of(np.concatenate([np.round(f[..., :3][f[..., 3] > cut] * 255) for f in frames]), post.get("colors", 24))
+    strip = []
+    for canvas in frames:
+        opaque = canvas[..., 3] > cut
+        out = np.zeros((frame_h, frame_w, 4), dtype=np.uint8)
+        out[opaque, :3] = apply_palette(np.round(canvas[..., :3] * 255), palette)[opaque]
+        out[opaque, 3] = 255
+        strip.append(outline(out, post.get("outline_color", "#140c1c")))
+    return Image.fromarray(np.concatenate(strip, axis=1), "RGBA")
+
+
+def post_glow(raw: np.ndarray, post: dict) -> Image.Image:
+    """A light effect rendered on black, made into a sprite whose alpha is its brightness.
+
+    LEARN: fire, lightning and magic are light, and light adds: drawn with additive blending ("lighter" on a canvas),
+    black contributes nothing, so a render on black is already the effect. Turning brightness into alpha (and dividing
+    the color back out) also lets the same sprite draw correctly with ordinary blending. Alpha is cut into a few hard
+    steps, like the palette, so a glow still reads as pixel art rather than a soft airbrush."""
+    rgb = raw[..., :3]
+    edges = np.concatenate([rgb[0], rgb[-1], rgb[:, 0], rgb[:, -1]])
+    if edges.mean() > 0.35:
+        print(f"  warning: a glow was rendered on a light background (edge brightness {edges.mean():.2f}); do not pick it")
+    if post.get("flip"):
+        rgb = rgb[:, ::-1]
+    if post.get("rotate"):
+        rotated = Image.fromarray(np.round(rgb * 255).astype(np.uint8), "RGB").rotate(post["rotate"], resample=Image.Resampling.BICUBIC)
+        rgb = np.asarray(rotated, dtype=np.float32) / 255
+    black = post.get("black", 0.08)
+    alpha = np.clip((rgb.max(axis=2) - black) / (1 - black), 0, 1) ** post.get("alpha_gamma", 0.8)
+    if post.get("vignette", 0.3) > 0:
+        # Light that runs off the edge of the render would end in a hard square edge; fade it out toward the border.
+        height, width = alpha.shape
+        ys, xs = np.mgrid[0:height, 0:width]
+        reach = np.sqrt(((xs - width / 2) / (width / 2)) ** 2 + ((ys - height / 2) / (height / 2)) ** 2)
+        alpha = alpha * np.clip((1 - reach) / post.get("vignette", 0.3), 0, 1)
+    ys, xs = np.nonzero(alpha > post.get("crop_threshold", 0.12))
+    if len(xs) == 0:
+        raise ValueError("the render is black: nothing to make a glow from")
+    margin = post.get("margin", 0.04)
+    height, width = alpha.shape
+    my, mx = round(height * margin), round(width * margin)
+    y0, y1 = max(0, ys.min() - my), min(height, ys.max() + 1 + my)
+    x0, x1 = max(0, xs.min() - mx), min(width, xs.max() + 1 + mx)
+    out_w, out_h = post["size"]
+    scale = min(out_w / (x1 - x0), out_h / (y1 - y0))
+    size = (max(1, round((x1 - x0) * scale)), max(1, round((y1 - y0) * scale)))
+    # The render's color is already weighted by its brightness, so it averages like premultiplied color.
+    small = resize_float(np.dstack([rgb[y0:y1, x0:x1], alpha[y0:y1, x0:x1, None]]), size)
+    small_alpha = small[..., 3]
+    color = np.where(small_alpha[..., None] > 1e-3, small[..., :3] / np.maximum(small_alpha[..., None], 1e-3), 0)
+    color = adjust(np.clip(color, 0, 1), post)
+    levels = post.get("alpha_levels", 4)
+    stepped = np.ceil(small_alpha * levels - post.get("alpha_floor", 0.35)) / levels
+    stepped = np.clip(stepped, 0, 1)
+    visible = stepped > 0
+    rgb_u8 = np.round(color * 255)
+    quantized = apply_palette(rgb_u8, palette_of(rgb_u8[visible], post.get("colors", 24)))
+    canvas = np.zeros((out_h, out_w, 4), dtype=np.uint8)
+    top, left = (out_h - size[1]) // 2, (out_w - size[0]) // 2
+    region = canvas[top : top + size[1], left : left + size[0]]
+    region[visible, :3] = quantized[visible]
+    region[..., 3] = np.round(stepped * 255).astype(np.uint8)
+    return Image.fromarray(canvas, "RGBA")
+
+
 def process(job: dict, raw: np.ndarray) -> list[tuple[str, Image.Image]]:
     post = job["post"]
     kind = post["kind"]
+    if kind == "pose-strip":
+        # Background removal's own mask, unless told to cut the white instead: on a sheet of well-spaced figures it keeps
+        # pale skin and white eyes that a white cut would punch holes through.
+        alpha = sheet_alpha(raw, post) if post.get("alpha") == "white" else raw
+        return [(job["out"], post_pose_strip(alpha, post, job))]
+    if kind == "glow":
+        return [(job["out"], post_glow(raw, post))]
     if kind == "sprite":
         return with_copies([(job["out"], post_sprite(raw, post))], post)
     if kind == "tiles":

@@ -112,6 +112,70 @@ def walk_poses() -> dict[str, list[Pose]]:
     return {"down": front, "right": side, "up": back}
 
 
+# Battle poses (Shardrun's arena) are a three-quarter view facing right, with a smaller head than the chibi walk: a
+# cast has to read as an arm thrown at the foe, and a strict profile leaves the model almost no body to draw. Turning
+# to face the image's right brings the figure's own RIGHT side toward the viewer, so its right shoulder, hip and ear sit
+# on the image's left of the body ("near") and its left arm is the one on the foe's side ("far").
+BATTLE_BODY = {"eye": 0.15, "nose": 0.18, "ear": 0.16, "neck": 0.3, "shoulder": 0.33, "hip": 0.6}
+
+Limb = tuple[float, float, float, float]
+
+
+def battle_pose(*, near_arm: Limb, far_arm: Limb, near_leg: Limb, far_leg: Limb, lean: float = 0.0, duck: float = 0.0, tilt: float = 0.0) -> Pose:
+    """`lean` moves the upper body toward the foe (+) or away (-), `duck` lowers the body, `tilt` lifts the chin (-) or
+    drops it (+). An arm is (elbow dx, elbow y, wrist dx, wrist y) measured from the neck's column; a leg is (knee dx,
+    knee y, ankle dx, ankle y) measured from the hips' column."""
+    b = BATTLE_BODY
+    head = lean * 1.3
+    pose: Pose = {
+        NOSE: (head + 0.075, b["nose"] + duck + tilt),
+        R_EYE: (head + 0.035, b["eye"] + duck + tilt * 0.8),
+        L_EYE: (head + 0.085, b["eye"] + duck + tilt * 0.8),
+        R_EAR: (head - 0.05, b["ear"] + duck),
+        NECK: (lean, b["neck"] + duck),
+        R_SHOULDER: (lean - 0.075, b["shoulder"] + duck),
+        L_SHOULDER: (lean + 0.06, b["shoulder"] + duck),
+        R_HIP: (-0.05, b["hip"] + duck),
+        L_HIP: (0.04, b["hip"] + duck),
+    }
+    for (elbow_dx, elbow_y, wrist_dx, wrist_y), elbow, wrist in ((near_arm, R_ELBOW, R_WRIST), (far_arm, L_ELBOW, L_WRIST)):
+        pose[elbow] = (lean + elbow_dx, elbow_y + duck)
+        pose[wrist] = (lean + wrist_dx, wrist_y + duck)
+    for (knee_dx, knee_y, ankle_dx, ankle_y), knee, ankle in ((near_leg, R_KNEE, R_ANKLE), (far_leg, L_KNEE, L_ANKLE)):
+        pose[knee] = (knee_dx, knee_y + duck * 0.5)
+        pose[ankle] = (ankle_dx, ankle_y)
+    return pose
+
+
+def battle_poses() -> list[list[Pose]]:
+    """Eight frames in two rows: idle, wind-up, cast, recover; ward, hurt, channel, victory. The order is the contract
+    with the client (`BATTLE_POSES` in apps/client/src/assets/AssetRegistry.ts)."""
+    stance: dict[str, Limb] = {"near_leg": (-0.08, 0.785, -0.13, 0.97), "far_leg": (0.1, 0.78, 0.14, 0.97)}
+    lunge: dict[str, Limb] = {"near_leg": (-0.11, 0.8, -0.23, 0.97), "far_leg": (0.18, 0.76, 0.23, 0.97)}
+    idle = battle_pose(near_arm=(-0.1, 0.45, -0.08, 0.57), far_arm=(0.13, 0.44, 0.2, 0.5), **stance)
+    # Hands drawn together at the chest: gathering the spell, with nothing crossing behind the head.
+    windup = battle_pose(lean=-0.04, duck=0.03, near_arm=(-0.08, 0.43, 0.0, 0.41), far_arm=(0.11, 0.43, 0.03, 0.39), **stance)
+    cast = battle_pose(lean=0.07, near_arm=(-0.14, 0.4, -0.22, 0.46), far_arm=(0.25, 0.31, 0.42, 0.3), **lunge)
+    recover = battle_pose(lean=0.04, near_arm=(-0.11, 0.42, -0.14, 0.52), far_arm=(0.2, 0.36, 0.33, 0.42), **lunge)
+    # The second row keeps both hands below the head. Asked for an arm raised past the face, the model drew a hand resting
+    # on the head and turned the figure to face the viewer, so a ward is a braced push forward, a hurt is a recoil,
+    # channeling gathers at the sides, and victory is a fist at the chest.
+    brace: dict[str, Limb] = {"near_leg": (-0.12, 0.8, -0.2, 0.97), "far_leg": (0.1, 0.785, 0.17, 0.97)}
+    ward = battle_pose(lean=-0.03, duck=0.03, near_arm=(0.12, 0.4, 0.27, 0.38), far_arm=(0.2, 0.36, 0.35, 0.33), **brace)
+    hurt = battle_pose(
+        lean=-0.13, duck=0.04, tilt=-0.05,
+        near_arm=(-0.17, 0.37, -0.31, 0.31), far_arm=(0.08, 0.43, 0.19, 0.49),
+        near_leg=(-0.12, 0.8, -0.18, 0.97), far_leg=(0.12, 0.78, 0.2, 0.93),
+    )
+    channel = battle_pose(duck=0.02, near_arm=(-0.16, 0.44, -0.29, 0.47), far_arm=(0.17, 0.44, 0.31, 0.47), **brace)
+    victory = battle_pose(
+        tilt=-0.03,
+        near_arm=(-0.14, 0.45, -0.1, 0.57), far_arm=(0.15, 0.45, 0.13, 0.31),
+        near_leg=(-0.06, 0.78, -0.09, 0.97), far_leg=(0.06, 0.78, 0.09, 0.97),
+    )
+    return [[idle, windup, cast, recover], [ward, hurt, channel, victory]]
+
+
 def draw_sheet(rows: list[list[Pose]], width: int, height: int, figure: float = 0.86) -> Image.Image:
     """Lay poses out in a grid, one row per list, each figure `figure` of its cell's height, feet near the cell bottom."""
     image = Image.new("RGB", (width, height), (0, 0, 0))
@@ -145,7 +209,7 @@ def draw_sheet(rows: list[list[Pose]], width: int, height: int, figure: float = 
     return image
 
 
-SHEETS = {"walk": lambda: [poses for poses in walk_poses().values()]}
+SHEETS = {"walk": lambda: [poses for poses in walk_poses().values()], "battle": battle_poses}
 
 
 def sheet(name: str, width: int, height: int) -> Image.Image:

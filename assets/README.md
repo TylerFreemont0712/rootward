@@ -85,6 +85,10 @@ file needs its id added to that catalog** before the client asks for it.
 | `generated/shardrun` | Shardrun (ADR-0012): `bolt-none`, `-fire`, `-frost`, `-spark`, and `-ward` (24x24 projectiles) and an icon per shard family, `shard-<id>.png` (32x32; `fork-plus` uses `shard-fork`). | The arena's flying bolts and element tags; shard chips, cards, and spell flows (`shardIconUrl`). |
 | `generated/backgrounds/salvage.png` | A 480x274 underground vault of broken machinery and violet crystal shards. | The Shardrun arena stage and the mode's faint full-screen backdrop. |
 | `generated/brand/shardrun.png` | A 64x64 glowing crystal shard emblem. | The Shardrun start screen. |
+| `generated/battle/artificer.png` | The Artificer's battle poses (ADR-0019): eight 96x104 frames side by side — idle, wind-up, cast, recover, ward, hurt, channel, victory — cut from one pose-guided render, so the design matches in every frame. The order is the contract with `BATTLE_POSES` in `AssetRegistry.ts`. | The arena's hero, posed by the battle timeline; without it the arena uses the walk strip. |
+| `generated/battle/portrait-artificer.png` | A 256x256 battle portrait (112 colors), casting, three-quarter view. | The lower-left panel beside the spells; without it, the 128px dialogue portrait. |
+| `generated/foes` | Every Shardrun foe at arena scale: 72px small, 96px medium, 128px large, 168x176 huge, and the Root Daemon at 176x192 (a new render: a colossal machine king). All but the Daemon are the same render their map sprite in `creatures/` was cut from, cut again larger (`raw_from`). | The arena, sized by each foe's `size` in content; `creatures/` is the fallback. |
+| `generated/fx` | Light effects rendered on black with brightness turned into alpha: `burst-<fire\|frost\|spark\|arcane>` (96x96), `circle` (a rune circle, recolored per element in code), `ward` (a barrier sphere, recolored teal for the Maintainer and steel for a foe's shield), `slash`, `flare`. Projectiles are drawn in code instead: rendered ones came back as scenes (frost as ice caves) rather than one object flying one way. | The effects canvas (`apps/client/src/shardrun/fx/`); every effect has a drawn fallback. |
 | `generated/enemies/kiln-warden.png` | The boss's enemy-card portrait (96x96). | `EnemyCard` (`LeftPane.tsx`). |
 | `generated/backgrounds/title.png` | A 480x274 dusk panorama of the Machine: a mountain of amber circuitry above an abyss, the Bastion on a cliff. | `TitleScreen`, full-bleed behind everything (scaled up with `image-rendering: pixelated`). |
 | `generated/brand` | `emblem.png` (64x64, the Guild's gear crest with a root growing through it), `icon-256.png` (the same emblem scaled 4x with nearest-neighbor, via the manifest's `copies`), and `wanderer.png` (64x96, a hooded Maintainer seen from behind). | `TitleScreen` (emblem over the name, wanderer in the foreground); `icon-256.png` is the desktop launcher's icon (`scripts/rootward-launch.sh`), with `scripts/rootward.svg` as the fallback. |
@@ -124,6 +128,20 @@ Illustrious-family model matching the character checkpoint, in ComfyUI's `models
 to ComfyUI and steers the render; `rows` and `columns` then say how to cut it, and every figure is scaled by one common
 factor so all directions come out the same size. Editing the poses re-renders the asset (the sheet's hash is part of the
 cache key).
+
+A `pose-strip` asset (ADR-0019) is pose-guided like a walk cycle, but for moves that carry the whole body: every cell
+is cropped to one shared box and scaled by one factor, so a lunge still moves forward and a recoil back, and only the
+lowest foot is dropped to the frame's floor. It uses background removal's own mask (pale skin and white eyes survive,
+which a white-background cut would punch holes through). `battle` in `poses.py` is its sheet; in a side view keep
+hands below the head, or the model draws a hand resting on it and turns the figure toward the viewer.
+
+A `glow` asset is light rendered on black. Its brightness becomes alpha (color divided back out), stepped into a few
+levels like the palette, with the edges faded so rays that ran off the render do not end in a square. It draws
+correctly with additive blending and with ordinary blending. The script warns when a candidate came back on a light
+background; do not pick those.
+
+An asset with `raw_from: <other asset id>` renders nothing: it post-processes that asset's cached render with its own
+`post` settings. That is how a foe's arena sprite and its map sprite stay one design.
 
 Changing only `post` settings (or `pick`) never touches the GPU again. Changing a prompt, seed, or model re-renders
 that asset.
