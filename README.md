@@ -43,6 +43,7 @@ the icon for **Restart** (use it after pulling new code), **Open**, and **Stop**
 | `pnpm test` | Unit, sandbox-safety, and API tests across every package (Vitest) |
 | `pnpm lint` · `pnpm typecheck` · `pnpm format` | Quality gates |
 | `pnpm content:validate` | Validate content packs and run every reference solution in the sandbox |
+| `pnpm content:locale ja` | How much of the content a locale translates, what is missing, and what has gone stale |
 | `pnpm test:e2e` | Build, start the server, and play a whole expedition in headless Chromium |
 
 ## Where things are

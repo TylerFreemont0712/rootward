@@ -11,6 +11,7 @@ import {
   EnterRoomRequest,
   ErrorResponse,
   HealthResponse,
+  LOCALE_HEADER,
   InspectRequest,
   LearnerResponse,
   MoveWorldRequest,
@@ -37,7 +38,7 @@ import {
 } from "@rootward/shared";
 import Fastify, { type FastifyInstance, type FastifyReply } from "fastify";
 import { z } from "zod";
-import type { GameContent } from "./content.ts";
+import { type GameContent, withLocale } from "./content.ts";
 import { ServiceError } from "./errors.ts";
 import type { ProfileService } from "./profiles/service.ts";
 import { classCards, profileSummary, startingClass } from "./profiles/summary.ts";
@@ -68,6 +69,14 @@ export interface AppDeps {
 /** HTTP routes. Every request body is parsed with the shared zod contract, and every response is parsed before sending. */
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({ logger: deps.logger ?? false, bodyLimit: 2 * 1024 * 1024 });
+
+  // Everything this request goes on to do runs in its caller's language (ADR-0018). Continuing the hook chain from
+  // inside `withLocale` is what puts the handler, the services it calls and the views they build inside that context;
+  // no route, service or view builder has to know a locale exists. A missing or unknown header is English.
+  app.addHook("onRequest", (request, _reply, done) => {
+    const header = request.headers[LOCALE_HEADER];
+    withLocale(typeof header === "string" ? header : undefined, done);
+  });
 
   app.setErrorHandler((error: unknown, request, reply) => {
     if (error instanceof ServiceError) return sendError(reply, error.status, error.code, error.message);

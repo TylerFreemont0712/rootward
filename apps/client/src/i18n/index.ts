@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, type Locale, toLocale } from "@rootward/shared";
+import { DEFAULT_LOCALE, type Locale, makeTranslate, toLocale } from "@rootward/shared";
 import { create } from "zustand";
 import { en, type MessageKey } from "./en.ts";
 import { ja } from "./ja.ts";
@@ -7,26 +7,15 @@ import { ja } from "./ja.ts";
 //
 //  1. English is the source. `en.ts` defines which keys exist; every other locale is `Partial` of it.
 //  2. A missing translation falls back to English *per key*, so a half-translated locale is a usable locale.
-//  3. Nothing here touches content strings — shard names, foe flavor, dialogue. Those will be localized on the
-//     server, from the pack's own locale overlay, because the server is what builds a view (ADR-0008). That half is
-//     not built yet: content still arrives in English whatever the picker says.
+//  3. Nothing here touches content strings — shard names, foe flavor, dialogue. Those are localized on the server
+//     from the pack's own locale overlay (ADR-0018), because the server is what builds a view (ADR-0008). The server
+//     has a catalog of its own for the sentences *it* composes, over the same mechanism in `@rootward/shared`.
 
 const CATALOGS: Readonly<Record<Locale, Partial<Record<MessageKey, string>>>> = { en, ja };
 
 const STORAGE_KEY = "rootward.locale";
 
-/** Fill `{name}` placeholders. A placeholder with no value is left as written, so a bad key is visible, not silent. */
-function fill(message: string, params: Readonly<Record<string, string | number>> | undefined): string {
-  if (!params) return message;
-  return message.replace(/\{(\w+)\}/g, (whole, name: string) => {
-    const value = params[name];
-    return value === undefined ? whole : String(value);
-  });
-}
-
-export function translate(locale: Locale, key: MessageKey, params?: Readonly<Record<string, string | number>>): string {
-  return fill(CATALOGS[locale][key] ?? en[key], params);
-}
+export const translate = makeTranslate<MessageKey>(CATALOGS, en);
 
 interface LocaleState {
   locale: Locale;

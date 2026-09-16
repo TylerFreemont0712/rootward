@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import {
+  type Balance,
   Bolt,
   type FoeIntent,
   type FoeTrait,
@@ -11,6 +12,7 @@ import {
   type Shard,
   type WorkCurve,
 } from "@rootward/content-schema";
+
 import {
   baseBolt,
   bindableSpell,
@@ -35,6 +37,7 @@ import {
   workUnits,
   type WorkStep,
 } from "@rootward/core";
+import type { ContentIndex } from "@rootward/content-tools";
 import {
   isShardrunLanguage,
   type PipelineInput,
@@ -63,9 +66,11 @@ import type {
   ShardView,
   SpellRunView,
   SpellView,
+  Translate,
 } from "@rootward/shared";
 import { z } from "zod";
 import type { GameContent } from "../content.ts";
+import { type MessageKey, t } from "../i18n/index.ts";
 import { settle } from "../db/promise.ts";
 import { ServiceError } from "../errors.ts";
 import type { Sandbox } from "../sandbox.ts";
@@ -99,7 +104,14 @@ interface LoadedRun {
 export class ShardrunService {
   private readonly db: DatabaseSync;
   private readonly sandbox: Sandbox;
+  private readonly content: GameContent;
   private readonly catalog: ShardrunCatalog | undefined;
+  /**
+   * One catalog per locale, keyed by the index it was built from (ADR-0018). Each locale's index is built once at
+   * startup and never replaced, so keying on the object itself is a per-locale cache that needs no locale strings —
+   * and a WeakMap, so nothing is held alive that the content loader has let go of.
+   */
+  private readonly localizedCatalogs = new WeakMap<ContentIndex, ShardrunCatalog>();
   private readonly devEnabledFlag: boolean;
   private readonly onBackgroundError: (error: unknown) => void;
   /** Finished spell runs, by exact input. */
@@ -111,21 +123,33 @@ export class ShardrunService {
   constructor(deps: ShardrunDeps) {
     this.db = deps.db;
     this.sandbox = deps.sandbox;
+    this.content = deps.content;
     this.devEnabledFlag = deps.dev ?? false;
     this.onBackgroundError =
       deps.onBackgroundError ??
       ((error: unknown) => {
         console.error("Shardrun previews failed in the background:", error);
       });
-    const { index, balance } = deps.content;
-    const run = index.shardrun;
-    this.catalog = run && {
-      config: run.value,
-      shards: new Map([...index.shards].map(([id, shard]) => [id, shard.value])),
-      foes: new Map([...index.shardrunFoes].map(([id, foe]) => [id, foe.value])),
-      relics: new Map([...index.shardrunRelics].map(([id, relic]) => [id, relic.value])),
-      balance: balance.shardrun,
-    };
+    // The engine always runs on English content (ADR-0018). Foe names reach shard code through `battle`, and the
+    // engine writes its log into the saved run, so a localized catalog here would make the rules and the save file
+    // depend on the reader's language. Translation belongs to the views below, never to the rules.
+    //
+    // Services are built at startup, outside any request, so `content.index` is English here by construction.
+    this.catalog = buildCatalog(deps.content.index, deps.content.balance);
+  }
+
+  /**
+   * The catalog to *show*, in the language of the request being served. Identical to `this.catalog` except that every
+   * name, summary and flavor is the reader's.
+   */
+  private viewCatalog(): ShardrunCatalog {
+    const index = this.content.index;
+    const cached = this.localizedCatalogs.get(index);
+    if (cached) return cached;
+    const built = buildCatalog(index, this.content.balance);
+    if (!built) return this.requireCatalog();
+    this.localizedCatalogs.set(index, built);
+    return built;
   }
 
   /** Languages a new run can be played in: the Shardrun languages this machine has a sandbox for. */
@@ -142,7 +166,7 @@ export class ShardrunService {
   }
 
   difficulties(): ShardrunDifficultyView[] {
-    return (this.catalog?.config.difficulties ?? []).map((difficulty) => ({
+    return (this.catalog ? this.viewCatalog().config.difficulties : []).map((difficulty) => ({
       id: difficulty.id,
       name: difficulty.name,
       summary: difficulty.summary,
@@ -290,28 +314,29 @@ export class ShardrunService {
 
   /** Everything Shardrun content holds, for the Codex: shards, relics, foes, layers, and the rules they play by. */
   codex(language: string): ShardrunCodexResponse {
-    const catalog = this.requireCatalog();
+    const catalog = this.viewCatalog();
+    const say = t();
     const lang = isShardrunLanguage(language) ? language : "python";
     const { config } = catalog;
 
     // Where each shard comes from: the rarities each kind of fight can offer, the forge, and the starting loadout.
     const sources = new Map<string, string[]>([...catalog.shards.keys()].map((id) => [id, []]));
-    const fightLabels = { fight: "fights", elite: "elites", boss: "guardians" } as const;
+    const fightLabels = { fight: "found.fights", elite: "found.elites", boss: "found.guardians" } as const;
     for (const shard of catalog.shards.values()) {
       if (!shard.draftable) continue;
       for (const kind of ["fight", "elite", "boss"] as const) {
-        if (config.rewards.shards[kind][shard.rarity] > 0) sources.get(shard.id)?.push(fightLabels[kind]);
+        if (config.rewards.shards[kind][shard.rarity] > 0) sources.get(shard.id)?.push(say(fightLabels[kind]));
       }
     }
     for (const shard of catalog.shards.values()) {
       if (!shard.forge) continue;
-      const verb = shard.forge.verb === "repair" ? "repairing" : "upgrading";
-      sources.get(shard.forge.into)?.push(`${verb} ${shard.name} at a forge`);
+      const key = shard.forge.verb === "repair" ? "found.forge.repair" : "found.forge.upgrade";
+      sources.get(shard.forge.into)?.push(say(key, { shard: shard.name }));
     }
     for (const spell of config.start.spells) {
-      for (const id of spell.shards) sources.get(id)?.push(`the ${spell.name} spell you start with`);
+      for (const id of spell.shards) sources.get(id)?.push(say("found.startingSpell", { spell: spell.name }));
     }
-    for (const id of config.start.inventory) sources.get(id)?.push("your starting spare shards");
+    for (const id of config.start.inventory) sources.get(id)?.push(say("found.startingSpares"));
 
     const shards = [...catalog.shards.values()]
       .sort(
@@ -324,7 +349,7 @@ export class ShardrunService {
         found: sources.get(shard.id) ?? [],
       }));
 
-    const relicLabels = { elite: "elites", treasure: "treasure rooms", boss: "guardians" } as const;
+    const relicLabels = { elite: "found.elites", treasure: "found.treasure", boss: "found.guardians" } as const;
     const relics = [...catalog.relics.values()]
       .sort(
         (a, b) =>
@@ -333,7 +358,7 @@ export class ShardrunService {
       .map((relic) => ({
         relic: relicView(relic),
         found: (["elite", "treasure", "boss"] as const).flatMap((where) =>
-          config.rewards.relics[where][relic.rarity] > 0 ? [relicLabels[where]] : [],
+          config.rewards.relics[where][relic.rarity] > 0 ? [say(relicLabels[where])] : [],
         ),
       }));
 
@@ -345,8 +370,8 @@ export class ShardrunService {
         hp: foe.hp,
         weak: [...foe.weak],
         resist: [...foe.resist],
-        ...(foe.trait ? { trait: traitView(foe.trait) } : {}),
-        intents: foe.intents.map((intent) => ({ kind: intent.kind, text: intentText(intent, false) })),
+        ...(foe.trait ? { trait: traitView(foe.trait, say) } : {}),
+        intents: foe.intents.map((intent) => ({ kind: intent.kind, text: intentText(intent, false, say) })),
         flavor: foe.flavor,
         layers: config.layers.flatMap((layer) =>
           (["fight", "elite", "boss"] as const).flatMap((role) =>
@@ -373,7 +398,9 @@ export class ShardrunService {
   // --- Views ------------------------------------------------------------------------------------------------------
 
   private view({ id, state }: LoadedRun, replay?: ShardrunView["replay"]): ShardrunView {
-    const catalog = this.requireCatalog();
+    // Views read the reader's catalog; the rules that produced this state read English (see the constructor).
+    const catalog = this.viewCatalog();
+    const say = t();
     const language = runLanguage(state);
     const difficulty = difficultyOf(catalog, state.difficulty);
     const layer = layerOf(state, catalog);
@@ -474,7 +501,7 @@ export class ShardrunService {
               mana: battle.mana,
               manaMax: manaPerTurn(state, catalog),
               block: battle.block,
-              foes: battle.foes.map(foeView),
+              foes: battle.foes.map((foe) => foeView(foe, catalog, say)),
             },
           }
         : {}),
@@ -512,7 +539,7 @@ export class ShardrunService {
       log: state.log.map((entry) => ({ ...entry })),
       stats: { ...state.stats, damageBySpell: { ...state.stats.damageBySpell } },
       rules: rulesView(catalog),
-      modifiers: modifierViews(state, catalog),
+      modifiers: modifierViews(state, catalog, say),
     };
   }
 
@@ -763,6 +790,19 @@ export class ShardrunService {
   }
 }
 
+function buildCatalog(index: ContentIndex, balance: Balance): ShardrunCatalog | undefined {
+  const run = index.shardrun;
+  return (
+    run && {
+      config: run.value,
+      shards: new Map([...index.shards].map(([id, shard]) => [id, shard.value])),
+      foes: new Map([...index.shardrunFoes].map(([id, foe]) => [id, foe.value])),
+      relics: new Map([...index.shardrunRelics].map(([id, relic]) => [id, relic.value])),
+      balance: balance.shardrun,
+    }
+  );
+}
+
 /** The engine command behind each dev request; the engine refuses every one of them outside a sandbox run. */
 function devToCommand(request: ShardrunDevRequest): ShardrunCommand {
   switch (request.type) {
@@ -851,14 +891,14 @@ function shardView(
 }
 
 /** How much of a pipeline's work a cast actually pays for, in words (ADR-0015). */
-const WORK_CURVE_LABELS: Record<WorkCurve, string> = {
-  linear: "all of it",
-  sqrt: "its square root",
-  log: "its logarithm",
+const WORK_CURVE_KEYS: Record<WorkCurve, MessageKey> = {
+  linear: "workCurve.linear",
+  sqrt: "workCurve.sqrt",
+  log: "workCurve.log",
 };
 
 /** Every rule as it stands now: what it started as, what it is, and which relics moved it (ADR-0013, the Stats panel). */
-function modifierViews(state: ShardrunState, catalog: ShardrunCatalog): ShardrunModifierView[] {
+function modifierViews(state: ShardrunState, catalog: ShardrunCatalog, say: Translate<MessageKey>): ShardrunModifierView[] {
   const { balance } = catalog;
   const mods = relicModifiers(state, catalog);
   const from = (kind: RelicEffect["kind"]): string[] =>
@@ -877,76 +917,76 @@ function modifierViews(state: ShardrunState, catalog: ShardrunCatalog): Shardrun
   );
   const round = (value: number) => Math.round(value * 100) / 100;
   // Descending a layer raises the mana a turn gives and the bolts that land (ADR-0015), so it belongs in `from` too.
-  const deeper = state.layer > 0 ? [`layer ${state.layer + 1}`] : [];
+  const deeper = state.layer > 0 ? [say("modifier.from.layer", { layer: state.layer + 1 })] : [];
   return [
     {
-      label: "Mana each turn",
+      label: say("modifier.manaPerTurn"),
       base: `${balance.mana_per_turn.base}`,
       now: `${manaPerTurn(state, catalog)}`,
       from: [...from("mana-per-turn"), ...deeper],
     },
     {
-      label: "Bolts that land",
+      label: say("modifier.boltCap"),
       base: `${balance.bolt_cap.base}`,
       now: `${boltCap(state, catalog)}`,
       from: [...from("bolt-cap"), ...deeper],
     },
     {
-      label: "Work billed as",
-      base: WORK_CURVE_LABELS[balance.work_billing.curve],
-      now: WORK_CURVE_LABELS[mods.workCurve],
+      label: say("modifier.workBilling"),
+      base: say(WORK_CURVE_KEYS[balance.work_billing.curve]),
+      now: say(WORK_CURVE_KEYS[mods.workCurve]),
       from: from("work-billing"),
     },
     {
-      label: "Power added to every bolt",
+      label: say("modifier.boltPower"),
       base: "0",
       now: `${round(mods.boltPower)}`,
       from: from("bolt-power"),
     },
     {
-      label: "Multiplier added to every bolt",
+      label: say("modifier.boltMult"),
       base: "0",
       now: `${round(mods.boltMult + mods.multPerCast * (state.battle?.casts ?? 0))}`,
       from: [...from("bolt-mult"), ...from("mult-per-cast")],
     },
     {
-      label: "Every bolt's multiplier is then times",
+      label: say("modifier.boltMultFactor"),
       base: "×1",
       now: `×${round(mods.boltMultFactor)}`,
       from: from("bolt-mult-factor"),
     },
     {
-      label: "Damage multiplier",
+      label: say("modifier.damageMultiplier"),
       base: "×1",
       now: `×${round(mods.damageMultiplier)}`,
       from: from("damage-multiplier"),
     },
     {
-      label: "Weakness multiplier",
+      label: say("modifier.weakMultiplier"),
       base: `×${balance.weak_multiplier}`,
       now: `×${round(balance.weak_multiplier + mods.weakBonus)}`,
       from: from("weak-bonus"),
     },
-    { label: "Block at the start of a turn", base: "0", now: `${mods.turnBlock}`, from: from("turn-block") },
+    { label: say("modifier.turnBlock"), base: "0", now: `${mods.turnBlock}`, from: from("turn-block") },
     {
-      label: "First cast each turn costs less",
+      label: say("modifier.firstCastDiscount"),
       base: "0",
       now: `${mods.firstCastDiscount}`,
       from: from("first-cast-discount"),
     },
     {
-      label: "Integrity healed after a fight",
+      label: say("modifier.healAfterFight"),
       base: "0",
       now: `${mods.healAfterFight}`,
       from: from("heal-after-fight"),
     },
     {
-      label: "Maximum Integrity",
+      label: say("modifier.maxIntegrity"),
       base: `${balance.integrity_start}`,
       now: `${state.integrityMax}`,
       from: from("max-integrity"),
     },
-    { label: "Slots added to every spell", base: "0", now: `${capacityAdded}`, from: from("spell-capacity") },
+    { label: say("modifier.spellCapacity"), base: "0", now: `${capacityAdded}`, from: from("spell-capacity") },
   ];
 }
 
@@ -987,67 +1027,69 @@ function relicView(relic: Relic): RelicView {
   };
 }
 
-function foeView(foe: FoeState): ShardrunFoeView {
+/**
+ * A foe as its card shows it. The rules of a fight in progress are the ones copied into `FoeState` when it spawned,
+ * but the *name and flavor* are read back from the catalog by id, so they arrive in the reader's language. A foe that
+ * no longer exists in content keeps the words it was spawned with.
+ */
+function foeView(foe: FoeState, catalog: ShardrunCatalog, say: Translate<MessageKey>): ShardrunFoeView {
   const intent = foe.intents[foe.intentIndex % foe.intents.length];
+  const content = catalog.foes.get(foe.id);
   return {
     uid: foe.uid,
-    name: foe.name,
+    name: content?.name ?? foe.name,
     sprite: foe.sprite,
     hp: foe.hp,
     max: foe.max,
     shield: foe.shield,
     weak: [...foe.weak],
     resist: [...foe.resist],
-    ...(foe.trait ? { trait: traitView(foe.trait) } : {}),
+    ...(foe.trait ? { trait: traitView(foe.trait, say) } : {}),
     ...(foe.pattern ? { pattern: foe.pattern } : {}),
     intent: intent
-      ? { kind: intent.kind, text: intentText(intent, foe.stoked) }
-      : { kind: "strike", text: "Watching" },
+      ? { kind: intent.kind, text: intentText(intent, foe.stoked, say) }
+      : { kind: "strike", text: say("intent.watching") },
     stoked: foe.stoked,
-    flavor: foe.flavor,
+    flavor: content?.flavor ?? foe.flavor,
   };
 }
 
-function intentText(intent: FoeIntent, stoked: boolean): string {
+function intentText(intent: FoeIntent, stoked: boolean, say: Translate<MessageKey>): string {
   switch (intent.kind) {
     case "strike":
-      return `Strike for ${intent.power * (stoked ? 2 : 1)}`;
+      return say("intent.strike", { power: intent.power * (stoked ? 2 : 1) });
     case "multi":
-      return `Strike ${intent.times} times for ${intent.power}`;
+      return say("intent.multi", { times: intent.times, power: intent.power });
     case "shield":
-      return `Shield ${intent.amount}`;
+      return say("intent.shield", { amount: intent.amount });
     case "stoke":
-      return "Stoke: its next strike doubles";
+      return say("intent.stoke");
     case "heal":
-      return `Heal ${intent.amount}`;
+      return say("intent.heal", { amount: intent.amount });
   }
 }
 
-function traitView(trait: FoeTrait): { kind: string; name: string; text: string } {
+function traitView(trait: FoeTrait, say: Translate<MessageKey>): { kind: string; name: string; text: string } {
   switch (trait.kind) {
     case "nullify-first":
-      return {
-        kind: trait.kind,
-        name: "Nullify",
-        text: "The first bolt that hits it each turn does nothing.",
-      };
+      return { kind: trait.kind, name: say("trait.nullify.name"), text: say("trait.nullify.text") };
     case "thick-hide":
       return {
         kind: trait.kind,
-        name: "Thick hide",
-        text: `Bolts under ${trait.threshold} power glance off.`,
+        name: say("trait.thickHide.name"),
+        text: say("trait.thickHide.text", { threshold: trait.threshold }),
       };
     case "shifting-weakness":
       return {
         kind: trait.kind,
-        name: "Shifting",
-        text: `Its weakness moves each turn: ${trait.cycle.join(", then ")}.`,
+        name: say("trait.shifting.name"),
+        text: say("trait.shifting.text", { cycle: trait.cycle.join(", then ") }),
       };
     case "pattern-ward":
       return {
         kind: trait.kind,
-        name: "Pattern ward",
-        text: `Only this turn's element in ${trait.pattern.join(", ")} hits at full strength.`,
+        name: say("trait.patternWard.name"),
+        text: say("trait.patternWard.text", { pattern: trait.pattern.join(", ") }),
       };
   }
 }

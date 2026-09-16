@@ -2,6 +2,8 @@ import path from "node:path";
 import { ENGINE_VERSION } from "@rootward/content-schema";
 import { type ContentIndex, emptyContentIndex, type Sourced } from "../content-index.ts";
 import { Diagnostics } from "../diagnostics.ts";
+import { mergeOverlays } from "../locale/overlay.ts";
+import { warnAboutStaleTranslations } from "../locale/report.ts";
 import { satisfies } from "../semver.ts";
 import type { LoadContext } from "./context.ts";
 import { exists, listDirectories } from "./files.ts";
@@ -37,7 +39,12 @@ export async function loadContent(options: LoadContentOptions): Promise<LoadCont
   }
 
   const index = emptyContentIndex();
-  for (const contents of orderPacks(loaded, diagnostics)) mergePack(index, contents, diagnostics);
+  const ordered = orderPacks(loaded, diagnostics);
+  for (const contents of ordered) mergePack(index, contents, diagnostics);
+  // Translations are keyed by English text, so they merge across packs rather than being scoped to one: the same
+  // English sentence should read the same however many packs are installed.
+  index.locales = mergeOverlays(ordered.map((contents) => contents.locales));
+  warnAboutStaleTranslations(index, diagnostics);
   return { index, diagnostics };
 }
 

@@ -300,3 +300,42 @@ realistic; no network needed.
   with a warning).
 - `pnpm content:validate core`: challenge checks and execution for one pack; references are still checked globally.
 - `pnpm content:validate --no-exec`: static checks only.
+- `pnpm content:locale ja`: translation coverage for a locale, plus anything stale. `--missing` prints the
+  untranslated strings as catalog entries to paste and fill in.
+
+## Translating a pack (ADR-0018)
+
+English is the source: **never edit a content file to translate it.** A locale is an overlay beside it, at
+`content/packs/<pack>/locales/<locale>/<area>.yaml`, and it is a list of pairs keyed by the English text itself:
+
+```yaml
+- en: Compound
+  to: 複利
+- en: "Squares every bolt's multiplier."
+  to: "すべての矢の倍率を二乗します。"
+- en: Ward            # `note:` is optional context for a reviewer and is never shown to a player
+  to: 防護
+  note: the shard, not the verb
+```
+
+Keying by the English means nothing refers to an id or a position, so content can be renamed and reordered freely.
+It also means that if you **edit an English string**, its translation stops matching: the game falls back to English
+and `pnpm content:locale <locale>` lists the entry as stale, so you always know what to redo.
+
+The workflow is:
+
+1. `pnpm content:locale ja --missing` — prints every untranslated string as a ready-to-fill entry.
+2. Paste into a file under `locales/ja/`, fill in the `to:` values, split across files by area if it helps.
+3. `pnpm content:locale ja` until it says 100% and reports nothing stale.
+4. `pnpm content:validate` as usual.
+
+Only prose is translatable, and only the paths listed in `packages/content-tools/src/locale/fields.ts`. Ids, tags,
+sprite and icon names, numbers, and the code in a shard are out of reach on purpose — as are a few things that look
+like prose and are not:
+
+- **Spell names** become function names in the code view (`cast_bolt`), so they stay English, like the code.
+- **Enemy names** in the classic mode are how the client finds a portrait (`slugify(enemy.name)`).
+- **Shard worked examples** are validation fixtures and never reach a screen.
+
+If you want a new field translated, add its path to `TRANSLATABLE_FIELDS` — but first check what else derives a value
+from it. A field earns its line there by being *shown*.

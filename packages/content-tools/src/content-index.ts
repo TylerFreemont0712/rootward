@@ -21,6 +21,7 @@ import type {
   Terrain,
   Zone,
 } from "@rootward/content-schema";
+import type { LocaleOverlay } from "./locale/overlay.ts";
 
 /** Relative path -> file contents. Runners receive these, never host paths. */
 export type FileMap = Record<string, string>;
@@ -92,6 +93,8 @@ export interface ContentIndex {
   shardrunRelics: Map<string, Sourced<Relic>>;
   /** The run definition; at most one pack declares it. */
   shardrun?: Sourced<ShardrunConfig & { id: "shardrun" }>;
+  /** Translations (ADR-0018), by locale, merged from every pack. English is the index itself. */
+  locales: Map<string, LocaleOverlay>;
 }
 
 export function emptyContentIndex(): ContentIndex {
@@ -113,5 +116,6 @@ export function emptyContentIndex(): ContentIndex {
     shards: new Map(),
     shardrunFoes: new Map(),
     shardrunRelics: new Map(),
+    locales: new Map(),
   };
 }

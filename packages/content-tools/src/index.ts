@@ -3,6 +3,10 @@ export * from "./content-index.ts";
 export * from "./diagnostics.ts";
 export { buildIoJob, type IoCaseSelection, selectIoCases } from "./jobs.ts";
 export { loadContent, type LoadContentOptions, type LoadContentResult } from "./loader/load-content.ts";
+export { localizeIndex, translatableStrings } from "./locale/apply.ts";
+export { TRANSLATABLE_FIELDS, type TranslatableKind } from "./locale/fields.ts";
+export { type LocaleEntry, type LocaleOverlay } from "./locale/overlay.ts";
+export { type LocaleReport, localeReport } from "./locale/report.ts";
 export * from "./semver.ts";
 export {
   isShardrunLanguage,

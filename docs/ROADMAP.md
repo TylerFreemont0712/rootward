@@ -258,9 +258,30 @@ These three come from the player directly and outrank the generic milestone orde
       One deliberate deviation from point (1) above: **UI chrome is localized on the client, content on the server.**
       Button labels are presentation and the client already owns presentation; routing them through the API would
       mean a round trip to change language. Content keeps the server-builds-the-view rule (ADR-0008).
-      Next, and it is the larger half: content localization — a per-pack overlay (`locales/ja/*.yaml`) merged at load
-      with the same per-key fallback, the locale on the request, and validation that an overlay names only real keys.
-      Then IME input in CodeMirror (point 6), still untested.
+      **Content localization landed 2026-09-16 (ADR-0018), and Shardrun is fully translated.** A pack's translations
+      live in `content/packs/<pack>/locales/<locale>/*.yaml` as `{en, to}` pairs **keyed by the English text itself**,
+      so a translation names no id, file or position: content can be renamed and reordered freely, and an *edited*
+      English string stops matching, falls back, and is reported as stale rather than showing a confident translation
+      of a sentence that no longer exists. An overlay can only reach the paths in `TRANSLATABLE_FIELDS`, so it can
+      never touch an id, a tag, a sprite, a number, or the code a player runs. The locale rides on
+      `x-rootward-locale`, set once in the client's `request()` wrapper; one Fastify hook puts it in an
+      `AsyncLocalStorage` and `content.index` answers in it, so **no route, service or view builder changed**.
+      Two rules keep it out of the game: the **engine always reads English** (a shard receives `battle.foes[].name`,
+      and the engine's log is saved with the run, so either would make the rules or a save file depend on a
+      preference), and prose the **server composes itself** ("Strike for 14", "Mana each turn") uses a server-side
+      message catalog at `apps/server/src/i18n/`, since no content string exists for an overlay to match.
+      Shardrun's 178 content strings are 100% Japanese: `pnpm content:locale ja` reports coverage and staleness, and
+      `--missing` prints the untranslated ones as ready-to-fill catalog entries. Point (4) (fonts) and point (5)
+      (validation) are answered; point (1) was answered *differently* on purpose — UI chrome is localized in the
+      browser, content on the server.
+      Next, in order: (a) **the battle log**, the one visibly-English thing left in a Japanese fight — the engine
+      composes 37 sentences in `packages/core` and stores them in the run, so the fix is a key plus parameters on
+      `LogEntry` (which already carries `kind`, `foe`, `amount`, `element`) rendered by the client, which is a state
+      schema bump and a pass over the core's tests; (b) the rest of the client screens, a screen at a time;
+      (c) the language picker somewhere reachable mid-run, so a word can be checked without leaving the fight;
+      (d) the World's content — NPCs, quests, zones — then challenge markdown, which needs the parallel-file half of
+      the overlay design (not built: nothing has needed it yet); (e) IME input in CodeMirror (point 6), still
+      untested.
 
 ## Your Turn (optional tasks for the user; nothing is blocked on these)
 
@@ -287,7 +308,8 @@ behind the Guild Hall's door and in the top bar. Art comes from `scripts/art/gen
 Suggested order:
 0. The player keeps a `WIP.md` of tweaks at the repository root (not committed). Read it first; it is the current
    focus. Then see "Named next milestones" above: scaling (`POSSIBILITIES.md`), the Apprentice class, and Japanese
-   (whose UI skeleton is in, ADR-0017 — the open half is content overlays and the rest of the screens).
+   (ADR-0017 for the interface, ADR-0018 for content; Shardrun reads Japanese end to end — the open items are the
+   engine's battle log, the unconverted client screens, and the World's content).
    Those three are the player's own asks and come before the generic milestone order.
 1. Playtest a full quest line in the browser and log friction in `docs/PLAYTEST_NOTES.md` (the first pass was from
    screenshots only).

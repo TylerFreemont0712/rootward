@@ -1,0 +1,372 @@
+# Japanese for Shardrun's content (ADR-0018).
+#
+# Every entry is keyed by the English text exactly as it appears in the pack's own files. Nothing here refers to a
+# shard id or a file path, so content can be renamed and reordered freely; and if an English string is *edited*, its
+# entry stops matching, the game falls back to English, and `pnpm content:locale ja` says which line to redo.
+#
+# Names of shards are translated; the `function:` each one defines is not, because that is the program. Spell names
+# are not translated either: the code view turns them into function names (`cast_bolt`).
+
+# --- Shards -------------------------------------------------------------------------------------------------------
+- en: Adapt
+  to: 適応
+- en: "Gives every bolt the element the front foe is weak to, if it has one."
+  to: "前列の敵に弱点があれば、すべての矢をその属性に変えます。"
+- en: Amplify+
+  to: 増幅+
+- en: "Adds 5 power to every bolt."
+  to: "すべての矢に威力を 5 加えます。"
+- en: Amplify
+  to: 増幅
+- en: "Adds 3 power to every bolt."
+  to: "すべての矢に威力を 3 加えます。"
+- en: Apex
+  to: 頂点
+- en: "Keeps only the strongest bolt, and gives it 3 more power."
+  to: "最も強い矢だけを残し、その威力を 3 上げます。"
+- en: Arc
+  to: 電弧
+- en: "Charges every bolt: spark, and 1 more power."
+  to: "すべての矢を帯電させます。雷属性になり、威力が 1 上がります。"
+- en: Attune
+  to: 同調
+- en: "Finds the best multiplier in the volley and gives it to every bolt. Raise one bolt high, then spread it."
+  to: "一斉射のなかで最も高い倍率を見つけ、すべての矢に配ります。まず一本を高め、それから広げましょう。"
+- en: Bulwark
+  to: 防塁
+- en: "Turns every bolt into a ward at 75% power. All defense, no attack."
+  to: "すべての矢を威力 75% の防壁に変えます。守り一辺倒で、攻撃はありません。"
+- en: Cascade
+  to: 連鎖
+- en: "Each bolt's multiplier grows by one more than the bolt before it: +1, then +2, then +3."
+  to: "矢の倍率が一本ごとに一つずつ大きく増えます。+1、+2、+3 と続きます。"
+- en: Census
+  to: 点呼
+- en: "Sorts the volley weakest first, then adds each bolt's place in the line to its power. Sorting costs more than a walk."
+  to: "一斉射を弱い順に並べ替え、各矢の順番をその威力に加えます。並べ替えは、ひと巡りするより高くつきます。"
+- en: Charge
+  to: 充填
+- en: "Adds 2 to every bolt's multiplier. A bolt deals its power times its multiplier."
+  to: "すべての矢の倍率に 2 を加えます。矢は「威力 × 倍率」のダメージを与えます。"
+- en: Chill+
+  to: 凍結+
+- en: "Frosts every bolt: frost, and 3 more power."
+  to: "すべての矢を凍らせます。氷属性になり、威力が 3 上がります。"
+- en: Chill
+  to: 凍結
+- en: "Frosts every bolt: frost, and 1 more power."
+  to: "すべての矢を凍らせます。氷属性になり、威力が 1 上がります。"
+- en: Compound
+  to: 複利
+- en: "Squares every bolt's multiplier. On a fresh bolt that does nothing at all; after the shards that raise one, it is everything."
+  to: "すべての矢の倍率を二乗します。まっさらな矢には何も起きませんが、倍率を上げる欠片のあとでは、これがすべてです。"
+- en: Crosslink
+  to: 相互接続
+- en: "Every bolt gains 1 to its multiplier for each other bolt of the same element. Compares every pair, and is billed for it."
+  to: "同じ属性の矢が他にあるたび、矢の倍率が 1 上がります。すべての組み合わせを比べるので、その分の代金がかかります。"
+- en: Double Tap
+  to: 二連射
+- en: "Fires the first bolt twice: a full-power copy goes in front of it."
+  to: "最初の矢を二度放ちます。同じ威力の複製がその前に加わります。"
+- en: Echo
+  to: 反響
+- en: "Repeats the whole volley: every bolt is fired twice at full power."
+  to: "一斉射をまるごと繰り返します。すべての矢が同じ威力で二度放たれます。"
+- en: Exploit
+  to: 弱み突き
+- en: "Doubles every bolt's power while the front foe has no shield up."
+  to: "前列の敵が防壁を張っていないあいだ、すべての矢の威力を二倍にします。"
+- en: Focus Lens
+  to: 集束レンズ
+- en: "Merges every bolt into one, adding up their power. It keeps the first bolt's element and aim."
+  to: "すべての矢を一本にまとめ、威力を合計します。属性と狙いは最初の矢のものを引き継ぎます。"
+- en: Fork+
+  to: 分岐+
+- en: "Splits every bolt into two copies at 80% power."
+  to: "すべての矢を威力 80% の複製二本に分けます。"
+- en: Fork
+  to: 分岐
+- en: "Splits every bolt into two copies at 60% power. More bolts, a little less power in all."
+  to: "すべての矢を威力 60% の複製二本に分けます。矢は増え、合計の威力は少し下がります。"
+- en: Headcount
+  to: 敵数勘定
+- en: "Adds 2 power to every bolt for each foe still standing."
+  to: "まだ倒れていない敵の数だけ、すべての矢に威力を 2 ずつ加えます。"
+- en: Kindle+
+  to: 着火+
+- en: "Sets every bolt alight: fire, and 3 more power."
+  to: "すべての矢に火を点けます。火属性になり、威力が 3 上がります。"
+- en: Kindle
+  to: 着火
+- en: "Sets every bolt alight: fire, and 1 more power."
+  to: "すべての矢に火を点けます。火属性になり、威力が 1 上がります。"
+- en: Lazy Fork
+  to: 壊れた分岐
+- en: "A free Fork, salvaged from broken code. Something about it is off by one. A forge can repair it."
+  to: "壊れたコードから拾った、ただの分岐。どこかが一つずれています。鍛冶場で直せます。"
+- en: Overclock
+  to: 過剰駆動
+- en: "Triples every bolt's power. Cursed: each cast burns 3 of your Integrity."
+  to: "すべての矢の威力を三倍にします。呪い：詠唱のたびに整合性を 3 失います。"
+- en: Overflow
+  to: 溢れ出し
+- en: "Power above 20 spills into another bolt: a 50-power bolt becomes 20, 20, and 10."
+  to: "威力 20 を超えた分が別の矢に溢れます。威力 50 の矢は、20・20・10 になります。"
+- en: Patience
+  to: 忍耐
+- en: "Adds 3 power to every bolt for every turn the fight has already lasted."
+  to: "戦いが続いたターン数だけ、すべての矢に威力を 3 ずつ加えます。"
+- en: Pierce
+  to: 貫通
+- en: "Bolts ignore shields, but lose 1 power (never below 1)."
+  to: "矢が防壁を無視します。ただし威力が 1 下がります（1 未満にはなりません）。"
+- en: Priority Queue
+  to: 優先度付き待ち行列
+- en: "Sorts bolts from strongest to weakest, and sends the strongest at the foe with the most HP."
+  to: "矢を強い順に並べ替え、最も強い矢を体力の最も多い敵に向けます。"
+- en: Prism
+  to: 分光
+- en: "Splits every bolt into three: one fire, one frost, one spark, each at 40% power."
+  to: "すべての矢を三本に分けます。火・氷・雷が一本ずつ、それぞれ威力 40% です。"
+- en: Ramp
+  to: 傾斜
+- en: "Each bolt gets 2 more power than the one before it: +0, +2, +4, and so on."
+  to: "矢の威力が一本ごとに 2 ずつ増えます。+0、+2、+4 と続きます。"
+- en: Resonate
+  to: 共鳴
+- en: "Doubles every bolt's multiplier. Put it after the shards that raise one."
+  to: "すべての矢の倍率を二倍にします。倍率を上げる欠片のあとに置きましょう。"
+- en: Rewind
+  to: 巻き戻し
+- en: "Fires the volley back to front: the last bolt becomes the first."
+  to: "一斉射を逆順で放ちます。最後の矢が最初になります。"
+- en: Scatter
+  to: 拡散
+- en: "Every bolt hits every foe, at half power each."
+  to: "すべての矢がすべての敵に、それぞれ半分の威力で当たります。"
+- en: Seeker
+  to: 追尾
+- en: "Aims every bolt at the foe with the least HP."
+  to: "すべての矢を、体力の最も少ない敵に向けます。"
+- en: Sieve
+  to: 篩
+- en: "Throws away bolts under 3 power, so later shards spend no work on them. Wards are kept."
+  to: "威力 3 未満の矢を捨て、あとの欠片がそれらに手間をかけずに済むようにします。防壁は残ります。"
+- en: Singularity
+  to: 特異点
+- en: "Collapses the whole volley into one bolt: 4 power for every bolt it swallowed, and a multiplier to match. It never walks the volley, so it is billed almost nothing."
+  to: "一斉射をまるごと一本に潰します。飲み込んだ矢ごとに威力 4、倍率もそれに見合います。一斉射を辿らないので、代金はほとんどかかりません。"
+- en: Siphon
+  to: 吸い上げ
+- en: "Turns the weakest bolt into a ward at double power. The rest still fly."
+  to: "最も弱い矢を、二倍の威力の防壁に変えます。残りはそのまま飛びます。"
+- en: Tally
+  to: 集計
+- en: "Adds 1 power to every bolt for each bolt in the volley."
+  to: "一斉射の矢の数だけ、すべての矢に威力を 1 ずつ加えます。"
+- en: Temper
+  to: 焼き入れ
+- en: "Rounds every bolt's power up to the next multiple of 5."
+  to: "すべての矢の威力を、5 の倍数に切り上げます。"
+- en: Tithe
+  to: 十分の一税
+- en: "Halves every bolt's power and doubles its multiplier. The same damage today, on the axis that has room to grow."
+  to: "すべての矢の威力を半分にし、倍率を二倍にします。今日のダメージは同じでも、伸びしろのある軸に移ります。"
+- en: Triage
+  to: 選別
+- en: "Aims every bolt at the foe with the most HP left."
+  to: "すべての矢を、体力の最も多く残っている敵に向けます。"
+- en: Vengeance
+  to: 報復
+- en: "While your Integrity is at half or less, every bolt gains 4 power."
+  to: "整合性が半分以下のあいだ、すべての矢の威力が 4 上がります。"
+- en: Ward+
+  to: 防護+
+- en: "Turns the first bolt into block, 5 stronger. Other bolts still fly."
+  to: "最初の矢を、5 だけ強い防御に変えます。ほかの矢はそのまま飛びます。"
+- en: Ward
+  to: 防護
+- en: "Turns the first bolt into block, 2 stronger. Other bolts still fly."
+  to: "最初の矢を、2 だけ強い防御に変えます。ほかの矢はそのまま飛びます。"
+
+# --- Foes ---------------------------------------------------------------------------------------------------------
+- en: Fork Bomb
+  to: フォーク爆弾
+- en: It copies itself faster than you can count. Cold slows it down; fire only feeds it.
+  to: 数えるより速く自分を複製します。冷気は動きを鈍らせますが、炎は餌にしかなりません。
+- en: Deadlock Golem
+  to: デッドロック・ゴーレム
+- en: Two locks, each waiting on the other. Only the right element, at the right moment, gets through.
+  to: 二つの錠が、互いを待ち続けています。正しい属性を正しい瞬間に当てたときだけ、通ります。
+- en: Garbage Collector
+  to: ガベージコレクタ
+- en: It sweeps away anything too small to matter. Bolts under 6 power are litter to it.
+  to: 取るに足らないものを片端から掃き集めます。威力 6 未満の矢は、こいつにはごみ屑です。
+- en: Kiln Warden
+  to: 窯の番人
+- en: Guardian of the Salvage's hottest vault. Bolts under 5 power glance off its brick hide.
+  to: 遺構でもっとも熱い保管庫の守り手。威力 5 未満の矢は、煉瓦の皮膚に弾かれます。
+- en: Dangling Pointer
+  to: ぶら下がりポインタ
+- en: It points at something that is no longer there, and its weakness keeps moving.
+  to: もう存在しないものを指し続けています。弱点も動き回ります。
+- en: Tally Wisp
+  to: 数え間違いの灯
+- en: A flicker of miscounted light. Fire only feeds it; cold makes it lose its place.
+  to: 数え損ねた光のゆらぎ。炎は餌になるだけで、冷気は数える場所を見失わせます。
+- en: Type Mimic
+  to: 型まがい
+- en: Plain bolts bounce off it, and its weakness changes shape every turn.
+  to: 無属性の矢は弾かれ、弱点は毎ターン姿を変えます。
+- en: Null Wraith
+  to: ヌルの亡霊
+- en: The first thing you throw at it becomes nothing. Throw something cheap first.
+  to: 最初に投げたものは無に帰します。まずは安いものを投げましょう。
+- en: Stack Overflow Serpent
+  to: スタック溢れの大蛇
+- en: Every strike calls another. It only stops when something runs out.
+  to: ひと打ちが次のひと打ちを呼びます。何かが尽きたときにだけ止まります。
+- en: Race Condition Imp
+  to: 競合状態の小鬼
+- en: There are always two, and they never agree on who strikes first.
+  to: いつも二匹いて、どちらが先に打つかで永遠に折り合いません。
+- en: Off-by-One Goblin
+  to: 一つずれのゴブリン
+- en: It always hits one more time than you counted on.
+  to: いつも、数えたより一回多く殴ってきます。
+- en: Regex Sphinx
+  to: 正規表現のスフィンクス
+- en: Only the element that matches this turn's pattern gets through at full strength.
+  to: そのターンの型に合う属性だけが、完全な威力で通ります。
+- en: Segfault Specter
+  to: セグフォルトの亡霊
+- en: Touch the wrong address and it takes the hit for nothing.
+  to: 誤った番地に触れれば、その一撃は無駄になります。
+- en: Memory Leak Ooze
+  to: メモリ漏れの粘体
+- en: It never gives back what it takes. Burn it down before it grows back.
+  to: 奪ったものを決して返しません。また膨れる前に焼き切りましょう。
+- en: The Root Daemon
+  to: ルート・デーモン
+- en: The process that owns every other. It does not stop for signals, and small bolts do not reach it.
+  to: ほかのすべてを所有するプロセス。信号では止まらず、小さな矢は届きません。
+
+# --- Relics -------------------------------------------------------------------------------------------------------
+- en: Cache Hit
+  to: キャッシュヒット
+- en: "Your first spell each turn costs 1 less mana."
+  to: "毎ターン最初の呪文のマナが 1 安くなります。"
+- en: "The answer was already there. Why compute it twice?"
+  to: "答えはもうそこにありました。二度も計算する必要がありますか。"
+- en: ECC Memory
+  to: 誤り訂正メモリ
+- en: "Gain 12 maximum Integrity."
+  to: "整合性の上限が 12 増えます。"
+- en: "It corrects its own mistakes before you notice them."
+  to: "こちらが気づく前に、自分の誤りを直しています。"
+- en: Debugger Duck
+  to: デバッグのあひる
+- en: "Every bolt gains 1 power."
+  to: "すべての矢の威力が 1 上がります。"
+- en: "Explain the spell to the duck. It listens, and somehow the spell gets better."
+  to: "あひるに呪文を説明してみましょう。黙って聞いてくれて、なぜか呪文がよくなります。"
+- en: Firewall
+  to: 防火壁
+- en: "Start every turn with 3 block."
+  to: "毎ターン、防御 3 から始まります。"
+- en: "Nothing gets in that you did not allow."
+  to: "許していないものは、何ひとつ入ってきません。"
+- en: Amortized Ledger
+  to: ならし計算の台帳
+- en: "A cast is billed the logarithm of the work it did, instead of its square root. Wide and quadratic spells become payable."
+  to: "詠唱の代金が、仕事量の平方根ではなく対数になります。幅広い呪文や二乗の呪文が、払える値段になります。"
+- en: "Someone kept the books for the whole Machine, and rounded every page down."
+  to: "誰かが機械ぜんたいの帳簿をつけ、どの頁も切り捨てていました。"
+- en: Tuning Fork
+  to: 音叉
+- en: "Every bolt gains 1 to its multiplier."
+  to: "すべての矢の倍率が 1 上がります。"
+- en: "Struck once at the Machine's founding, still humming the same note."
+  to: "機械が生まれたときに一度だけ叩かれ、いまも同じ音で鳴り続けています。"
+- en: Feedback Loop
+  to: 帰還回路
+- en: "Every spell you have already cast this fight adds 2 to your bolts' multipliers. Cast small, then cast big."
+  to: "この戦いですでに唱えた呪文ひとつにつき、矢の倍率が 2 上がります。小さく唱えてから、大きく唱えましょう。"
+- en: "Output wired back into input. The Machine listened to itself and grew louder."
+  to: "出力が入力へ繋ぎ戻されています。機械は自分の声を聞き、どんどん大きくなりました。"
+- en: Thread Pool
+  to: スレッドプール
+- en: "Gain 2 more mana every turn."
+  to: "毎ターンのマナが 2 増えます。"
+- en: "Workers that were never joined, still waiting to be given something to do."
+  to: "回収されないまま残った働き手たちが、まだ仕事を待っています。"
+- en: Wider Aperture
+  to: 広がった絞り
+- en: "Eight more bolts land before the rest fizzle."
+  to: "着弾する矢が 8 本増えてから、残りが不発になります。"
+- en: "The lens the first Maintainers ground, before anyone thought to stop at sixteen."
+  to: "十六本で止めようと誰かが考えるより前に、最初のメンテナーたちが磨いたレンズ。"
+- en: Lens of Types
+  to: 型のレンズ
+- en: "Hits on a weakness deal an extra 50% of their power."
+  to: "弱点を突いた一撃が、威力の 50% 分だけ余計に通ります。"
+- en: "See what a thing really is, and where it breaks."
+  to: "そのものが本当は何であるか、そしてどこで壊れるかが見えます。"
+- en: Second Grimoire
+  to: 二冊目の魔道書
+- en: "Bind a new, empty spell to your book at once."
+  to: "空の呪文をひとつ、ただちに呪文書へ綴じ込みます。"
+- en: "Someone else's book, half burned. The empty pages still take ink."
+  to: "半分焼けた、誰かの本。白紙の頁は、まだ墨を受けつけます。"
+- en: Grimoire Page
+  to: 魔道書の頁
+- en: "Every spell gains a slot."
+  to: "すべての呪文の枠が一つ増えます。"
+- en: "A page torn from a Maintainer's spellbook, still humming."
+  to: "メンテナーの呪文書から破り取られた頁。まだ微かに鳴っています。"
+- en: Runaway Coil
+  to: 暴走コイル
+- en: "Every bolt's multiplier is doubled after your last shard — including everything your shards did to it."
+  to: "最後の欠片のあとで、すべての矢の倍率が二倍になります。欠片がそこまでに上げた分も、まとめて二倍です。"
+- en: "It was wound to store a little current. Nobody agreed on when it should stop."
+  to: "少しの電流を蓄えるために巻かれたものです。どこで止めるかは、誰も決めませんでした。"
+- en: Overclocked Core
+  to: 過剰駆動の中核
+- en: "All damage is multiplied by 1.3."
+  to: "すべてのダメージが 1.3 倍になります。"
+- en: "Running hotter than it was ever rated for."
+  to: "定格よりずっと熱いまま回り続けています。"
+- en: Mana Capacitor
+  to: マナ蓄電器
+- en: "Gain 1 more mana every turn."
+  to: "毎ターンのマナが 1 増えます。"
+- en: "It stores what the guardian could not spend."
+  to: "守り手が使いきれなかったものを蓄えています。"
+- en: Patch Kit
+  to: 修繕道具
+- en: "Recover 6 Integrity after every fight."
+  to: "戦いのたびに整合性を 6 回復します。"
+- en: "Small fixes, applied often."
+  to: "小さな修正を、何度も当てること。"
+
+# --- Layers and difficulties --------------------------------------------------------------------------------------
+- en: The Salvage
+  to: 遺構
+- en: Broken programs, shattered into shards. The first guardians still keep their posts.
+  to: 砕けて欠片になった、壊れたプログラムたち。最初の守り手たちは、いまも持ち場を離れません。
+- en: The Heap
+  to: ヒープ
+- en: Memory that was never freed, piled into caverns. Things live in the leaks.
+  to: 解放されなかったメモリが、洞のように積み上がっています。漏れのなかに、何かが棲んでいます。
+- en: The Kernel
+  to: カーネル
+- en: The core of the Machine, where every process answers to one owner.
+  to: 機械の中枢。ここではすべてのプロセスが、ただ一人の所有者に従います。
+- en: Beginner
+  to: 初心者
+- en: "Every shard says what it does in plain words, and every spell predicts its damage before you cast. Foes are a little softer."
+  to: "どの欠片も、することを平たい言葉で説明します。呪文は唱える前にダメージを予測します。敵も少し弱めです。"
+- en: Programmer
+  to: プログラマー
+- en: "Shards show only their code, and spells predict nothing: read the function, or cast it and watch. Foes at full strength."
+  to: "欠片はコードだけを見せ、呪文は何も予測しません。関数を読むか、唱えて確かめるかです。敵は本来の強さです。"

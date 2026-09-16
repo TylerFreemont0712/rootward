@@ -160,9 +160,26 @@ Converted so far: the title screen (which carries the picker, since it is the fi
 Shardrun Stats panel. Every other screen is still inline English, which the per-key fallback makes harmless. Where
 English inflects for number, the two forms are two keys and a ternary at the call site rather than ICU plural syntax.
 
-Content strings — shard names, foe flavor, lore, dialogue — are **not** localized yet. They belong to the server,
-which is what builds a view (ADR-0008); the intended shape is a per-pack locale overlay merged at load with the same
-per-key fallback.
+Content is localized by **overlay** (ADR-0018). `content/packs/<pack>/locales/<locale>/*.yaml` is a list of
+`{en, to}` pairs keyed by the English text exactly as the content holds it, so a translation names no id, file or
+position: content can be renamed and reordered freely, and an *edited* English string simply stops matching, falls
+back, and shows up as stale in `pnpm content:locale <locale>`. An overlay can only reach the paths named in
+`TRANSLATABLE_FIELDS` (`packages/content-tools/src/locale/fields.ts`), so it can never touch an id, a tag, a sprite,
+a number, or the code a player runs.
+
+The locale rides on `x-rootward-locale`, set once in the client's `request()` wrapper. One Fastify `onRequest` hook
+puts it in an `AsyncLocalStorage`, and `GameContent.index` is a getter that answers with the localized index for the
+request in flight — each locale's index is built once at startup. No route, service or view builder takes a locale.
+
+Two rules keep that from leaking into the game itself. **The engine always reads English**: a shard receives
+`battle.foes[].name`, and the engine writes its log into the saved run, so a localized catalog would make both the
+rules and the save file depend on a preference. `ShardrunService` therefore keeps an English catalog for
+`stepShardrun` and a localized one for its views, and a foe's name and flavor are read back by id at view time.
+**Prose the server composes itself** — "Strike for 14", "Mana each turn" — has no English string in any file to match,
+so it uses the interface's mechanism from a catalog of its own at `apps/server/src/i18n/`.
+
+Still English: the battle log, because the engine composes it (the fix is a key and parameters on `LogEntry`, not a
+translator in the core), and every client screen ADR-0017 has not reached yet.
 
 ## State: events, state, artifacts
 

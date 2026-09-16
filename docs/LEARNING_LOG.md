@@ -363,3 +363,29 @@ language feature took more than a minute to understand.
 - **Set `<html lang>` on load, not only on change.** Anything styled by language (CJK line breaking, font stacks,
   quotation marks) reads that attribute, so an initial value restored from storage has to reach the DOM too, or a
   reload silently loses the styling half of the locale.
+
+## Localizing data you do not own the shape of (ADR-0018)
+
+- **Key a translation by the source text, not by where it lives.** `shards.compound.summary` breaks when you rename
+  the shard and, far worse, keeps matching when you *edit the English* — so it shows a confident translation of a
+  sentence that no longer exists. Keying by the English itself makes the two failures into one harmless one: the
+  entry stops matching, the string falls back, and a report names it. When a mapping can go stale, prefer a key that
+  goes stale *loudly* (`packages/content-tools/src/locale/overlay.ts`).
+- **An allowlist is the cheap part; knowing what to leave off it is the work.** Three fields looked translatable and
+  were not: an enemy's name (the client looks its portrait up by `slugify(name)`), a spell's name (it becomes
+  `cast_bolt` in the code view), and a shard's worked examples (never shown to anyone — 64 strings of waste). Before
+  you let something be replaced, grep for who *derives* something from it.
+- **`AsyncLocalStorage` is for values that are properties of the caller, not of the call.** A request's language is
+  ambient in exactly that sense, which is why a getter on `content.index` could answer in it without a single
+  signature changing. The tell for when this is the right tool, rather than a hidden global: passing it explicitly
+  would mean adding the same parameter to every function on the path and using it in almost none of them.
+- **Find the line where a preference could become data.** Two: the engine hands `battle.foes[].name` to player code,
+  and it writes its log into the saved run. Either one would have made a save file depend on a display setting. The
+  rule that falls out is worth keeping — *translate the view, never the state* — and it is why the engine keeps an
+  English catalog while the views get a localized one (`apps/server/src/shardrun/service.ts`).
+- **Prose assembled from a template is a different problem from prose stored in a file.** "Strike for 14" exists in
+  no content file, so no content overlay can match it. Sentences the server composes need a message catalog like the
+  browser's — same mechanism, different owner — which is why `makeTranslate` moved into `@rootward/shared`.
+- **A `WeakMap` keyed on an object is a cache keyed on identity.** Each locale's index is built once and never
+  replaced, so `WeakMap<ContentIndex, ShardrunCatalog>` is a per-locale memo that never needed a locale string, and
+  releases itself if the index is ever dropped.

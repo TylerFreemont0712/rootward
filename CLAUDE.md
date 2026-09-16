@@ -8,6 +8,7 @@
 - Tests (all packages, vitest): `pnpm test` — one package: `pnpm --filter @rootward/core test`
 - Lint / typecheck / format: `pnpm lint` · `pnpm typecheck` · `pnpm format`
 - Validate content packs (runs reference solutions): `pnpm content:validate`
+- Translation coverage for a locale: `pnpm content:locale ja` (`--missing` prints the untranslated strings to fill in)
 - Browser smoke test (builds the client; uses the locally cached Playwright Chromium): `pnpm test:e2e`
 
 # Code conventions specific to this repo

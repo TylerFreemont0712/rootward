@@ -28,9 +28,11 @@ import {
   type TravelRequest,
   WorldActionResponse,
   WorldResponse,
+  LOCALE_HEADER,
   WorldStatusResponse,
 } from "@rootward/shared";
 import type { z } from "zod";
+import { useLocaleStore } from "../i18n/index.ts";
 
 /** A failed API call with the server's error code, or a client-side code such as "network" or "invalid-response". */
 export class ApiError extends Error {
@@ -57,7 +59,12 @@ async function request<T extends z.ZodType>(
   try {
     response = await fetch(url, {
       method,
-      headers: body === undefined ? {} : { "content-type": "application/json" },
+      // The locale rides on every request (ADR-0018), so content comes back translated without any call site
+      // knowing about it. The UI's own strings are translated in the browser; this is for what the server builds.
+      headers: {
+        [LOCALE_HEADER]: useLocaleStore.getState().locale,
+        ...(body === undefined ? {} : { "content-type": "application/json" }),
+      },
       body: body === undefined ? null : JSON.stringify(body),
     });
   } catch (error) {

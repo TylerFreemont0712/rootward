@@ -19,7 +19,8 @@
     "typecheck": "pnpm -r --parallel run typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "content:validate": "node packages/content-tools/src/cli/validate.ts"
+    "content:validate": "node packages/content-tools/src/cli/validate.ts",
+    "content:locale": "node packages/content-tools/src/cli/locale.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

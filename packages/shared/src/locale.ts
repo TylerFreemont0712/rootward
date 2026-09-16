@@ -16,6 +16,13 @@ export const LOCALE_NAMES: Readonly<Record<Locale, string>> = {
   ja: "日本語",
 };
 
+/**
+ * The header the client sends its locale in (ADR-0018). A header rather than a field on every request body: the
+ * locale is about how a response should *read*, not about what is being asked for, and putting it here means one
+ * line in the client's `request()` wrapper instead of a field in thirty schemas.
+ */
+export const LOCALE_HEADER = "x-rootward-locale";
+
 export function isLocale(value: string): value is Locale {
   return (LOCALES as readonly string[]).includes(value);
 }

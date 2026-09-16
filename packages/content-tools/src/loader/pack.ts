@@ -37,6 +37,7 @@ import type {
   Terrain,
   Zone as ZoneType,
 } from "@rootward/content-schema";
+import { type LocaleOverlay, loadPackLocales } from "../locale/overlay.ts";
 import { readText, readYamlFile } from "../yaml.ts";
 import { loadChallenge } from "./challenge.ts";
 import { displayPath, type LoadContext } from "./context.ts";
@@ -62,6 +63,8 @@ export interface PackContents {
   shardrunFoes: Sourced<ShardrunFoeType>[];
   shardrunRelics: Sourced<RelicType>[];
   shardrun?: Sourced<ShardrunConfigType & { id: "shardrun" }>;
+  /** This pack's translations (ADR-0018), by locale. */
+  locales: Map<string, LocaleOverlay>;
 }
 
 export async function loadPack(ctx: LoadContext, absoluteDir: string): Promise<PackContents | undefined> {
@@ -93,6 +96,7 @@ export async function loadPack(ctx: LoadContext, absoluteDir: string): Promise<P
     shards: [],
     shardrunFoes: [],
     shardrunRelics: [],
+    locales: await loadPackLocales(absoluteDir, (file) => displayPath(ctx, file), ctx.diagnostics),
   };
   const sourced = <T>(value: T, file: string): Sourced<T> => ({ value, packId, file });
 

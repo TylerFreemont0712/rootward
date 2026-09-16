@@ -187,6 +187,21 @@ async function main(): Promise<void> {
     // The battle log also says "Turn 2.", so wait on the turn counter alone.
     await page.locator(".shr-self > .meta").getByText(/^Turn 2/).waitFor();
     await page.screenshot({ path: path.join(resultsDir, "shardrun-battle.png") });
+
+    // Content localization (ADR-0018): the same run, read in Japanese. The language is chosen at the menu, so go back,
+    // switch, and resume — the shard names, the foe and its intent all come from the server, which makes this the
+    // header, the content overlay and the server's own message catalog, end to end in a real browser.
+    await page.getByRole("button", { name: /Main menu/ }).click();
+    await page.getByLabel("Language").selectOption("ja");
+    await page.locator(".menu-mode-name", { hasText: "シャードラン" }).click();
+    await page.getByText("防護").first().waitFor();
+    await page.screenshot({ path: path.join(resultsDir, "shardrun-battle-ja.png") });
+    // A spell's name is still English, on purpose: the code view turns it into a function name.
+    const code = await page.locator(".shr-spell").first().innerText();
+    if (!code.includes("Bolt")) throw new Error(`a spell name should stay English, the first spell reads:\n${code}`);
+    await page.getByRole("button", { name: /Main menu|メインメニュー/ }).click();
+    await page.getByLabel("言語").selectOption("en");
+    await page.locator(".menu-mode-name", { hasText: "Shardrun" }).click();
     await page.getByRole("button", { name: "Abandon", exact: true }).click();
     await page.getByRole("button", { name: "Abandon this run" }).click();
     await page.getByRole("heading", { name: "You climbed back out" }).waitFor();
