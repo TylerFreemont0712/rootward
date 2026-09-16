@@ -334,3 +334,32 @@ language feature took more than a minute to understand.
 - **Adding headroom beats flattening.** The shadow battle gives every foe the same *extra* Integrity rather than the
   same total, so the foes keep their order and a bolt aimed at the weakest still picks the weakest. Perturb a value
   in a way that preserves the relations the code reads off it.
+
+## Localization, and what a type can enforce (ADR-0017)
+
+- **Make one locale the type, not just a convention.** `export const en = {...} as const` plus
+  `type MessageKey = keyof typeof en` turns "does this key exist?" into a compile error, for free, in both directions:
+  a typo in `ja.ts` fails to build, and so does asking `t()` for a key nobody wrote. This is the whole reason to
+  hand-roll instead of reaching for i18next, whose `t()` is `string -> string` unless you add codegen. A derived type
+  is cheaper than a validator when the source of truth is already a literal
+  (`apps/client/src/i18n/en.ts`, `ja.ts`).
+- **`Partial<Record<K, V>>` is the shape of "may be incomplete, may not be wrong."** It permits every subset of the
+  keys and no key outside them — exactly the contract a translation wants. Reach for it whenever a thing is an
+  optional overlay on a known set.
+- **Fall back per key, not per locale.** `CATALOGS[locale][key] ?? en[key]` is one line, and it is the difference
+  between "translating is a project" and "translating is a Tuesday". The coarse version (use `ja` if it is complete,
+  else `en`) means nothing ships until everything ships.
+- **Interpolate by name, never by position.** `"Integrity {integrity}/{max}"` survives a translator moving the values
+  to the other end of the sentence; `%s %s` does not. Japanese word order makes this concrete rather than theoretical.
+  And leave an unfilled placeholder *visible* (`{zone}`) instead of blanking it — a bug you can see beats a bug that
+  renders as nothing (`fill` in `i18n/index.ts`).
+- **A module-scope `const` cannot be read by code that runs above it.** Moving the locale's initial read below the
+  store that uses it compiles fine and throws at import: `const` has no hoisting, only a temporal dead zone. Function
+  declarations *are* hoisted, which is why `readLocale()` can live at the bottom of the file and `startingLocale`
+  cannot.
+- **Font stacks fall through per glyph, not per element.** Appending the system Japanese faces to a monospace stack
+  does not cost the Latin look: the browser takes each character from the first font that has it, so English still
+  renders in VT323 and only kana reach the fallback (`--font-jp` in `theme/tokens.css`).
+- **Set `<html lang>` on load, not only on change.** Anything styled by language (CJK line breaking, font stacks,
+  quotation marks) reads that attribute, so an initial value restored from storage has to reach the DOM too, or a
+  reload silently loses the styling half of the locale.

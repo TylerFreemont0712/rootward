@@ -239,6 +239,28 @@ These three come from the player directly and outrank the generic milestone orde
       with Noto Sans JP as the readable fallback; (5) validation that every locale has the keys it needs, or falls
       back loudly rather than silently; (6) IME input tested in the CodeMirror editor. Code itself stays English
       (Python and JavaScript keywords are), but summaries, hints, comments, dialogue, quests, and lore all localise.
+      **The UI skeleton landed 2026-09-16 (ADR-0017):** `apps/client/src/i18n/` holds a typed message catalog where
+      `en.ts` *is* the definition (`MessageKey = keyof typeof en`), every other locale is a `Partial` of it, and
+      `translate()` falls back to English **one key at a time** — so a locale can be nine strings deep and still be a
+      usable locale, and a screen can be translated on its own. Placeholders are filled by name (`{integrity}/{max}`),
+      because Japanese moves values around the sentence. No library: a typo in `ja.ts` is a type error, which is what
+      i18next would have cost extra tooling to give. A `LanguagePicker` (each language written in its own language)
+      sits on the title screen (the first screen, so nobody has to cross English to find it) and on the main menu;
+      the choice is a `localStorage` preference that never leaves the machine. Three screens are converted as the
+      proof — the title screen, the main menu, and the Shardrun Stats panel — and everything else is still inline
+      English, which is exactly what the per-key fallback is for. `apps/client/test/i18n.test.ts` tests the mechanism,
+      `test/title.test.ts` tests one line in both languages, and `pnpm test:e2e` switches language on both screens in
+      a real browser (screenshots `title-ja.png`, `main-menu-ja.png`).
+      Point (4) is answered *provisionally*: both font stacks now end with the system Japanese faces (`--font-jp`) and
+      a browser falls through per glyph, so Latin still renders in VT323 — a pinned PixelMplus/Noto webfont is still
+      the right end state and is now a look question, not a blocker. `<html lang="ja">` also turns on
+      `overflow-wrap: anywhere`, since Japanese has no spaces to break at.
+      One deliberate deviation from point (1) above: **UI chrome is localized on the client, content on the server.**
+      Button labels are presentation and the client already owns presentation; routing them through the API would
+      mean a round trip to change language. Content keeps the server-builds-the-view rule (ADR-0008).
+      Next, and it is the larger half: content localization — a per-pack overlay (`locales/ja/*.yaml`) merged at load
+      with the same per-key fallback, the locale on the request, and validation that an overlay names only real keys.
+      Then IME input in CodeMirror (point 6), still untested.
 
 ## Your Turn (optional tasks for the user; nothing is blocked on these)
 
@@ -264,7 +286,8 @@ Foundry questline (three wins, then the Kiln Warden) and four side quests run on
 behind the Guild Hall's door and in the top bar. Art comes from `scripts/art/generate.py` (ComfyUI on this machine).
 Suggested order:
 0. The player keeps a `WIP.md` of tweaks at the repository root (not committed). Read it first; it is the current
-   focus. Then see "Named next milestones" above: scaling (`POSSIBILITIES.md`), the Apprentice class, and Japanese.
+   focus. Then see "Named next milestones" above: scaling (`POSSIBILITIES.md`), the Apprentice class, and Japanese
+   (whose UI skeleton is in, ADR-0017 — the open half is content overlays and the rest of the screens).
    Those three are the player's own asks and come before the generic milestone order.
 1. Playtest a full quest line in the browser and log friction in `docs/PLAYTEST_NOTES.md` (the first pass was from
    screenshots only).

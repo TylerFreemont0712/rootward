@@ -1,6 +1,8 @@
 import "../theme/menu.css";
 import { useEffect } from "react";
 import { assetUrl } from "../assets/AssetRegistry.ts";
+import { useT } from "../i18n/index.ts";
+import { LanguagePicker } from "../i18n/LanguagePicker.tsx";
 import { useShardrun } from "../state/shardrun.ts";
 import { useGame } from "../state/store.ts";
 import { Ambience } from "../world/Ambience.tsx";
@@ -25,6 +27,7 @@ export function MainMenu() {
   const dev = useShardrun((s) => s.dev);
   const loadShardrun = useShardrun((s) => s.load);
   const profileId = profile?.id;
+  const t = useT();
 
   useEffect(() => {
     if (profileId === undefined) return;
@@ -52,64 +55,63 @@ export function MainMenu() {
           <h1>ROOTWARD</h1>
         </header>
 
-        <section className="menu-character" aria-label="Your character">
+        <section className="menu-character" aria-label={t("menu.character")}>
           <div className="class-portrait">{portrait ? <img src={portrait} alt="" draggable={false} /> : <span aria-hidden="true">@</span>}</div>
           <div className="menu-character-info">
             <div className="class-name">{profile.name}</div>
             <div className="meta">
-              {summary?.className ?? classCard?.name ?? profile.classId} · Maintainer v{summary?.version ?? "1.0.0"}
+              {summary?.className ?? classCard?.name ?? profile.classId} ·{" "}
+              {t("menu.version", { version: summary?.version ?? "1.0.0" })}
             </div>
-            <div className="meta">{whereabouts(summary)}</div>
+            <div className="meta">{whereabouts(summary, t)}</div>
           </div>
           <button type="button" className="btn" onClick={switchProfile}>
-            Switch character
+            {t("menu.switch")}
           </button>
         </section>
 
         <div className="menu-modes">
           <button type="button" className="menu-mode" onClick={showWorld}>
             {worldArt && <span className="menu-mode-art" style={{ backgroundImage: `url("${worldArt}")` }} aria-hidden="true" />}
-            <span className="menu-mode-tag">Classic</span>
-            <span className="menu-mode-name">The World</span>
-            <span className="menu-mode-text">
-              Walk the Bastion, take quests from its people, and fight Bit Rot with real programming problems. Every fight you win becomes
-              mastery in your Chronicle.
+            <span className="menu-mode-tag">{t("menu.world.tag")}</span>
+            <span className="menu-mode-name">{t("menu.world.name")}</span>
+            <span className="menu-mode-text">{t("menu.world.text")}</span>
+            <span className="menu-mode-status">
+              {summary?.zoneName ? t("menu.world.here", { zone: summary.zoneName }) : t("menu.world.nowhere")}
             </span>
-            <span className="menu-mode-status">{summary?.zoneName ? `You are in ${summary.zoneName}` : "You have not arrived yet"}</span>
           </button>
 
           <button type="button" className="menu-mode shardrun" onClick={showShardrun}>
             {shardrunArt && <span className="menu-mode-art" style={{ backgroundImage: `url("${shardrunArt}")` }} aria-hidden="true" />}
-            <span className="menu-mode-tag">Roguelite</span>
-            <span className="menu-mode-name">Shardrun</span>
-            <span className="menu-mode-text">
-              Find shards of real code, chain them into spells, and climb three layers of the Machine in turn-based fights. Short runs, new
-              every time.
-            </span>
+            <span className="menu-mode-tag">{t("menu.shardrun.tag")}</span>
+            <span className="menu-mode-name">{t("menu.shardrun.name")}</span>
+            <span className="menu-mode-text">{t("menu.shardrun.text")}</span>
             <span className="menu-mode-status">
               {runInProgress
-                ? `Run in progress: ${runInProgress.layer.name}, Integrity ${runInProgress.integrity}/${runInProgress.integrityMax}`
-                : "No run in progress"}
+                ? t("menu.shardrun.running", {
+                    layer: runInProgress.layer.name,
+                    integrity: runInProgress.integrity,
+                    max: runInProgress.integrityMax,
+                  })
+                : t("menu.shardrun.idle")}
             </span>
           </button>
           {dev && (
             <button type="button" className="menu-mode shardrun dev" onClick={showShardrun}>
               {shardrunArt && <span className="menu-mode-art" style={{ backgroundImage: `url("${shardrunArt}")` }} aria-hidden="true" />}
-              <span className="menu-mode-tag">Sandbox</span>
-              <span className="menu-mode-name">Shardrun (DEV)</span>
-              <span className="menu-mode-text">
-                The same mode with the shelves open: grant any shard or relic, add a spell, set Integrity and mana, spawn any fight, and jump
-                between layers. Start one with the Sandbox buttons.
-              </span>
-              <span className="menu-mode-status">This server runs with ROOTWARD_DEV</span>
+              <span className="menu-mode-tag">{t("menu.dev.tag")}</span>
+              <span className="menu-mode-name">{t("menu.dev.name")}</span>
+              <span className="menu-mode-text">{t("menu.dev.text")}</span>
+              <span className="menu-mode-status">{t("menu.dev.status")}</span>
             </button>
           )}
         </div>
 
         <div className="menu-extra">
           <button type="button" className="btn" onClick={showCodex}>
-            Shardrun Codex: every shard, relic, and foe
+            {t("menu.codex")}
           </button>
+          <LanguagePicker />
         </div>
       </div>
     </div>

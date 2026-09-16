@@ -378,7 +378,7 @@ main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .class-card .narr { margin: 6px 0 0; font-size: 21px; color: var(--text); }
 .title-panel .actions { flex-wrap: nowrap; }
 .title-panel .text-input { flex: 1; min-width: 0; }
-.title-foot { font-size: 11px; color: var(--muted); text-shadow: 0 1px 0 #000; text-align: center; }
+.title-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 18px; font-size: 11px; color: var(--muted); text-shadow: 0 1px 0 #000; text-align: center; }
 
 /* Walk strips: the standing pose, then four walk frames stepped through while walking (--strip-start skips the pose). */
 .w-avatar-strip { position: absolute; left: 50%; translate: -50% 0; image-rendering: pixelated; background-repeat: no-repeat; background-position: 0 0; filter: drop-shadow(0 0 5px var(--amber-glow)); }

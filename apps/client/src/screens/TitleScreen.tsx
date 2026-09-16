@@ -2,6 +2,8 @@ import "../theme/menu.css";
 import type { ProfileSummaryView, ProfileView } from "@rootward/shared";
 import { useState } from "react";
 import { assetUrl, slugify } from "../assets/AssetRegistry.ts";
+import { useT } from "../i18n/index.ts";
+import { LanguagePicker } from "../i18n/LanguagePicker.tsx";
 import { useGame } from "../state/store.ts";
 import { Ambience } from "../world/Ambience.tsx";
 import { orderProfiles, whereabouts } from "./title.ts";
@@ -10,6 +12,10 @@ import { orderProfiles, whereabouts } from "./title.ts";
  * The opening screen: continue a character where they left off, or begin a new Maintainer of a chosen class (ADR-0010).
  * Planned classes are shown so the road ahead is visible, but only playable ones can be picked. Every piece of art on it
  * is optional; without the backdrop, emblem, or portraits it falls back to a gradient, letters, and plain type.
+ *
+ * It carries the language picker (ADR-0017) because it is the first screen: someone who reads Japanese should not have
+ * to cross an English screen to find the switch. Class names, disciplines and taglines stay in whatever language the
+ * content pack is written in, since content localization belongs to the server and is not built yet.
  */
 export function TitleScreen() {
   const profiles = useGame((s) => s.profiles);
@@ -22,6 +28,7 @@ export function TitleScreen() {
   const busy = useGame((s) => s.busy);
   const [name, setName] = useState("");
   const [pickedClass, setPickedClass] = useState<string | undefined>();
+  const t = useT();
 
   const ordered = orderProfiles(profiles, lastProfileId);
   const backdrop = assetUrl("backgrounds", "title");
@@ -47,13 +54,13 @@ export function TitleScreen() {
         <header className="title-logo">
           {emblem && <img className="title-emblem" src={emblem} alt="" draggable={false} />}
           <h1>ROOTWARD</h1>
-          <p className="title-tagline">Bit Rot is eating the Machine. Mend it with real code.</p>
+          <p className="title-tagline">{t("title.tagline")}</p>
         </header>
 
         <div className="title-panels">
           {ordered.length > 0 && (
             <section className="title-panel" aria-labelledby="characters-title">
-              <h2 id="characters-title">Continue</h2>
+              <h2 id="characters-title">{t("title.continue")}</h2>
               <ul className="character-list">
                 {ordered.map((profile) => (
                   <CharacterCard
@@ -72,9 +79,9 @@ export function TitleScreen() {
           )}
 
           <section className="title-panel" aria-labelledby="new-character-title">
-            <h2 id="new-character-title">{ordered.length > 0 ? "A new Maintainer" : "Begin"}</h2>
+            <h2 id="new-character-title">{t(ordered.length > 0 ? "title.newMaintainer" : "title.begin")}</h2>
             {classes.length > 0 && (
-              <div className="class-picker" role="radiogroup" aria-label="Class">
+              <div className="class-picker" role="radiogroup" aria-label={t("title.class")}>
                 {classes.map((option) => {
                   const portrait = assetUrl("portraits", option.id);
                   return (
@@ -84,7 +91,9 @@ export function TitleScreen() {
                       role="radio"
                       aria-checked={option.id === classId}
                       disabled={!option.playable}
-                      title={option.playable ? option.tagline : `${option.name}: ${option.discipline}. Coming later.`}
+                      title={
+                        option.playable ? option.tagline : t("title.plannedHint", { name: option.name, discipline: option.discipline })
+                      }
                       className={option.id === classId ? "class-option chosen" : "class-option"}
                       onClick={() => {
                         setPickedClass(option.id);
@@ -92,7 +101,7 @@ export function TitleScreen() {
                     >
                       {portrait ? <img src={portrait} alt="" draggable={false} /> : <span className="glyph">{option.name.slice(0, 1)}</span>}
                       <span>{option.name}</span>
-                      <small>{option.playable ? "playable" : "coming later"}</small>
+                      <small>{t(option.playable ? "title.playable" : "title.comingLater")}</small>
                     </button>
                   );
                 })}
@@ -121,7 +130,7 @@ export function TitleScreen() {
               <input
                 type="text"
                 className="text-input"
-                placeholder="Character name"
+                placeholder={t("title.name")}
                 maxLength={60}
                 value={name}
                 onChange={(event) => {
@@ -130,16 +139,19 @@ export function TitleScreen() {
                 onKeyDown={(event) => {
                   if (event.key === "Enter") submit();
                 }}
-                aria-label="Character name"
+                aria-label={t("title.name")}
               />
               <button type="button" className="btn primary" disabled={!name.trim() || busy !== undefined || classId === undefined} onClick={submit}>
-                Begin
+                {t("title.start")}
               </button>
             </div>
           </section>
         </div>
 
-        <footer className="title-foot">Everything runs on this machine: code in sandboxes, progress saved as you play, no telemetry.</footer>
+        <footer className="title-foot">
+          <span>{t("title.foot")}</span>
+          <LanguagePicker />
+        </footer>
       </div>
     </div>
   );
@@ -155,6 +167,7 @@ interface CharacterCardProps {
 
 function CharacterCard({ profile, summary, latest, disabled, onPick }: CharacterCardProps) {
   const avatar = assetUrl("avatars", slugify(profile.classId));
+  const t = useT();
   return (
     <li>
       <button type="button" className={latest ? "character-card latest" : "character-card"} disabled={disabled} onClick={onPick}>
@@ -164,14 +177,14 @@ function CharacterCard({ profile, summary, latest, disabled, onPick }: Character
         <span className="character-info">
           <span className="character-name">
             {profile.name}
-            {latest && <small>last played</small>}
+            {latest && <small>{t("title.lastPlayed")}</small>}
           </span>
           {summary && (
             <span className="meta">
-              {summary.className} · Maintainer v{summary.version}
+              {summary.className} · {t("menu.version", { version: summary.version })}
             </span>
           )}
-          <span className="meta">{whereabouts(summary)}</span>
+          <span className="meta">{whereabouts(summary, t)}</span>
         </span>
         <span className="character-go" aria-hidden="true">
           ▸

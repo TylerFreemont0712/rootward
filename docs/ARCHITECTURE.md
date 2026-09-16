@@ -143,6 +143,27 @@ every rule number is under `shardrun` in `config/balance.yaml`. Routes are under
    to a layer. That needs both `ROOTWARD_DEV=1` on the server and the run's own mark, and changes nothing else about
    how the run plays (ADR-0013).
 
+## Language
+
+English is the project's source language; a locale is an overlay on it, never a fork (ADR-0017). UI chrome lives in
+`apps/client/src/i18n/`: `en.ts` is an `as const` object and `MessageKey = keyof typeof en`, so English defines which
+keys exist and every other locale is a `Partial` of it — a stale key in `ja.ts` is a type error. `translate()` falls
+back to English **per key**, which is what lets one screen be translated without the rest. Placeholders are named
+(`{integrity}`) and filled by `t()`, so a translation can move a value anywhere in the sentence.
+
+The chosen locale is a `localStorage` preference (`useLocaleStore`), applied to `<html lang>` on load as well as on
+change: the Japanese font fallback (`--font-jp`, appended to both stacks because neither VT323 nor IBM Plex Mono has
+kana) and the "wrap anywhere" rule for spaceless text both key off that attribute. Nothing about the locale reaches
+the server or leaves the machine.
+
+Converted so far: the title screen (which carries the picker, since it is the first screen), the main menu, and the
+Shardrun Stats panel. Every other screen is still inline English, which the per-key fallback makes harmless. Where
+English inflects for number, the two forms are two keys and a ternary at the call site rather than ICU plural syntax.
+
+Content strings — shard names, foe flavor, lore, dialogue — are **not** localized yet. They belong to the server,
+which is what builds a view (ADR-0008); the intended shape is a per-pack locale overlay merged at load with the same
+per-key fallback.
+
 ## State: events, state, artifacts
 
 - **Events** (`RunEvent`) are the source of truth for game state. They record facts including resulting numbers, so

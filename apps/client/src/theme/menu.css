@@ -59,3 +59,10 @@
 .menu-mode.shardrun.dev:hover, .menu-mode.shardrun.dev:focus-visible { border-color: #6ddf9a; box-shadow: 0 0 28px rgb(109 223 154 / 30%); }
 .menu-mode.shardrun.dev .menu-mode-tag { background: #6ddf9a; }
 .menu-mode.shardrun.dev .menu-mode-name { color: #6ddf9a; text-shadow: 0 0 12px rgb(109 223 154 / 35%), 0 3px 0 #000; }
+
+/* The language control (ADR-0017): a plain select, so it inherits the CRT palette without needing its own widget. */
+.lang-picker { display: inline-flex; align-items: center; gap: 8px; }
+.lang-picker select { padding: 4px 8px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font: inherit; font-size: 12px; }
+.lang-picker select:focus-visible { outline: 1px solid var(--amber); }
+/* Japanese has no spaces to break at, so long strings must be allowed to wrap anywhere. */
+:root[lang="ja"] .menu-mode-text, :root[lang="ja"] .shr-rules, :root[lang="ja"] .meta { line-break: strict; overflow-wrap: anywhere; }

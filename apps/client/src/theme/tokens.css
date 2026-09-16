@@ -30,7 +30,11 @@
   --focus: #5cc8b8;
   --cycles: #f2a541;
 
-  --font-ui: "IBM Plex Mono", ui-monospace, sfmono-regular, menlo, consolas, monospace;
-  --font-crt: "VT323", "IBM Plex Mono", ui-monospace, monospace;
+  /* Neither IBM Plex Mono nor VT323 has kana or kanji, so every stack ends with the system Japanese faces (ADR-0017).
+     A browser falls through per glyph, so Latin still renders in the CRT face and only Japanese text reaches these.
+     A pinned @fontsource webfont would make it identical on every machine; it needs a dependency, so it is not here. */
+  --font-jp: "Noto Sans CJK JP", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", meiryo, sans-serif;
+  --font-ui: "IBM Plex Mono", ui-monospace, sfmono-regular, menlo, consolas, var(--font-jp), monospace;
+  --font-crt: "VT323", "IBM Plex Mono", ui-monospace, var(--font-jp), monospace;
   --radius: 3px;
 }

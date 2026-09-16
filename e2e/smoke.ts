@@ -91,13 +91,34 @@ async function main(): Promise<void> {
     await page.goto(baseUrl);
     mkdirSync(resultsDir, { recursive: true });
 
+    // The title screen carries the language picker, because it is the first screen someone sees (ADR-0017). Check it
+    // there, then switch back: everything below this looks for English.
+    await page.getByLabel("Language").selectOption("ja");
+    await page.getByText("ビットロットが機械を蝕んでいます").waitFor();
+    await page.screenshot({ path: path.join(resultsDir, "title-ja.png") });
+    await page.getByLabel("言語").selectOption("en");
+    await page.getByText("Bit Rot is eating the Machine").waitFor();
+
     // A fresh data directory has no characters: make one. Planned classes are listed but cannot be picked yet.
     if (!(await page.getByRole("radio", { name: /Warden/ }).isDisabled())) throw new Error("the planned Warden class can be picked");
     const nameInput = page.getByPlaceholder("Character name");
     await nameInput.fill("Smoke");
     await nameInput.press("Enter");
 
-    // A character starts at the main menu, with one door into each mode.
+    // A character starts at the main menu, with one door into each mode. Switching the language there is the whole
+    // localization skeleton end to end (ADR-0017): the picker writes the preference, the catalog answers in Japanese,
+    // and `<html lang>` follows so the Japanese font stack and line breaking apply. Switch back before playing, since
+    // every step below looks for English.
+    await page.getByLabel("Language").selectOption("ja");
+    await page.locator(".menu-mode-name", { hasText: "シャードラン" }).waitFor();
+    if ((await page.locator("html").getAttribute("lang")) !== "ja") throw new Error("the document language did not follow the picker");
+    await page.screenshot({ path: path.join(resultsDir, "main-menu-ja.png") });
+    await page.reload();
+    // The preference survives a reload, and reaches `<html lang>` on load rather than only on change.
+    await page.locator(".menu-mode-name", { hasText: "シャードラン" }).waitFor();
+    if ((await page.locator("html").getAttribute("lang")) !== "ja") throw new Error("the stored language did not reach the document on load");
+    await page.getByLabel("言語").selectOption("en");
+
     await page.getByRole("button", { name: /The World/ }).click();
     await page.getByRole("button", { name: "Arrive with javascript" }).click();
     await page.locator(".w-viewport").waitFor();
