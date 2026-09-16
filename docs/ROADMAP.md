@@ -177,6 +177,42 @@ Task breakdown:
   already landed in M1 through ADR-0011; still open: an economy for the Package Manager and the Compiler's Spells).
    **M7 — Packaging.**
 
+## Named next milestones (asked for by the player, 2026-09-16)
+
+These three come from the player directly and outrank the generic milestone order above.
+
+- [ ] **Scaling and the big-number fantasy** — full design in `POSSIBILITIES.md` at the repository root. The problem
+      is arithmetic, not tuning: a cast cannot exceed `max_bolts` x `max_bolt_power` = 640 damage however good the
+      build, and nearly every bonus is additive, so builds converge instead of compounding. The proposal is a second
+      axis (`damage = sum(power) x mult`), higher-order shards (`twice`, `compose`, `repeat`) as the multiplicative
+      tier, recursion with a depth budget, mana priced by complexity (O(1)/O(n)/O(n^2), with a log-billing relic as
+      the unlock), shards that grow across a run, foe HP that grows geometrically per layer, and an endless mode so
+      the numbers are needed. Decide the big-number representation (2^53 precision limit: cap, log-space, or BigInt)
+      *before* the exponent tier. Phase 1 is the cheap test: `mult` on the cast, clamps moved into balance, a few
+      `+mult` shards, and the code view showing the running product. Needs an ADR; changes the ADR-0012 damage
+      contract.
+- [ ] **The Apprentice class** — a teaching class for young beginners (the player's daughters are the intended
+      players). A class is the right shape for this because classes already carry `subjects`, their own fights, and
+      their own difficulty of explanation. Wants: a very gentle challenge ladder (one idea per fight, no timers, no
+      run-ending losses), plain-language everything, pictures and colour carrying meaning alongside text, the
+      existing Beginner difficulty as the floor rather than the ceiling, generous hint ladders that never give the
+      answer (AGENT.md section 6 still holds), and a mentor NPC who explains in plain words. Content lives at
+      `content/packs/core/classes/apprentice/`, starting `status: planned` until its fights exist. Should be authored
+      **Japanese-first** (below), not translated after the fact.
+- [ ] **Japanese as a first-class language** — the intended players speak Japanese, so this is a requirement, not a
+      nicety, and it should land *before* much more English content is written, or the translation debt grows with
+      every challenge. There is no i18n of any kind today: every string is inline in JSX or in English YAML. Needs:
+      (1) a locale on the profile, with the server sending already-localised views, exactly as it already does for
+      difficulty gating, so the client never decides; (2) a decision on content shape — per-locale overlay files
+      (`<id>.ja.yaml`) that fall back to English key by key are probably kinder to authoring than `{en, ja}` maps
+      inside every field; (3) a UI message catalogue, which is the bulk of the mechanical work; (4) **fonts — a real blocker
+      worth knowing early: the two fonts the whole CRT look is built on ship no Japanese whatsoever. Checked
+      2026-09-16: VT323 ships latin, latin-ext and vietnamese; IBM Plex Mono adds cyrillic and cyrillic-ext. No kana,
+      no kanji in either.** A Japanese bitmap font (PixelMplus, Misaki Gothic) is needed to keep the aesthetic,
+      with Noto Sans JP as the readable fallback; (5) validation that every locale has the keys it needs, or falls
+      back loudly rather than silently; (6) IME input tested in the CodeMirror editor. Code itself stays English
+      (Python and JavaScript keywords are), but summaries, hints, comments, dialogue, quests, and lore all localise.
+
 ## Your Turn (optional tasks for the user; nothing is blocked on these)
 
 - **Your Turn (easy):** Write four review cards for `py.control.loops` in `content/packs/core/cards/` (copy the
@@ -201,8 +237,8 @@ Foundry questline (three wins, then the Kiln Warden) and four side quests run on
 behind the Guild Hall's door and in the top bar. Art comes from `scripts/art/generate.py` (ComfyUI on this machine).
 Suggested order:
 0. The player keeps a `WIP.md` of tweaks at the repository root (not committed). Read it first; it is the current
-   focus. After ADR-0013, likely next asks: Shardrun balance across three layers, editable shards, what planned
-   classes play in Shardrun, and giving the other classes their first real fights.
+   focus. Then see "Named next milestones" above: scaling (`POSSIBILITIES.md`), the Apprentice class, and Japanese.
+   Those three are the player's own asks and come before the generic milestone order.
 1. Playtest a full quest line in the browser and log friction in `docs/PLAYTEST_NOTES.md` (the first pass was from
    screenshots only).
 2. Content: a second and third challenge per node, then comprehensions, exceptions, and functions with arguments;
