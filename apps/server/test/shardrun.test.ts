@@ -148,6 +148,18 @@ describe("ShardrunService", () => {
     expect(spells["spell-1"]?.result?.bolts).toBe(1);
   });
 
+  it("carries the rules a run plays by, and what its relics changed", SLOW, async () => {
+    const { service, id } = await character();
+    const fight = await firstFight(service, id);
+    expect(fight.rules).toMatchObject({ manaPerTurn: 6, baseBoltPower: 4, maxBolts: 16, weakMultiplier: 1.5 });
+    const mana = fight.modifiers.find((modifier) => modifier.label === "Mana each turn");
+    expect(mana).toEqual({ label: "Mana each turn", base: "6", now: "6", from: [] });
+    const cast = await service.command(id, { type: "cast", spellId: "spell-1" });
+    expect(cast.stats.casts).toBe(1);
+    expect(cast.stats.manaSpent).toBeGreaterThan(0);
+    expect(cast.stats.damageBySpell["spell-1"]).toBe(cast.stats.damage);
+  });
+
   it("lists all content in the Codex, with where each thing is found", async () => {
     const { service } = await character();
     const codex = service.codex("javascript");

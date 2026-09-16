@@ -367,3 +367,23 @@
 .codex-rules h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
 .codex-layers { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 12px; }
 .codex-layers b { color: var(--amber); font-weight: 500; }
+
+/* The Stats drawer: the rules this run plays by, and what it has done */
+.shr-stats { width: min(760px, 92vw); display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px; }
+.shr-stats section:first-child { grid-row: span 2; }
+.shr-stats h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.shr-stat-rules { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; margin: 0 0 8px; font-size: 12px; }
+.shr-stat-rules > div { display: contents; }
+.shr-stat-rules dt { color: var(--muted); }
+.shr-stat-rules dd { margin: 0; text-align: right; }
+.shr-stat-rules dd b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+.shr-stat-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 12px; }
+.shr-stat-list li { display: flex; justify-content: space-between; gap: 10px; }
+.shr-stat-list span { color: var(--muted); }
+.shr-stat-list b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+.shr-stat-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 12px; }
+.shr-stat-bars li { display: grid; grid-template-columns: minmax(70px, auto) minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.shr-stat-bar { height: 8px; border: 1px solid var(--line); background: var(--panel-3); }
+.shr-stat-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--amber-dim), var(--amber)); }
+.shr-end .shr-stat-list { margin-top: 6px; text-align: left; }
+@media (max-width: 820px) { .shr-stats { grid-template-columns: 1fr; } .shr-stats section:first-child { grid-row: auto; } }

@@ -1,6 +1,15 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import { Bolt, type FoeIntent, type FoeTrait, RELIC_RARITIES, type Relic, SHARD_RARITIES, type Shard } from "@rootward/content-schema";
+import {
+  Bolt,
+  type FoeIntent,
+  type FoeTrait,
+  RELIC_RARITIES,
+  type Relic,
+  type RelicEffect,
+  SHARD_RARITIES,
+  type Shard,
+} from "@rootward/content-schema";
 import {
   baseBolt,
   difficultyOf,
@@ -12,6 +21,7 @@ import {
   type PipelineOutcome,
   previewBolts,
   previewCast,
+  relicModifiers,
   type ShardrunCatalog,
   type ShardrunCommand,
   ShardrunState,
@@ -40,6 +50,7 @@ import type {
   ShardrunFoeView,
   ShardrunMapNodeView,
   ShardrunCodexResponse,
+  ShardrunModifierView,
   ShardrunPreviewsResponse,
   ShardrunRulesView,
   ShardrunView,
@@ -383,14 +394,9 @@ export class ShardrunService {
         : {}),
       ...(replay ? { replay } : {}),
       log: state.log.map((entry) => ({ ...entry })),
-      stats: { ...state.stats },
-      rules: {
-        spellBaseCost: balance.spell_base_cost,
-        workPerMana: balance.work_per_mana,
-        maxBolts: balance.max_bolts,
-        baseBoltPower: balance.base_bolt_power,
-        maxSpellCapacity: balance.max_spell_capacity,
-      },
+      stats: { ...state.stats, damageBySpell: { ...state.stats.damageBySpell } },
+      rules: rulesView(catalog),
+      modifiers: modifierViews(state, catalog),
     };
   }
 
@@ -626,6 +632,39 @@ function shardView(shard: Shard, language: ShardrunLanguage, catalog: ShardrunCa
     ...(shard.curse ? { curse: shard.curse.integrity } : {}),
     ...(shard.forge && into ? { forge: { into: into.id, intoName: into.name, verb: shard.forge.verb } } : {}),
   };
+}
+
+/** Every rule as it stands now: what it started as, what it is, and which relics moved it (ADR-0013, the Stats panel). */
+function modifierViews(state: ShardrunState, catalog: ShardrunCatalog): ShardrunModifierView[] {
+  const { balance } = catalog;
+  const mods = relicModifiers(state, catalog);
+  const from = (kind: RelicEffect["kind"]): string[] =>
+    state.relics.flatMap((id) => {
+      const relic = catalog.relics.get(id);
+      return relic?.effects.some((effect) => effect.kind === kind) === true ? [relic.name] : [];
+    });
+  const capacityAdded = state.relics.reduce(
+    (sum, id) =>
+      sum + (catalog.relics.get(id)?.effects.reduce((inner, effect) => inner + (effect.kind === "spell-capacity" ? effect.add : 0), 0) ?? 0),
+    0,
+  );
+  const round = (value: number) => Math.round(value * 100) / 100;
+  return [
+    { label: "Mana each turn", base: `${balance.mana_per_turn}`, now: `${manaPerTurn(state, catalog)}`, from: from("mana-per-turn") },
+    { label: "Power added to every bolt", base: "0", now: `${round(mods.boltPower)}`, from: from("bolt-power") },
+    { label: "Damage multiplier", base: "×1", now: `×${round(mods.damageMultiplier)}`, from: from("damage-multiplier") },
+    {
+      label: "Weakness multiplier",
+      base: `×${balance.weak_multiplier}`,
+      now: `×${round(balance.weak_multiplier + mods.weakBonus)}`,
+      from: from("weak-bonus"),
+    },
+    { label: "Block at the start of a turn", base: "0", now: `${mods.turnBlock}`, from: from("turn-block") },
+    { label: "First cast each turn costs less", base: "0", now: `${mods.firstCastDiscount}`, from: from("first-cast-discount") },
+    { label: "Integrity healed after a fight", base: "0", now: `${mods.healAfterFight}`, from: from("heal-after-fight") },
+    { label: "Maximum Integrity", base: `${balance.integrity_start}`, now: `${state.integrityMax}`, from: from("max-integrity") },
+    { label: "Slots added to every spell", base: "0", now: `${capacityAdded}`, from: from("spell-capacity") },
+  ];
 }
 
 /** The numbers a run plays by, before any relic changes them. */

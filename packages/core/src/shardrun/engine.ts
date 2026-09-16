@@ -94,7 +94,7 @@ export function startShardrun(catalog: ShardrunCatalog, options: StartOptions): 
     relics: [],
     revision: 0,
     log: [],
-    stats: { fights: 0, turns: 0, casts: 0, damage: 0, shards: 0, relics: 0, layers: 0 },
+    stats: { fights: 0, turns: 0, casts: 0, damage: 0, shards: 0, relics: 0, layers: 0, manaSpent: 0, bolts: 0, fizzled: 0, damageBySpell: {} },
   };
   for (const relicId of config.start.relics) {
     const relic = catalog.relics.get(relicId);
@@ -555,6 +555,7 @@ function castSpell(
     battle.mana -= cost;
     battle.cast.push(spell.id);
     state.stats.casts += 1;
+    state.stats.manaSpent += cost;
     log(state, { kind: "fizzle", spell: spell.id, amount: cost, text: `${spell.name} fizzles: ${outcome.reason}` });
     return undefined;
   }
@@ -565,9 +566,12 @@ function castSpell(
   battle.mana -= cost;
   battle.cast.push(spell.id);
   state.stats.casts += 1;
+  state.stats.manaSpent += cost;
 
   const normalized = normalizeBolts(outcome.bolts, balance);
   const bolts = empower(normalized.bolts, state, catalog);
+  state.stats.bolts += bolts.length;
+  state.stats.fizzled += normalized.fizzled;
   log(state, {
     kind: "cast",
     spell: spell.id,
@@ -589,7 +593,9 @@ function castSpell(
     log(state, { kind: "curse", amount: curse, text: `Cursed code burns you for ${curse} Integrity.` });
   }
 
-  state.stats.damage += resolveBolts(state, battle, bolts, catalog);
+  const dealt = resolveBolts(state, battle, bolts, catalog);
+  state.stats.damage += dealt;
+  state.stats.damageBySpell[spell.id] = (state.stats.damageBySpell[spell.id] ?? 0) + dealt;
   if (state.integrity <= 0) lose(state);
   else if (battle.foes.every((foe) => foe.hp === 0)) win(state, battle, catalog);
   return undefined;

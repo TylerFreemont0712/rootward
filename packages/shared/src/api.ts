@@ -701,6 +701,34 @@ export type ShardrunLogView = z.infer<typeof ShardrunLogView>;
 export const ShardrunDifficultyView = z.strictObject({ id: z.string(), name: z.string(), summary: z.string() });
 export type ShardrunDifficultyView = z.infer<typeof ShardrunDifficultyView>;
 
+/** The numbers every run plays by, before relics change them. */
+export const ShardrunRulesView = z.strictObject({
+  manaPerTurn: z.int(),
+  baseBoltPower: z.int(),
+  spellBaseCost: z.int(),
+  workPerMana: z.int(),
+  maxBolts: z.int(),
+  maxBoltPower: z.int(),
+  maxSpells: z.int(),
+  maxSpellCapacity: z.int(),
+  weakMultiplier: z.number(),
+  resistMultiplier: z.number(),
+  scatterMultiplier: z.number(),
+  patternOffMultiplier: z.number(),
+  restHealFraction: z.number(),
+  layerHealFraction: z.number(),
+});
+export type ShardrunRulesView = z.infer<typeof ShardrunRulesView>;
+
+/** One rule, as it stands now: what it is, what it started as, and which relics moved it. */
+export const ShardrunModifierView = z.strictObject({
+  label: z.string(),
+  base: z.string(),
+  now: z.string(),
+  from: z.array(z.string()),
+});
+export type ShardrunModifierView = z.infer<typeof ShardrunModifierView>;
+
 export const ShardrunView = z.strictObject({
   id: z.string(),
   status: z.enum(["map", "battle", "reward", "rest", "forge", "won", "lost", "abandoned"]),
@@ -754,15 +782,16 @@ export const ShardrunView = z.strictObject({
     shards: z.int(),
     relics: z.int(),
     layers: z.int(),
+    manaSpent: z.int(),
+    bolts: z.int(),
+    fizzled: z.int(),
+    /** Spell id -> damage dealt this run. */
+    damageBySpell: z.record(z.string(), z.int()),
   }),
-  /** Rules the workbench explains. */
-  rules: z.strictObject({
-    spellBaseCost: z.int(),
-    workPerMana: z.int(),
-    maxBolts: z.int(),
-    baseBoltPower: z.int(),
-    maxSpellCapacity: z.int(),
-  }),
+  /** Every rule this run plays by, before relics. */
+  rules: ShardrunRulesView,
+  /** What the relics held have changed, for the Stats panel. */
+  modifiers: z.array(ShardrunModifierView),
 });
 export type ShardrunView = z.infer<typeof ShardrunView>;
 
@@ -804,24 +833,6 @@ export const CodexLayerView = z.strictObject({
 });
 export type CodexLayerView = z.infer<typeof CodexLayerView>;
 
-/** The numbers every run plays by, before relics change them. */
-export const ShardrunRulesView = z.strictObject({
-  manaPerTurn: z.int(),
-  baseBoltPower: z.int(),
-  spellBaseCost: z.int(),
-  workPerMana: z.int(),
-  maxBolts: z.int(),
-  maxBoltPower: z.int(),
-  maxSpells: z.int(),
-  maxSpellCapacity: z.int(),
-  weakMultiplier: z.number(),
-  resistMultiplier: z.number(),
-  scatterMultiplier: z.number(),
-  patternOffMultiplier: z.number(),
-  restHealFraction: z.number(),
-  layerHealFraction: z.number(),
-});
-export type ShardrunRulesView = z.infer<typeof ShardrunRulesView>;
 
 /** Everything Shardrun content holds, for the Codex screen. Not scoped to a character or a run. */
 export const ShardrunCodexResponse = z.strictObject({

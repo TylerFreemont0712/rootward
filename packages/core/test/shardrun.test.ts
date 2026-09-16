@@ -258,6 +258,15 @@ describe("casting", () => {
     expect(again.ok ? undefined : again.error.code).toBe("already-cast");
   });
 
+  it("counts what a run spends and what each spell deals", () => {
+    // Five bolts with a cap of four: one fizzles, and the rest land.
+    const state = play(inFight(), [cast([bolt(3), bolt(3), bolt(3), bolt(3), bolt(3)], "spell-1", 16)]);
+    expect(state.stats).toMatchObject({ casts: 1, bolts: 4, fizzled: 1, manaSpent: 4, damage: 12 });
+    expect(state.stats.damageBySpell).toEqual({ "spell-1": 12 });
+    const after = play(state, [{ type: "end-turn" }, cast([bolt(5)], "spell-1")]);
+    expect(after.stats.damageBySpell).toEqual({ "spell-1": 17 });
+  });
+
   it("clamps power, caps the bolt count, and drops malformed bolts", () => {
     const { bolts, fizzled } = normalizeBolts([bolt(99), { power: "lots" }, bolt(2.6), bolt(-3), bolt(1), bolt(1)], BALANCE);
     expect(bolts.map((b) => b.power)).toEqual([20, 3, 0, 1]);

@@ -7,6 +7,7 @@ import { SPEED_CHOICES } from "../shardrun/CodeView.tsx";
 import { LayerMap } from "../shardrun/LayerMap.tsx";
 import { RelicBar } from "../shardrun/parts.tsx";
 import { ForgePanel, RestPanel, RewardPanel } from "../shardrun/rooms.tsx";
+import { RunTotals, StatsPanel } from "../shardrun/StatsPanel.tsx";
 import { Workbench } from "../shardrun/Workbench.tsx";
 import { useShardrun } from "../state/shardrun.ts";
 import { useGame } from "../state/store.ts";
@@ -88,7 +89,11 @@ function RunHeader({ run }: { run: ShardrunView }) {
   const command = useShardrun((s) => s.command);
   const busy = useShardrun((s) => s.busy);
   const [confirming, setConfirming] = useState(false);
-  const [options, setOptions] = useState(false);
+  // One drawer at a time: opening Stats closes Options, and the other way round.
+  const [drawer, setDrawer] = useState<"none" | "stats" | "options">("none");
+  const toggle = (which: "stats" | "options") => {
+    setDrawer((open) => (open === which ? "none" : which));
+  };
   return (
     <header className="shr-header">
       <span className="shr-logo">SHARDRUN</span>
@@ -109,9 +114,19 @@ function RunHeader({ run }: { run: ShardrunView }) {
         <button
           type="button"
           className="btn"
-          aria-expanded={options}
+          aria-expanded={drawer === "stats"}
           onClick={() => {
-            setOptions((open) => !open);
+            toggle("stats");
+          }}
+        >
+          Stats
+        </button>
+        <button
+          type="button"
+          className="btn"
+          aria-expanded={drawer === "options"}
+          onClick={() => {
+            toggle("options");
           }}
         >
           ⚙ Options
@@ -152,7 +167,8 @@ function RunHeader({ run }: { run: ShardrunView }) {
           </button>
         )}
       </span>
-      {options && <OptionsPanel />}
+      {drawer === "options" && <OptionsPanel />}
+      {drawer === "stats" && <StatsPanel run={run} />}
     </header>
   );
 }
@@ -268,10 +284,7 @@ function EndSummary({ run }: { run: ShardrunView }) {
   return (
     <div className={`shr-end ${run.status}`}>
       <h2 className="crt-title">{title}</h2>
-      <p className="meta">
-        {run.stats.layers} layers · {run.stats.fights} fights · {run.stats.turns} turns · {run.stats.casts} casts · {run.stats.damage} damage ·{" "}
-        {run.stats.shards} shards · {run.stats.relics} relics
-      </p>
+      <RunTotals run={run} />
     </div>
   );
 }

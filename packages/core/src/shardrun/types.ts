@@ -145,6 +145,13 @@ export const ShardrunState = z.strictObject({
     shards: z.int().min(0),
     relics: z.int().min(0),
     layers: z.int().min(0),
+    // Added after the first runs existed, so they default rather than making an older snapshot unreadable.
+    manaSpent: z.int().min(0).default(0),
+    /** Bolts that actually flew, after the cap. */
+    bolts: z.int().min(0).default(0),
+    fizzled: z.int().min(0).default(0),
+    /** Spell id -> damage it has dealt this run. */
+    damageBySpell: z.record(z.string(), z.int().min(0)).default({}),
   }),
 });
 export type ShardrunState = z.infer<typeof ShardrunState>;
