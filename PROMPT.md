@@ -1,6 +1,6 @@
 # Session Prompt: Design and Build **Rootward**
 
-> **Status (2026-09-17): past kickoff and being built.** This file is kept as the original design intent. Where the
+> **Status (2026-09-18): past kickoff and being built.** This file is kept as the original design intent. Where the
 > build has moved on, the ADRs in `docs/decisions/` are the record, and they win where the two disagree (`AGENT.md`).
 > A new session starts from `AGENT.md`'s read order, not the kickoff prompt below. Current state is in
 > `docs/ROADMAP.md`, and how it fits together in `docs/ARCHITECTURE.md`. The main differences from the text below:
@@ -21,6 +21,9 @@
 > - **Art.** Generated locally with ComfyUI and post-processed into pixel art (`scripts/art/`, `assets/README.md`).
 >   It is still optional, and every picture has a fallback. The renderer grew past section 17's "last priority" at
 >   the player's request, and the ADRs quote each ask.
+> - **Sound.** Music for every place and game sounds, on by default with a Sound menu, at the player's request
+>   (ADR-0023). The music is generated locally (ACE-Step 1.5 in ComfyUI, `scripts/audio/`), the game sounds are CC0
+>   recordings, and both stay optional: a missing file is silence.
 
 > **How to use this file.** Start a fresh Claude Code session in this directory and paste this session prompt:
 >

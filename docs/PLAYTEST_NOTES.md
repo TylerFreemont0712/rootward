@@ -35,6 +35,10 @@ starts and ends, no clipped samples, and each loop's wrap no bigger a jump than 
   Annoying (a console warning per file); the engine now decodes only audio responses.
 - **The first sample set was chiptune.** The player then asked for music "not too electronic or bubbly", and the
   soundtrack was prompted again as orchestral and folk.
+- **A cast key pressed while a card move is being answered does nothing.** Found by the smoke test, which pressed 1 the
+  moment a held card showed, while the hold was still on its way to the server; the Cast button is disabled in that
+  moment too. Locally the window is a few milliseconds, so a player is unlikely to meet it. Polish; the test waits for
+  the button now, and remembering a key pressed while busy is a possible follow-up.
 
 ## 2026-09-17 — the code view between the fighters, cards that fit, and code on hover (ADR-0022, ADR-0020)
 

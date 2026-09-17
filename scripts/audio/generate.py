@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
-"""Rootward's audio pipeline: a JSON manifest of prompts -> ComfyUI (ACE-Step 1.5) -> game-ready loops and cues.
+"""Rootward's audio pipeline: a JSON manifest of prompts -> ComfyUI (ACE-Step 1.5) -> game-ready music and cues.
 
 The sibling of scripts/art/generate.py, and shaped like it. ComfyUI renders the music; what makes a render usable in
-the game is the post-processing: a background track cut to a whole number of bars and crossfaded into its own start so
-it loops without a seam, a short cue trimmed and faded, both brought to one loudness, encoded as Opus. Raw renders are
-cached under assets/.audio-cache (git-ignored), so changing only post-processing never touches the GPU again.
+the game is the post-processing (ADR-0023):
+  - a piece of music (`bgm`) is kept whole, with loop points on bar lines inside its longest stretch of music, written
+    to assets/generated/audio/music.json, and the moments before the loop's end crossfaded with those before its start;
+  - a cue is trimmed from its first sound and faded out;
+  - a `source` recording (a CC0 pack under assets/vendor) is processed like a cue, without the GPU;
+  - everything gets one fixed gain to a target loudness and is encoded as Opus.
+Raw renders are cached under assets/.audio-cache (git-ignored), so changing only post-processing never touches the GPU.
 
 Usage (any Python 3.10+ with numpy; ComfyUI's own venv has it; ffmpeg with libopus on PATH):
   PY=~/personal-project/ComfyUI/.venv/bin/python
   $PY scripts/audio/generate.py                                # render what is not cached, write each asset's pick
-  $PY scripts/audio/generate.py --only 'bgm-*' --no-write --sheet   # candidates only, and a page to listen to them
+  $PY scripts/audio/generate.py --only 'music-*' --no-write --sheet   # candidates only, and a page to listen to them
   $PY scripts/audio/generate.py --reprocess --sheet            # post-process cached renders only, no GPU
 """
 

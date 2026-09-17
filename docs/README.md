@@ -6,7 +6,7 @@ Living project documentation, created and maintained by the build sessions (see 
 |---|---|
 | `ROADMAP.md` | Milestones, what is done and next, decisions made in conversation, and "Next session: start here" |
 | `ARCHITECTURE.md` | How the packages, the server, the client, the World, and Shardrun fit together |
-| `decisions/` | ADR-0001 to ADR-0022 (template in `ADR-0000-template.md`) |
+| `decisions/` | ADR-0001 to ADR-0023 (template in `ADR-0000-template.md`) |
 | `LEARNING_LOG.md` | Things worth understanding in this codebase, with file pointers |
 | `PLAYTEST_NOTES.md` | Friction found by playing or measuring, and what was done about it |
 | `CONTENT_AUTHORING.md` | How to write challenges and other content |

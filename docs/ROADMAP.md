@@ -5,7 +5,7 @@ task list, what is done, what is next, and decisions made in conversation. Updat
 (`AGENT.md` section 7).
 
 - **Current milestone:** M1 — Vertical slice (in progress). M0 is done.
-- **Last updated:** 2026-09-17
+- **Last updated:** 2026-09-18
 
 ## Kickoff decisions (2026-09-13)
 
@@ -366,7 +366,7 @@ These three come from the player directly and outrank the generic milestone orde
 
 ## Next session: start here
 
-State (2026-09-17): M0 is done and M1 is in progress. A character is made on the title screen, in English or Japanese,
+State (2026-09-18): M0 is done and M1 is in progress. A character is made on the title screen, in English or Japanese,
 and the main menu opens a mode:
 - **The World** (ADR-0010, ADR-0011): the Bastion and the Foundry, ten people, seven quests (the Foundry questline ends
   at the Kiln Warden), and 17 challenges picked for the learner's mastery. The Guild Board is behind the Guild Hall's
@@ -378,25 +378,33 @@ and the main menu opens a mode:
   - a battle stage in painted arenas;
   - a code view whose numbers are exactly what a cast lands.
 - **Shardrun (Experimental)** (ADR-0020): the same climb as a deckbuilder, with a hand, holding, and deck relics.
+- **Sound** (ADR-0023): music that follows the place and game sounds from the battle, with a volume and a mute for each
+  in a Sound menu on every screen. Seven of the nine pieces are rendered.
 
-Art comes from `scripts/art/generate.py` (ComfyUI on this machine). Suggested order:
+Art comes from `scripts/art/generate.py` and music from `scripts/audio/generate.py` (ComfyUI on this machine).
+Suggested order:
 0. The player keeps a `WIP.md` of tweaks at the repository root (never committed). Read it first; it is the current
-   focus. Its section 0 ends with questions for the player: whether the layer map should read downward, a middle
-   difficulty that hides only damage, and a per-foe damage preview.
-1. Shardrun balance, by play and by headless runs (WIP section 3): both playstyles against the compounding foe HP, and
+   focus. Its top section is the current progress and next steps, and its section 0 ends with questions for the
+   player: whether the layer map should read downward, a middle difficulty that hides only damage, and a per-foe
+   damage preview.
+1. Finish the soundtrack: render the Kernel's piece, the guardian theme, and the three cues
+   (`generate.py --only 'music-kernel,music-guardian,cue-*'`, about 25 minutes, then a client rebuild), then let the
+   player listen (`assets/.audio-cache/listen.html`) and re-seed any take that does not suit. A session cannot judge
+   music by ear.
+2. Shardrun balance, by play and by headless runs (WIP section 3): both playstyles against the compounding foe HP, and
    whether the deck playstyle's hand, slots and mana are the right squeeze.
-2. The named milestones below, which come from the player: scaling's Phase 2 (higher-order shards, after a sandbox
+3. The named milestones below, which come from the player: scaling's Phase 2 (higher-order shards, after a sandbox
    spike) and endless layers (`POSSIBILITIES.md`); the Apprentice class; Japanese (the engine's battle log, the
    unconverted client screens, then the World's content).
-3. Playtest a full World quest line in the browser and log friction in `docs/PLAYTEST_NOTES.md`.
-4. Content: a second and third challenge per node, then comprehensions, exceptions, and functions with arguments;
+4. Playtest a full World quest line in the browser and log friction in `docs/PLAYTEST_NOTES.md`.
+5. Content: a second and third challenge per node, then comprehensions, exceptions, and functions with arguments;
    give new nodes Foundry markers too.
-5. Rest rooms with FSRS review cards (ts-fsrs), which also bring Bit Rot; then Shrine and Puzzle rooms. The Warm Cache
+6. Rest rooms with FSRS review cards (ts-fsrs), which also bring Bit Rot; then Shrine and Puzzle rooms. The Warm Cache
    inn is the natural home for reviews in the world.
-6. An economy ADR (Cycles that persist, the Package Manager's stall, the Compiler's Spells), then the class and Oath
+7. An economy ADR (Cycles that persist, the Package Manager's stall, the Compiler's Spells), then the class and Oath
    choice at character creation.
-7. `db:export` / `db:import`, the learner simulation script, and the JavaScript track nodes.
-8. Polish: regenerate the first-pass enemy portraits with the art pipeline, so the encounter's enemy card matches the
+8. `db:export` / `db:import`, the learner simulation script, and the JavaScript track nodes.
+9. Polish: regenerate the first-pass enemy portraits with the art pipeline, so the encounter's enemy card matches the
    world's creature sprites.
 
 Housekeeping: the folder is still named `ProgramMe`. Rename it to `Rootward` between sessions, not during one (moving

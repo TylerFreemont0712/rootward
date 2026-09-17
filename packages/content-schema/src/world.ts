@@ -239,7 +239,10 @@ export const Zone = z
     /** How many tiles around the Maintainer are lit; omitted means the whole zone is visible (towns). */
     sight: z.int().min(2).optional(),
     ambience: z.enum(AMBIENCES).default("none"),
-    /** Music id (`audio/<id>`) played while walking the zone; presentation only, silent without the file (ADR-0023). */
+    /**
+     * Music id (`audio/<id>`) played while walking the zone. Presentation only: without it, or without its file, the
+     * town's theme plays (ADR-0023).
+     */
     music: Id.optional(),
     /** One line shown under the zone's name on arrival. */
     arrival: NonEmptyString,

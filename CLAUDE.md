@@ -17,7 +17,13 @@
   `--reprocess` rewrites outputs from cached renders without the GPU (changing `pick` or `post` needs no new render).
   The client build copies `assets/generated` into `apps/client/dist`, so rebuild after writing art.
 - Music and sound, the same way: `scripts/audio/generate.py` (ACE-Step 1.5 turbo in ComfyUI, ffmpeg with libopus on
-  PATH) renders into `assets/.audio-cache`; `--sheet` writes `listen.html` there to hear every candidate.
+  PATH) renders into `assets/.audio-cache`; `--only` takes ids, with a trailing `*` for a prefix (`'cue-*'`), and
+  `--sheet` writes `listen.html` there to hear every candidate. A 150-second piece takes 8 to 11 minutes.
+- ComfyUI (both pipelines) answers on 127.0.0.1:8188. If it is down, start it detached, or it dies with the shell:
+
+  ```sh
+  cd ~/personal-project/ComfyUI && setsid nohup .venv/bin/python main.py --listen 127.0.0.1 --port 8188 >> .launcher/comfyui-server.log 2>&1 < /dev/null &
+  ```
 
 # Code conventions specific to this repo
 
@@ -32,7 +38,8 @@
     (`packages/core/src/shardrun/engine.ts`).
 
   The server orchestrates and builds views; the client renders them. Walking, fog of war, map layout, the battle
-  stage's timeline, and hiding predictions are client-side presentation (ADR-0008, ADR-0019, ADR-0021, ADR-0022).
+  stage's timeline, hiding predictions, and sound are client-side presentation (ADR-0008, ADR-0019, ADR-0021,
+  ADR-0022, ADR-0023).
   Hidden-test data and run seeds never leave the server (`apps/server/src/runs/views.ts`, `ShardrunService.view`).
 - Anything a player sees change must be data: numbers in `config/balance.yaml`, content in `content/packs/`. A new
   shard, relic effect, foe, or layer should not need engine code. If it does, add the primitive, not a one-off.
@@ -44,6 +51,8 @@
   (ADR-0017, ADR-0018).
 - Art is optional. `assetUrl` in `apps/client/src/assets/AssetRegistry.ts` only returns files listed in its catalog,
   so add a catalog entry in the same commit as the file, and always keep a fallback for when the art is missing.
+  Sound works the same way through `audioUrl` in `apps/client/src/audio/catalog.ts`: a missing file is silence, and
+  the music a screen asks for is a list with a theme standing in (`apps/client/src/audio/music.ts`).
 - React lint (the React Compiler rules) forbids setState in effects and reading refs during render. Adjust derived
   state while rendering, and read refs in handlers.
 - Leave `// LEARN:` comments where a decision or a language feature is non-obvious, and add an entry to

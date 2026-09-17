@@ -2,10 +2,11 @@
 
 **Nothing in this folder is required.** `PROMPT.md` section 14 planned ASCII/Unicode glyphs as the default
 `Renderer`, with a tileset later; in practice the tileset arrived first. Expedition maps are drawn by `TileMapRenderer`
-and the walkable world (ADR-0011) by `WorldRenderer`, both styled with the generated art in `generated/`. Sound is
-still unimplemented. Everywhere art is missing, content degrades to a fallback (a flat terrain color, a letter or glyph
-for a prop, person, or monster, the ASCII art on an enemy card) -- the point standing from `PROMPT.md`: the build must
-never fail because an asset is missing, and every use goes through an interface with a fallback.
+and the walkable world (ADR-0011) by `WorldRenderer`, both styled with the generated art in `generated/`. Music and
+game sounds (ADR-0023) play from `generated/audio/`. Everywhere art is missing, content degrades to a fallback (a flat
+terrain color, a letter or glyph for a prop, person, or monster, the ASCII art on an enemy card), and a missing sound is
+silence (a place without its own music plays a theme) -- the point standing from `PROMPT.md`: the build must never fail
+because an asset is missing, and every use goes through an interface with a fallback.
 
 Everything under `vendor/` and `fonts/` was downloaded by `scripts/fetch-assets.sh` (re-runnable; it skips what
 exists). Each pack keeps its original license file and a `SOURCE_URL.txt`. `assets/vendor/` is git-ignored and
@@ -63,7 +64,9 @@ the code editor and terminal, **Press Start 2P** only for the title. Always prov
 
 Audio is optional and never blocks anything. It is on by default with its own Sound menu (a volume and mute for
 music and for game sounds), since the player asked for a soundtrack (ADR-0023, which replaces an earlier "default off"
-note here).
+note here). Sixteen of these recordings, trimmed and leveled, are the game's sounds: the `recorded` entries in
+`scripts/audio/manifest.json` name each one's `source`, and the results are committed as `generated/audio/sfx-*.ogg`,
+so the game does not need the packs.
 
 ### AI-generated (ComfyUI)
 Wired into the client via `apps/client/src/assets/AssetRegistry.ts` (`assetUrl(category, id)` and

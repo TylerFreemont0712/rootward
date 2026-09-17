@@ -124,6 +124,7 @@ kind: wild                 # town | wild
 realm: foundry             # optional
 sight: 7                   # optional: tiles lit around the Maintainer; omit for a fully visible town
 ambience: embers           # none | embers | leaves
+music: music-foundry       # optional: a music id (generated/audio/<id>.ogg); the Bastion's theme plays without one
 arrival: "Molten glyphs drip from the ceiling."
 legend: { "#": rock, ".": ash, ",": basalt, "~": lava }   # tile character -> terrain id
 tiles: |
@@ -202,6 +203,10 @@ the new ids to the catalog in `apps/client/src/assets/AssetRegistry.ts`. People 
 `portraits/<portrait>`, monsters on markers use `creatures/<enemy id>`, props use `props/<id>`, and terrain uses four
 seamless variants `terrain/<id>-0..3`.
 
+Music works the same way (ADR-0023): add a `music` entry to `scripts/audio/manifest.json`, run
+`scripts/audio/generate.py`, add the id to `MUSIC` in `apps/client/src/audio/catalog.ts`, and name it in a zone's
+`music` (or a Shardrun layer's, below).
+
 ## Shardrun: shards, foes, and the run
 
 Shardrun (ADR-0012) is the roguelite mode. Its schemas are in `packages/content-schema/src/shardrun.ts`.
@@ -276,13 +281,19 @@ Effect kinds: `bolt-power {add}`, `damage-multiplier {factor}`, `weak-bonus {add
 
 ### The run
 
-`shardrun/run.yaml` has four parts (ADR-0013):
+`shardrun/run.yaml` has these parts (ADR-0013, ADR-0020):
 
 - `start`: spells (name, capacity, shards), spare shards, and relics.
+- `deck` (optional): the cards a deck run starts with and the blank spells they are played into (ADR-0020). A pack
+  without it offers only the spellbook playstyle.
+- `spell_slots` (optional): the names and capacity of the empty spells a forge can bind or a relic can grant, in order.
 - `difficulties`: each with `show_summaries`, `show_predictions`, and a `foe_hp` multiplier. The first is the default.
 - `layers`: each a generated map (`rows`, `columns`, `paths`, `fixed_rows` like `{ "0": fight, "-1": rest }`, room
-  `weights`, `elite_from_row`), a `backdrop` art id, a `foe_hp` multiplier, `encounters` for fights, elites, and the
-  boss, and an optional `boss_spell` granted for beating it.
+  `weights`, `elite_from_row`), a `foe_hp` multiplier, `encounters` for fights, elites, and the boss, and an optional
+  `boss_spell` granted for beating it. The rest is presentation, by id: the arena (`backdrop`, required, and
+  `boss_backdrop` for the guardian's room), what drifts in its air (`ambience` and `boss_ambience`: `dust`,
+  `spores`, or `embers`), and the music of its map (`music`), its fights (`battle_music`), and its guardian
+  (`boss_music`). A layer without its own music plays a theme instead (`apps/client/src/audio/music.ts`).
 - `rewards`: shard rarity odds per battle kind, and relic rarity odds for elites, treasure rooms, and bosses.
 
 Only one pack may define it. Validation checks every shard, foe, and relic it names.

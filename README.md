@@ -6,7 +6,7 @@ turns wins into mastery. An optional, hot-swappable AI layer (tutor, narrator, c
 designed but not built yet. Built by one person, for one person, to become a much better programmer, and playable in
 English or Japanese.
 
-**Status (2026-09-17):** Milestone 1 in progress (`docs/ROADMAP.md`). Three modes are playable from the main menu:
+**Status (2026-09-18):** Milestone 1 in progress (`docs/ROADMAP.md`). Three modes are playable from the main menu:
 
 - **The World**: walk the Bastion and the Foundry, talk to ten people, follow seven quests, and win fights that are
   real Python or JavaScript problems (17 challenges). Wins become mastery in your Chronicle.
@@ -17,7 +17,8 @@ English or Japanese.
 - **Shardrun (Experimental)**: the same climb played with a deck. Shards are cards, dealt into a hand each turn and
   played into blank spells.
 
-The Artificer is the playable class; six more are planned. The AI layer (M2) is not built, and nothing needs it.
+Every mode has music and game sounds, generated or recorded locally, with a Sound menu on every screen. The Artificer
+is the playable class; six more are planned. The AI layer (M2) is not built, and nothing needs it.
 
 ## Run it
 
@@ -33,7 +34,9 @@ pnpm dev        # open http://127.0.0.1:5173 (the API runs on 127.0.0.1:7331)
 ## Playing
 
 The title screen picks the language and a character (or makes one). The main menu then opens a mode, and the
-**Codex**, which lists every shard, relic, foe, and layer and where each is found.
+**Codex**, which lists every shard, relic, foe, and layer and where each is found. The 🔊 **Sound** button (on the
+title screen, the main menu, and every screen's top bar) sets the volume of the music and of the game sounds
+separately, or mutes either; sound starts after your first click or key press.
 
 - **The World.** Walk with the arrow keys, WASD, or `hjkl` (or click). Talk and use doors with E, Enter, or Space.
   The Guild Board is behind the Guild Hall's door. Stepping onto a fight marker starts an encounter: read the task,
@@ -75,6 +78,7 @@ install command again.
 | `pnpm content:locale ja` | How much of the content a locale translates, what is missing, and what has gone stale |
 | `pnpm test:e2e` | Build, start a server, and in headless Chromium create a character, take a quest, win a practice fight, and play a Shardrun turn in each playstyle |
 | `python scripts/art/generate.py` | The art pipeline: prompts in `scripts/art/manifest.json`, rendered by a local ComfyUI, post-processed into pixel art (usage at the top of the script) |
+| `python scripts/audio/generate.py` | The audio pipeline: music prompts in `scripts/audio/manifest.json` rendered by ACE-Step 1.5 in a local ComfyUI, and CC0 recordings for game sounds, trimmed, looped, leveled, and encoded (usage at the top of the script) |
 
 ## Where things are
 
@@ -83,13 +87,13 @@ install command again.
 | `PROMPT.md` | The original design and build spec (the ADRs record where the build has moved on) |
 | `AGENT.md`, `CLAUDE.md` | Working agreement and commands for AI sessions |
 | `POSSIBILITIES.md` | Design notes on compounding damage and big numbers in Shardrun |
-| `docs/` | `ARCHITECTURE.md`, `ROADMAP.md`, `decisions/` (ADR-0001 to ADR-0022), `LEARNING_LOG.md`, `PLAYTEST_NOTES.md`, `CONTENT_AUTHORING.md`, `RUNNERS.md`, `PLANNER.md` |
+| `docs/` | `ARCHITECTURE.md`, `ROADMAP.md`, `decisions/` (ADR-0001 to ADR-0023), `LEARNING_LOG.md`, `PLAYTEST_NOTES.md`, `CONTENT_AUTHORING.md`, `RUNNERS.md`, `PLANNER.md` |
 | `apps/client`, `apps/server` | The React UI and the local Fastify server |
 | `packages/` | `core` (pure, seeded rules for fights, the world, and Shardrun), `content-schema`, `content-tools`, `runners` (sandboxes), `shared` (API contract) |
 | `content/packs/core/` | Challenges, classes, the world (zones, NPCs, quests), Shardrun (shards, relics, foes, `run.yaml`), and `locales/ja` |
 | `config/` | Tunables (`balance.yaml`) and AI prompts for later |
-| `scripts/` | The launcher and the art pipeline (`scripts/art/`) |
-| `assets/` | Fonts, vendor packs, and generated art (`assets/README.md`); the game runs without any of it |
+| `scripts/` | The launcher, the art pipeline (`scripts/art/`), and the audio pipeline (`scripts/audio/`) |
+| `assets/` | Fonts, vendor packs, and generated art, music, and sounds (`assets/README.md`); the game runs without any of it |
 | `e2e/` | The browser smoke test |
 | `ideas/`, `mockups/` | Reference material and the clickable UI mock the client started from |
 

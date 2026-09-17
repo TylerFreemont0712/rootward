@@ -264,7 +264,7 @@ export const ShardrunLayer = z.strictObject({
   boss_ambience: ArenaAmbience.optional(),
   /**
    * Music ids (`audio/<id>`) for the layer's map and rooms, its fights, and its guardian's fight. Presentation only,
-   * played by the client, and silent when the file is missing (ADR-0023).
+   * played by the client, which plays a theme instead when one is missing or its file is (ADR-0023).
    */
   music: Id.optional(),
   battle_music: Id.optional(),

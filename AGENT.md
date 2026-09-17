@@ -36,9 +36,9 @@ and proceed.
   with quoted evidence, or deterministic checks. A Shardrun preview is a real run, and a cast must land exactly what
   its preview said.
 - **Data-driven.** Content, classes, enemies, items, realms, skills, shards, relics, foes, layers, zones, NPCs,
-  quests, prompts, AI routing, balance numbers, and art prompts live in `content/`, `config/`, and
-  `scripts/art/manifest.json`. Adding content never requires engine changes. If it does, that is a bug to fix in the
-  engine.
+  quests, prompts, AI routing, balance numbers, and art and music prompts live in `content/`, `config/`,
+  `scripts/art/manifest.json`, and `scripts/audio/manifest.json`. Adding content never requires engine changes. If
+  it does, that is a bug to fix in the engine.
 - **Deterministic core, optional AI.** `packages/core` is pure and seeded. The game must run with zero AI
   providers. AI degrades gracefully, never gates.
 - **Sandbox invariants.** Player and AI-generated code never run outside a runner. Hidden tests and run seeds never
@@ -55,7 +55,9 @@ and proceed.
   done.
 - **Assets are optional.** Art is generated locally (`scripts/art/`) and listed in the client's asset catalog, and
   every picture has a fallback. Pick art by how it reads in the game (foes composited in, at the size it is drawn),
-  not in isolation.
+  not in isolation. Music is generated the same way (`scripts/audio/`), and game sounds are CC0 recordings; a missing
+  sound is silence, and a place without its own music plays a theme. A session cannot hear audio, so measure it
+  (tempo, loop seams, levels, clipping) and leave the listening to the player.
 - **Docs are part of the work.** Update `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, and write an ADR
   (`docs/decisions/ADR-NNNN-title.md`) for any decision a future reader could reasonably question.
 - **Teaching mode.** Leave concise `// LEARN:` comments where a decision or language feature is non-obvious.
@@ -98,6 +100,10 @@ one-paragraph summary in the final message with what changed, how it was verifie
 - **Art**: an entry in `scripts/art/manifest.json` (a style plus a prompt; img2img layouts in `scripts/art/layouts.py`),
   rendered with `scripts/art/generate.py`, listed in `apps/client/src/assets/AssetRegistry.ts`, and described in
   `assets/README.md`.
+- **Music or a sound**: an entry in `scripts/audio/manifest.json` (a `music` or `cue` prompt, or a `recorded` sound with
+  a `source` under `assets/vendor/`), made with `scripts/audio/generate.py`, and listed in
+  `apps/client/src/audio/catalog.ts`. Music is named by a zone's `music` or a layer's `music`, `battle_music`, and
+  `boss_music`; a sound is played from `apps/client/src/audio/cues.ts` (ADR-0023).
 - **Runner**: implement the `Runner` interface in `packages/runners`, add a test adapter per
   `ideas/solutions/test-harness-per-language.md`, add the malicious-suite test, register it.
 - **AI role** (M2): prompt file in `config/prompts/`, zod schema, typed call in `packages/ai`, config entry, fake

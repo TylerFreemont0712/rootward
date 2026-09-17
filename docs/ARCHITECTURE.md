@@ -1,12 +1,12 @@
 # Architecture
 
-How Rootward is put together, as of M1 in progress (updated 2026-09-17). Decisions behind it live in
+How Rootward is put together, as of M1 in progress (updated 2026-09-18). Decisions behind it live in
 `docs/decisions/`: ADR-0001 stack, ADR-0002 content format, ADR-0003 JavaScript sandbox, ADR-0004 encounter rules,
 ADR-0005 Python sandbox, ADR-0006 persistence, ADR-0007 planner and map, ADR-0008 expedition run flow, ADR-0009 learner
 model, ADR-0010 characters, ADR-0011 the world as content; for Shardrun, ADR-0012 the mode, ADR-0013 layers, the code
 view and modes, ADR-0014 compounding damage, ADR-0015 complexity pricing, ADR-0016 big numbers, ADR-0019 the battle
-stage, ADR-0020 the deck playstyle, ADR-0021 the map as a place, ADR-0022 the damage that lands and one code view; and
-ADR-0017 and ADR-0018 localization. The original build spec is `PROMPT.md`.
+stage, ADR-0020 the deck playstyle, ADR-0021 the map as a place, ADR-0022 the damage that lands and one code view;
+ADR-0017 and ADR-0018 localization; and ADR-0023 sound and music. The original build spec is `PROMPT.md`.
 
 ## The big picture
 
@@ -35,7 +35,7 @@ ADR-0017 and ADR-0018 localization. The original build spec is `PROMPT.md`.
 | `packages/core` | pure engine: seeded RNG, run events, `decide`/`evolve` for fights and rooms, moves, rewards, planner, learner model, map layout and pathfinding (`./map` is browser-safe), world rules (conditions, quests, effects, dialogue, zone collision) | content-schema (types), zod | do I/O, read clocks, or call `Math.random` |
 | `packages/shared` | HTTP contract as zod schemas | zod | import Node modules (the browser loads it) |
 | `apps/server` | Fastify host: content at startup, planner catalog, run service, world service, sandbox, views | everything above | send hidden test data, the run seed, or keys to the client |
-| `apps/client` | React UI: title screen and main menu, the walkable world (canvas ground, sprites, dialogue, journal), Guild Board, three-pane encounter, and Shardrun (layer map, battle stage with its effects engine, code view, workbench, deck table, Codex) | shared, runners/static, core/map | run game rules (it renders server views; walking, fog, the camera, the stage's timeline, and hiding predictions are presentation) |
+| `apps/client` | React UI: title screen and main menu, the walkable world (canvas ground, sprites, dialogue, journal), Guild Board, three-pane encounter, and Shardrun (layer map, battle stage with its effects engine, code view, workbench, deck table, Codex), and sound (a Web Audio engine with music and effects buses) | shared, runners/static, core/map | run game rules (it renders server views; walking, fog, the camera, the stage's timeline, hiding predictions, and sound are presentation) |
 | `e2e` | browser smoke test | playwright-core | run in `pnpm test` |
 
 There is no build step for packages or the server: Node 26 runs the TypeScript sources directly (ADR-0001). Vite
@@ -271,8 +271,8 @@ items, cards, challenges, terrain, props, NPCs, quests, zones) plus diagnostics.
 has errors. `pnpm content:validate` adds reference checks, prerequisite-cycle detection, per-challenge rules, world
 checks (`packages/content-tools/src/validate/world.ts`: dialogue that leads somewhere, nothing placed on a blocked
 tile, every marker, portal, and person reachable from the zone's entry), and execution of every reference solution.
-See `docs/CONTENT_AUTHORING.md`. Optional generated art is described in `assets/README.md` and made with
-`scripts/art/generate.py`.
+See `docs/CONTENT_AUTHORING.md`. Optional generated art, music, and sounds are described in `assets/README.md` and
+made with `scripts/art/generate.py` and `scripts/audio/generate.py`.
 
 ## Invariants and where they are enforced
 

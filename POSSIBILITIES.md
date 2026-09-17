@@ -146,8 +146,9 @@ Big numbers are only fun against big requirements. Today foe HP is roughly linea
 - **Higher-order shards change the sandbox contract.** A shard receiving another shard means the generated program
   must pass functions between namespaces. Worth a spike before committing.
 - **Display.** Built: the code view runs the spell line by line, with the bolts, damage and block after every shard,
-  and each bolt's multiplier on its chip; the score pops as it changes. Still open: e-notation past 1e5, a digit-roll
-  on the damage number, and sound. The escalation should be *audible and visible* — that is the payoff.
+  and each bolt's multiplier on its chip; the score pops as it changes. Still open: e-notation past 1e5 and a
+  digit-roll on the damage number. Sound landed in ADR-0023, where a hit sounds heavier the harder it lands, but
+  nothing yet rises with the multiplier. The escalation should be *audible and visible* — that is the payoff.
 
 ## 7. Suggested order
 
