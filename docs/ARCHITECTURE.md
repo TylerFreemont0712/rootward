@@ -183,7 +183,8 @@ Music and game sounds (ADR-0023) live in `apps/client/src/audio/`, all presentat
   on the first click or key press, the browser's rule, and rests while the tab is hidden.
 - **Music follows the place.** `MusicDirector` reads the screen, the World zone's `music`, and the Shardrun layer's
   `music`, `battle_music` and `boss_music` (content, carried by the views like `backdrop`). `musicFor` (`music.ts`)
-  picks a track, falling back to themes for screens that are not places, and the engine crossfades to it. A track
+  answers with a list, best first: a place's own music, then a theme that suits it (screens that are not places have
+  only a theme). The engine crossfades to the first track in the list that has a file. A track
   plays its introduction once and then loops between the loop points in `generated/audio/music.json`, and a track
   left behind is picked up where it stopped when the player returns within four minutes.
 - **Game sounds answer what already happens.** `cues.ts` maps the battle stage's cues (ADR-0019) and accepted

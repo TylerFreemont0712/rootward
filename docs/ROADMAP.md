@@ -177,6 +177,11 @@ Task breakdown:
       - Zones and layers name their music in content.
       - Game sounds from CC0 recordings, driven by the battle stage's cues and the player's choices, plus a victory
         fanfare, a lament, and a treasure flourish.
+      - Made so far: seven pieces and all sixteen game sounds, stopped there for a playable version. **Next:** render
+        the Kernel's piece, the guardian theme and the three cues (`generate.py --only
+        'music-kernel,music-guardian,cue-*'`); until then the Kernel plays the Salvage's theme and guardians the
+        battle theme, since a place's music is a list with themes standing in, and the cues are silent. Then a
+        listening pass by the player, re-seeding any take that does not suit.
       **Your Turn (easy):** give the Foundry's zone a different piece, or a layer its own battle theme, by editing
       `music` in its YAML and adding a manifest entry.
 - [x] **The damage that lands, one code view, predictions as an option** (ADR-0022, 2026-09-17, the player: two code

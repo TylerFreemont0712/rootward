@@ -349,7 +349,7 @@ def post_bgm(audio: np.ndarray, job: dict) -> tuple[np.ndarray, str, dict]:
     bar = round(beats * 60 / job["bpm"] * SAMPLE_RATE)
     threshold = post.get("threshold_db", -40)
     # The loop lives in the longest stretch of music: a dropout inside a loop would come round every time it repeats.
-    parts = sections(audio, post.get("silence_db", -55), post.get("min_gap", 1.0))
+    parts = sections(audio, post.get("silence_db", -55), post.get("min_gap", 3.0))
     if not parts:
         sys.exit(f"{job['id']}: the render is silent")
     body_start, body_end = max(parts, key=lambda part: part[1] - part[0])

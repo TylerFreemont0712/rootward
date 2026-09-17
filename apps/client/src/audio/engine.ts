@@ -63,7 +63,9 @@ class SoundEngine {
   private effectsBus: GainNode | undefined;
   private readonly buffers = new Map<string, Promise<AudioBuffer | undefined>>();
   private loops: Promise<Readonly<Record<string, Loop>>> | undefined;
-  private wanted: string | undefined;
+  /** The music asked for, best first, joined: the key that says whether a request changed anything. */
+  private wanted = "";
+  private wantedTracks: readonly string[] = [];
   private playing: Playing | undefined;
   private switches = 0;
   private readonly left = new Map<string, { offset: number; at: number }>();
@@ -104,10 +106,10 @@ class SoundEngine {
     }
     const context = this.context;
     if (context.state === "running") {
-      void this.switchTo(this.wanted);
+      void this.switchTo(this.wantedTracks);
       return;
     }
-    void context.resume().then(() => this.switchTo(this.wanted));
+    void context.resume().then(() => this.switchTo(this.wantedTracks));
   };
 
   apply(settings: SoundSettings): void {
@@ -118,11 +120,13 @@ class SoundEngine {
     this.effectsBus.gain.setTargetAtTime(channelGain(settings, "effects"), context.currentTime, 0.02);
   }
 
-  /** The music the screen wants; the same id again changes nothing. */
-  setMusic(id: string | undefined): void {
-    if (this.wanted === id) return;
-    this.wanted = id;
-    void this.switchTo(id);
+  /** The music the screen wants, best first: the first track with a file plays. The same list again changes nothing. */
+  setMusic(tracks: readonly string[]): void {
+    const key = tracks.join(" ");
+    if (this.wanted === key) return;
+    this.wanted = key;
+    this.wantedTracks = tracks;
+    void this.switchTo(tracks);
   }
 
   /** The id of the music playing, for tests and for anyone curious (also on `<html data-music>`). */
@@ -163,27 +167,41 @@ class SoundEngine {
     duck.gain.setTargetAtTime(1, now + seconds, 0.6);
   }
 
-  private async switchTo(id: string | undefined): Promise<void> {
+  private async switchTo(tracks: readonly string[]): Promise<void> {
     const context = this.context;
     const bus = this.musicBus;
     if (!context || !bus || context.state !== "running") return;
-    if (this.playing?.id === id) return;
     const token = ++this.switches;
+    // The first track that has a file; a place whose own music was never made falls back to the next.
+    let id: string | undefined;
+    let buffer: AudioBuffer | undefined;
+    for (const candidate of tracks) {
+      const url = audioUrl(candidate);
+      buffer = url === undefined ? undefined : await this.load(candidate, url);
+      if (token !== this.switches) return;
+      if (buffer) {
+        id = candidate;
+        break;
+      }
+    }
+    if (this.playing?.id === id && id !== undefined) return;
     if (this.playing) this.fadeOut(this.playing);
     this.playing = undefined;
     document.documentElement.dataset.music = "";
-    const url = id === undefined ? undefined : audioUrl(id);
-    if (id === undefined || url === undefined) return;
-    const [buffer, loops] = await Promise.all([this.load(id, url), this.loopPoints()]);
-    // Another scene may have asked for other music while this one loaded.
-    if (!buffer || token !== this.switches) return;
+    if (id === undefined || !buffer) return;
+    const loops = await this.loopPoints();
+    // Another scene may have asked for other music while the loop points loaded.
+    if (token !== this.switches) return;
     const loop = loops[id];
     const source = context.createBufferSource();
     source.buffer = buffer;
     source.loop = true;
-    if (loop && loop.loopEnd <= buffer.duration && loop.loopStart < loop.loopEnd) {
+    // LEARN: a loop's end is the file's end, written to a tenth of a millisecond, so it can land a few samples past the
+    // audio actually decoded. It is clamped to the buffer rather than refused: refusing it would loop the introduction too.
+    const loopEnd = loop ? Math.min(loop.loopEnd, buffer.duration) : 0;
+    if (loop && loop.loopStart < loopEnd) {
       source.loopStart = loop.loopStart;
-      source.loopEnd = loop.loopEnd;
+      source.loopEnd = loopEnd;
     }
     const fade = context.createGain();
     const now = context.currentTime;

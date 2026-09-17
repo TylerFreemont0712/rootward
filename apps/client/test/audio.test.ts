@@ -31,28 +31,29 @@ describe("the music a screen plays (ADR-0023)", () => {
   const run = (status: "map" | "battle" | "reward" | "won", battleKind?: "fight" | "elite" | "boss") => ({ status, battleKind, layer });
 
   it("gives the title, the menus and the Codex the main theme, and a fight in code music to think to", () => {
-    for (const screen of [undefined, "profiles", "menu", "codex"] as const) expect(musicFor({ screen, zoneMusic: undefined, shardrun: undefined })).toBe(TITLE_THEME);
-    for (const screen of ["encounter", "map", "debrief"] as const) expect(musicFor({ screen, zoneMusic: undefined, shardrun: undefined })).toBe(FOCUS_THEME);
+    for (const screen of [undefined, "profiles", "menu", "codex"] as const) expect(musicFor({ screen, zoneMusic: undefined, shardrun: undefined })).toEqual([TITLE_THEME]);
+    for (const screen of ["encounter", "map", "debrief"] as const) expect(musicFor({ screen, zoneMusic: undefined, shardrun: undefined })).toEqual([FOCUS_THEME]);
   });
 
-  it("plays the World zone's own music, and the town's when a zone names none", () => {
-    expect(musicFor({ screen: "world", zoneMusic: "music-foundry", shardrun: undefined })).toBe("music-foundry");
-    expect(musicFor({ screen: "world", zoneMusic: undefined, shardrun: undefined })).toBe(TOWN_THEME);
-    expect(musicFor({ screen: "board", zoneMusic: undefined, shardrun: undefined })).toBe(TOWN_THEME);
+  it("plays the World zone's own music, with the town's theme standing in", () => {
+    expect(musicFor({ screen: "world", zoneMusic: "music-foundry", shardrun: undefined })).toEqual(["music-foundry", TOWN_THEME]);
+    expect(musicFor({ screen: "world", zoneMusic: undefined, shardrun: undefined })).toEqual([TOWN_THEME]);
+    expect(musicFor({ screen: "board", zoneMusic: TOWN_THEME, shardrun: undefined })).toEqual([TOWN_THEME]);
   });
 
-  it("follows a Shardrun layer's music on its map, its fights, and its guardian, with themes when content names none", () => {
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("map") })).toBe("music-heap");
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("reward") })).toBe("music-heap");
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("battle", "elite") })).toBe("music-battle");
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("battle", "boss") })).toBe("music-guardian");
+  it("follows a Shardrun layer's music on its map, its fights, and its guardian, with themes standing in", () => {
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("map") })).toEqual(["music-heap", DESCENT_THEME]);
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("reward") })[0]).toBe("music-heap");
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("battle", "elite") })).toEqual([BATTLE_THEME]);
+    // A guardian's own music, then the guardian theme, then the battle theme if neither was made.
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("battle", "boss") })).toEqual([GUARDIAN_THEME, BATTLE_THEME]);
     // A fight's music plays on while its last blow does, even after the run has moved to its reward.
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("reward", "fight") })).toBe("music-battle");
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("reward", "fight") })[0]).toBe(BATTLE_THEME);
     const bare = { status: "battle" as const, battleKind: "boss" as const, layer: {} };
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: bare })).toBe(GUARDIAN_THEME);
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: { ...bare, battleKind: "fight" } })).toBe(BATTLE_THEME);
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("won") })).toBe(DESCENT_THEME);
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: undefined })).toBe(DESCENT_THEME);
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: bare })).toEqual([GUARDIAN_THEME, BATTLE_THEME]);
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: { ...bare, battleKind: "fight" } })).toEqual([BATTLE_THEME]);
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("won") })).toEqual([DESCENT_THEME]);
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: undefined })).toEqual([DESCENT_THEME]);
   });
 
   it("only has a URL for the music and sounds in the catalog", () => {

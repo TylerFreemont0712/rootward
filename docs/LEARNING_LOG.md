@@ -529,11 +529,19 @@ language feature took more than a minute to understand.
   pipeline puts the loop points on bar lines and blends the moments before the end into the audio before the start,
   so the jump is not heard (`post_bgm` in `scripts/audio/generate.py`).
 - **Tell a dropout from a quiet passage.** A generated piece can go silent for seconds mid-way, and a loop across that
-  gap would repeat the silence forever. The pipeline measures level in quarter-second windows: a second or more under
-  -55 dB is a dropout that splits the piece, while a soft passage (around -45 dB) is still music (`sections` in
-  `scripts/audio/generate.py`).
+  gap would repeat the silence forever. The pipeline measures level in quarter-second windows: three seconds or more
+  under -55 dB is a dropout that splits the piece, while a soft passage (around -45 dB) or a rest between phrases (a
+  second or two) is still music (`sections` in `scripts/audio/generate.py`).
 - **Two buses, one graph.** Music and game sounds are separate gain nodes that meet only at the destination, so a
   volume or a mute on one never touches the other, and the master is applied to both (`channelGain` in `settings.ts`).
+- **Ask for a list, not one answer.** `musicFor` returns the tracks that would suit a screen, best first, and the
+  engine plays the first that has a file. The rule stays pure and testable, knowledge of which files exist stays in the
+  engine, and content can name music before it is made (`musicFor` in `apps/client/src/audio/music.ts`, `switchTo` in
+  `engine.ts`).
+- **Clamp a rounded boundary, do not refuse it.** Loop points are stored to a tenth of a millisecond, so a loop that
+  ends at the file's end can land a couple of samples past the decoded buffer. Checking `loopEnd <= duration` and
+  ignoring the loop otherwise turned a rounding error into an audible bug; `Math.min(loopEnd, duration)` keeps the
+  intent (`switchTo` in `apps/client/src/audio/engine.ts`).
 - **A 200 is not always the file.** The server answers unknown paths with the app's page, so a missing `.ogg` arrives
   as `200 text/html`. The engine checks the content type before decoding.
 

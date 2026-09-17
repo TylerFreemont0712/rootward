@@ -16,13 +16,15 @@ export function MusicDirector() {
   const battleMusic = useShardrun((s) => s.run?.layer.battleMusic);
   const bossMusic = useShardrun((s) => s.run?.layer.bossMusic);
 
-  const track = musicFor({
+  const tracks = musicFor({
     screen: hasCharacter ? screen : undefined,
     zoneMusic,
     shardrun: status === undefined ? undefined : { status, battleKind, layer: { music: layerMusic, battleMusic, bossMusic } },
   });
+  // A list is a new object every render; its ids joined are what actually changes.
+  const key = tracks.join(" ");
   useEffect(() => {
-    sound.setMusic(track);
-  }, [track]);
+    sound.setMusic(key === "" ? [] : key.split(" "));
+  }, [key]);
   return null;
 }

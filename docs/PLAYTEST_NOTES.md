@@ -7,8 +7,19 @@ polish), and the follow-up (a ROADMAP item or the commit that fixed it).
 
 Checked in headless Chromium: no sound before a gesture; the main theme decoded and playing after the first click;
 volumes and mutes surviving a reload; the Sound menu on the title screen, the main menu, the top bar, and in Shardrun's
-Options. Measured the renders instead of listening, since this session cannot hear them: tempo held to the bpm asked
-for, where each piece starts and ends, and no clipped samples.
+Options. Then each place's music, from a production build: the title, the Salvage map, a fight, the Heap map, the
+Kernel map and a guardian (both on their stand-in themes), and back to the menu, with no console warnings. Measured the
+renders instead of listening, since this session cannot hear them: tempo held to the bpm asked for, where each piece
+starts and ends, no clipped samples, and each loop's wrap no bigger a jump than the samples around it.
+
+- **Two pieces and the cues not made yet.** The batch was stopped at the player's "let's wrap this up" with the
+  Kernel's piece, the guardian theme and the three cues unrendered, which left the Kernel and guardians silent.
+  Blocking for those places; a place's music is now a list with a theme standing in, so they play the Salvage's and the
+  battle theme. The cues are still silent (ROADMAP, Sound and music).
+- **Loop points a hair past the file.** A loop's end is the file's end rounded to a tenth of a millisecond, up to 2.4
+  samples past what the decoder returns, and the engine refused loop points past the buffer. Blocking for the two
+  pieces whose end rounded up (the main theme and the Foundry, decoded by ffmpeg): each would have replayed its
+  introduction on every loop. The end is now clamped to the buffer.
 
 - **ComfyUI stopped mid-render** after its terminal went away. It had been started in the foreground of a terminal.
   Blocking for long renders; restarted detached (`setsid nohup`), which also skips the browser tab the start script
@@ -17,8 +28,9 @@ for, where each piece starts and ends, and no clipped samples.
   silence, even when asked for a loop. Blocking for music; loops now come from each piece's body, on bar lines.
 - **A render with a ten-second dropout in the middle.** The main theme went silent for ten seconds at 1:50, then came
   back for two short sections, and its first loop spanned the silence. Blocking for that track; the pipeline now splits
-  a render wherever it drops out (a second or more under -55 dB, which leaves soft passages alone) and loops inside the
-  longest stretch of music.
+  a render wherever it drops out (three seconds or more under -55 dB) and loops inside the longest stretch of music. A
+  first threshold of one second cut the quiet study theme into five pieces at its rests between phrases, which are
+  music.
 - **A missing sound decoded as garbage.** The server answers a path it has no file for with the app's page, as a 200.
   Annoying (a console warning per file); the engine now decodes only audio responses.
 - **The first sample set was chiptune.** The player then asked for music "not too electronic or bubbly", and the

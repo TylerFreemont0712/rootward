@@ -180,14 +180,18 @@ in `apps/client/src/audio/catalog.ts`.
   - The files live in ComfyUI's models folder, about 10 GB: `diffusion_models/acestep_v1.5_turbo`,
     `vae/ace_1.5_vae`, `text_encoders/qwen_0.6b_ace15`, and `text_encoders/qwen_1.7b_ace15`, the language model
     that plans the piece first.
-  - On this laptop's 8 GB GPU, with llama.cpp holding 3.5 GB of it, an 8-second render takes about 35 seconds.
-- **The pipeline** mirrors the art one: `scripts/audio/manifest.json` holds prompts in styles (`bgm`, `cue`, `sfx`),
-  and raw renders are cached in `assets/.audio-cache` (git-ignored).
-  - Post-processing needs ffmpeg with libopus. A background track (`loop`) is cut to whole bars from its first beat,
-    with the audio just past the cut crossfaded into its start. A cue is trimmed from its first sound, faded out, and
-    kept short.
-  - Both get one fixed gain to a target loudness (never a riding one, which would break a loop's seam) and are encoded
-    as Opus in Ogg.
+  - On this laptop's 8 GB GPU, with llama.cpp holding 3.5 GB of it, an 8-second render takes about 35 seconds and a
+    150-second piece 8 to 11 minutes.
+- **The pipeline** mirrors the art one: `scripts/audio/manifest.json` holds prompts in styles (`music`, `cue`,
+  `recorded`), and raw renders are cached in `assets/.audio-cache` (git-ignored).
+  - Post-processing needs ffmpeg with libopus.
+  - A piece of music (`bgm`) is kept whole. Its loop points go on bar lines inside its longest stretch of music (a
+    dropout is three seconds or more under -55 dB) and are written to `generated/audio/music.json`, and the moments
+    before the loop's end are crossfaded with the audio before its start.
+  - A cue is trimmed from its first sound, faded out, and kept short. A short `loop` kind (whole bars from the first
+    beat) is there too, unused by the soundtrack.
+  - Everything gets one fixed gain to a target loudness (never a riding one, which would break a loop's seam) and is
+    encoded as Opus in Ogg.
   - `--sheet` writes `assets/.audio-cache/listen.html`, which plays every candidate in the browser, loops looped.
   - Picks are written to `generated/audio/`.
 - **What it is for:** music and musical cues (fanfares, laments, flourishes). It is a music model, so non-musical
@@ -197,6 +201,11 @@ in `apps/client/src/audio/catalog.ts`.
 - **The soundtrack:** orchestral and acoustic, one piece per place, 150 to 180 seconds each: the main theme, the
   Bastion (folk), the Foundry, a quiet study theme for fights in code, the Salvage, the Heap, the Kernel (organ and
   choir), battle, and guardian. Each plays its introduction once and loops a body of whole phrases.
+- **Made so far (2026-09-17):** seven pieces (all but the Kernel and guardian) and the sixteen game sounds. The Kernel's
+  piece, the guardian theme and the three cues (`cue-victory`, `cue-defeat`, `cue-treasure`) are still to render; until
+  then the Kernel plays the Salvage's theme, guardians the battle theme, and the cues are silent. To make them, with
+  ComfyUI running:
+  `~/personal-project/ComfyUI/.venv/bin/python scripts/audio/generate.py --only 'music-kernel,music-guardian,cue-*' --sheet`
 
 #### The first pass (expeditions and HUD)
 

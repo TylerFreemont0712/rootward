@@ -52,6 +52,9 @@ for a soundtrack.
     through the views like `backdrop` and `ambience`.
   - Screens that are not places have themes in `audio/music.ts`: the title, menus and Codex play the main theme, and
     a fight in code plays a quiet one to think to.
+  - What a screen asks for is a list, best first, and the engine plays the first track that has a file. A layer's own
+    music comes before the Salvage's theme, a zone's before the Bastion's, and a guardian's before the guardian theme,
+    then battle. A place whose piece was never made still gets music that suits it, instead of silence.
   - `MusicDirector` computes the track from the screen and hands it to the engine. Changing track crossfades over
     1.6 seconds.
   - A track left behind remembers where it was for four minutes, so returning from a fight picks the map's music up
@@ -83,11 +86,18 @@ for a soundtrack.
 
 ## Consequences
 
-- A soundtrack costs about 11 minutes of GPU time per 150-second piece on this laptop, because llama.cpp holds a third
+- A soundtrack costs 8 to 11 minutes of GPU time per 150-second piece on this laptop, because llama.cpp holds a third
   of its memory. The first set is one take each; a take that does not suit is a new seed in the manifest and one render.
+- **Made so far:** seven of the nine pieces (the main theme, the Bastion, the Foundry, the study theme, the Salvage, the
+  Heap, and battle) and all sixteen game sounds. The batch was stopped before the Kernel's piece, the guardian theme,
+  and the three cues, to reach a playable version first. Until they are rendered, the Kernel plays the Salvage's theme
+  and guardians the battle theme (the lists above), and a fight's end and a treasure room have no cue.
+  `scripts/audio/generate.py --only 'music-kernel,music-guardian,cue-*'` makes them.
 - The model writes whole pieces with endings, and sometimes drops out mid-piece (the first main theme went silent for
-  ten seconds). Loops come from the longest stretch of music between dropouts, so a piece that stops early or breaks
-  loops a shorter body.
+  ten seconds). Loops come from the longest stretch of music between dropouts (three seconds or more under -55 dB,
+  longer than a rest between phrases), so a piece that stops early or breaks loops a shorter body.
+- A loop's end is the file's end, written to a tenth of a millisecond, so it can fall a few samples past the audio
+  decoded. The engine clamps it to the buffer; refusing it would loop the introduction as well.
 - A missing file is a 200 with the app's page (the server's fallback for deep links), so the engine decodes only
   responses that are audio.
 - The catalog note "audio must be opt-in (default off)" is replaced by this decision.
