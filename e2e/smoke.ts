@@ -247,7 +247,9 @@ async function main(): Promise<void> {
     await page.locator(".shr-hand-card").first().locator(".shr-hold-pin").click();
     await page.locator(".shr-hold .shr-card-button").waitFor();
     if ((await hand.count()) !== 2) throw new Error(`two played and one held should leave 2 in hand, found ${await hand.count()}`);
-    await leftHand.getByRole("button", { name: "Cast" }).waitFor();
+    // The hold shows at once while the server is still answering it, and a cast key pressed meanwhile does nothing (the
+    // Cast button is disabled then too): wait until the spell can be cast.
+    await leftHand.getByRole("button", { name: "Cast" }).and(page.locator(":enabled")).waitFor();
     await page.keyboard.press("1");
     await leftHand.getByRole("button", { name: "Spent this turn" }).waitFor();
     await page.locator(".shr-pile", { hasText: "discard" }).getByText("2", { exact: true }).waitFor();
