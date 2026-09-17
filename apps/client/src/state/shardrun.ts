@@ -3,6 +3,7 @@ import type {
   ShardrunDevRequest,
   ShardrunDifficultyView,
   ShardrunLogView,
+  ShardrunPlaystyleView,
   ShardrunView,
   SpellRunView,
 } from "@rootward/shared";
@@ -29,6 +30,10 @@ const SCORE_FADE_MS = 400;
 
 export interface ShardrunStore {
   profileId: string | undefined;
+  /** Which of the character's runs this screen is about (ADR-0020): the menu card that opened it decides. */
+  playstyle: ShardrunPlaystyleView;
+  /** The playstyles the content offers. */
+  playstyles: ShardrunPlaystyleView[];
   run: ShardrunView | undefined;
   languages: string[];
   difficulties: ShardrunDifficultyView[];
@@ -49,7 +54,7 @@ export interface ShardrunStore {
    * The last cast, step by step. While `phase` is `code` it plays as code; after that its score stays on the stage
    * while the hits land, and it is cleared a moment after they have (see `settleAll`).
    */
-  replay: { beat: number; spellId: string; run: SpellRunView } | undefined;
+  replay: { beat: number; spellId: string; shards: string[]; run: SpellRunView } | undefined;
   /** The lingering score is on its way out. */
   replayFading: boolean;
   /** `code` while a cast plays as code; `log` once its hits may play. */
@@ -62,6 +67,8 @@ export interface ShardrunStore {
   /** Shake the stage on heavy hits (a per-browser option; prefers-reduced-motion turns it off regardless). */
   shake: boolean;
   difficulty: string;
+  /** Switch to the run of another playstyle; the screen loads it next. */
+  choosePlaystyle: (playstyle: ShardrunPlaystyleView) => void;
   load: (profileId: string) => Promise<void>;
   start: (language: string, sandbox?: boolean) => Promise<void>;
   command: (request: ShardrunCommandRequest) => Promise<void>;
@@ -116,11 +123,12 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
   };
 
   /** Fill in spell previews once the sandbox has run them, unless the run has moved on since. */
-  const loadPreviews = async (profileId: string, revision: number) => {
+  const loadPreviews = async (profileId: string, playstyle: ShardrunPlaystyleView, revision: number) => {
     try {
-      const previews = await api.shardrunPreviews(profileId);
+      const previews = await api.shardrunPreviews(profileId, playstyle);
       const current = get().run;
-      if (get().profileId !== profileId || current?.revision !== revision || previews.revision !== revision) return;
+      const moved = get().profileId !== profileId || get().playstyle !== playstyle;
+      if (moved || current?.revision !== revision || previews.revision !== revision) return;
       set({
         run: {
           ...current,
@@ -136,18 +144,20 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
     }
   };
 
-  const send = async (work: (profileId: string) => Promise<ShardrunView>, fresh = false) => {
-    const { profileId, busy, run: before } = get();
+  const send = async (work: (profileId: string, playstyle: ShardrunPlaystyleView) => Promise<ShardrunView>, fresh = false) => {
+    const { profileId, playstyle, busy, run: before } = get();
     if (profileId === undefined || busy) return;
     set({ busy: true, error: undefined });
     try {
-      const run = await work(profileId);
+      const run = await work(profileId, playstyle);
+      // The player went to the other playstyle's run while this one answered: it is not the run on screen any more.
+      if (get().playstyle !== playstyle || get().profileId !== profileId) return;
       window.clearTimeout(afterglowTimer);
       const beat = get().beat + 1;
       const history = [...(fresh ? [] : get().history), ...run.log].slice(-HISTORY);
       // Every cast is kept, so its score can stay on the stage while its hits land; only its code playing first
       // depends on the option.
-      const replay = run.replay ? { beat, spellId: run.replay.spellId, run: run.replay.run } : undefined;
+      const replay = run.replay ? { beat, spellId: run.replay.spellId, shards: run.replay.shards, run: run.replay.run } : undefined;
       const playsCode = replay !== undefined && get().codeSpeed !== "off";
       const phase = playsCode ? "code" : "log";
       const staged = playsCode ? before?.battle : undefined;
@@ -168,7 +178,7 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
       } else {
         set({ run, beat, history, replay, replayFading: false, phase, staged, pending, afterglow: undefined });
       }
-      if (run.battle && run.previews === "pending") void loadPreviews(profileId, run.revision);
+      if (run.battle && run.previews === "pending") void loadPreviews(profileId, playstyle, run.revision);
     } catch (error) {
       set({ error: describe(error) });
     } finally {
@@ -176,8 +186,23 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
     }
   };
 
+  /** Forget everything about the run on screen: another character's or another playstyle's is about to load. */
+  const cleared = (): Partial<ShardrunStore> => ({
+    run: undefined,
+    loaded: false,
+    afterglow: undefined,
+    replay: undefined,
+    replayFading: false,
+    phase: "log",
+    staged: undefined,
+    pending: NOTHING_PENDING,
+    history: [],
+  });
+
   return {
     profileId: undefined,
+    playstyle: "spellbook",
+    playstyles: ["spellbook"],
     run: undefined,
     languages: [],
     difficulties: [],
@@ -198,31 +223,47 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
     shake: readStorage(SHAKE_KEY) !== "off",
     difficulty: readStorage(DIFFICULTY_KEY) ?? "beginner",
 
+    choosePlaystyle: (playstyle) => {
+      if (get().playstyle === playstyle) return;
+      window.clearTimeout(afterglowTimer);
+      clearReplayTimers();
+      set({ ...cleared(), playstyle });
+    },
+
     load: async (profileId) => {
-      if (get().profileId !== profileId)
-        set({ profileId, run: undefined, loaded: false, afterglow: undefined, replay: undefined, replayFading: false, phase: "log", pending: NOTHING_PENDING });
+      const { playstyle } = get();
+      if (get().profileId !== profileId) {
+        window.clearTimeout(afterglowTimer);
+        clearReplayTimers();
+        set({ ...cleared(), profileId });
+      }
       try {
-        const { run, languages, difficulties, dev } = await api.shardrun(profileId);
-        if (get().profileId !== profileId) return;
+        const { run, languages, difficulties, dev, playstyles } = await api.shardrun(profileId, playstyle);
+        if (get().profileId !== profileId || get().playstyle !== playstyle) return;
         const known = difficulties.some((difficulty) => difficulty.id === get().difficulty);
         set({
           run: run ?? undefined,
           languages,
           difficulties,
           dev,
+          playstyles,
           loaded: true,
           ...(known ? {} : { difficulty: difficulties[0]?.id ?? "beginner" }),
         });
-        if (run?.battle && run.previews === "pending") void loadPreviews(profileId, run.revision);
+        if (run?.battle && run.previews === "pending") void loadPreviews(profileId, playstyle, run.revision);
       } catch (error) {
         set({ error: describe(error), loaded: true });
       }
     },
 
     start: (language, sandbox = false) =>
-      send(async (profileId) => (await api.startShardrun(profileId, { language, difficulty: get().difficulty, sandbox })).run, true),
-    command: (request) => send(async (profileId) => (await api.shardrunCommand(profileId, request)).run),
-    devCommand: (request) => send(async (profileId) => (await api.shardrunDev(profileId, request)).run),
+      send(
+        async (profileId, playstyle) =>
+          (await api.startShardrun(profileId, { language, difficulty: get().difficulty, sandbox, playstyle })).run,
+        true,
+      ),
+    command: (request) => send(async (profileId, playstyle) => (await api.shardrunCommand(profileId, playstyle, request)).run),
+    devCommand: (request) => send(async (profileId, playstyle) => (await api.shardrunDev(profileId, playstyle, request)).run),
 
     finishReplay: () => {
       if (get().phase === "log") return;

@@ -74,9 +74,13 @@ absent); `start` takes `playstyle` in its body. Views add `playstyle`, `deck`, t
 (`replay.shards`), since a deck run's spell is blank again by the time its cast plays as code. The status response
 lists the `playstyles` the content offers.
 
-**Client.** The main menu's **Shardrun (Experimental)** card replaces **Shardrun (DEV)** and opens the same screen for
-the deck run. In a fight, the hand sits under the stage and cards move into the blank spells by click or drag; between
-fights, a deck panel takes the workbench's place.
+**Client.** The main menu's **Shardrun (Experimental)** card replaces **Shardrun (DEV)**; each Shardrun card shows its
+own run and opens the Shardrun screen for its playstyle (the store's `playstyle`, passed on every call). In a fight the
+hand sits under the spells, between the draw and discard piles (`Hand.tsx`): a click plays a card into the targeted
+spell (the first with room, or the one picked with *play here*), a drag drops it into a slot, and a click on a played
+card takes it back. A cast spell says its cards are in the discard pile. Between fights `DeckPanel.tsx` lists the deck
+with counts and the code of the card looked at; the reward, rest and forge panels speak of cards, and the forge offers
+*Melt a card down*. The smoke test plays a deck turn in the browser.
 
 ## Consequences
 

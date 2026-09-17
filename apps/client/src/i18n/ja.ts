@@ -25,6 +25,10 @@ export const ja: Partial<Record<MessageKey, string>> = {
     "本物のコードの欠片を集め、繋いで呪文を組み立て、ターン制の戦いで機械の三つの層を登ります。短く、毎回あたらしい冒険です。",
   "menu.shardrun.running": "進行中：{layer}、整合性 {integrity}/{max}",
   "menu.shardrun.idle": "進行中の冒険はありません",
+  "menu.experimental.tag": "実験中",
+  "menu.experimental.name": "シャードラン（実験版）",
+  "menu.experimental.text":
+    "同じ塔を、カードで登ります。欠片は山札になり、毎ターン引いた手札から、実行する順にカードを並べて二つの呪文を組み立てます。",
   "menu.codex": "シャードラン図鑑：すべての欠片・遺物・敵",
 
   "title.tagline": "ビットロットが機械を蝕んでいます。本物のコードで直しましょう。",

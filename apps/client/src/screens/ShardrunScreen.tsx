@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { assetUrl } from "../assets/AssetRegistry.ts";
 import { useT } from "../i18n/index.ts";
 import { Arena } from "../shardrun/Arena.tsx";
+import { DeckPanel } from "../shardrun/DeckPanel.tsx";
 import { DevDrawer } from "../shardrun/DevDrawer.tsx";
 import { SPEED_CHOICES } from "../shardrun/CodeView.tsx";
 import { LayerMap } from "../shardrun/LayerMap.tsx";
@@ -49,8 +50,8 @@ export function ShardrunScreen() {
         <RunHeader run={run} />
         <Arena run={run} battle={run.battle} frozen={false} />
         <details className="shr-book">
-          <summary>Spellbook and shard code</summary>
-          <Workbench run={run} locked />
+          <summary>{run.playstyle === "deck" ? "Deck and card code" : "Spellbook and shard code"}</summary>
+          {run.playstyle === "deck" ? <DeckPanel run={run} /> : <Workbench run={run} locked />}
         </details>
       </>
     );
@@ -65,7 +66,7 @@ export function ShardrunScreen() {
             {run.status === "forge" && <ForgePanel run={run} />}
             <LayerMap run={run} />
           </div>
-          <Workbench key={run.id} run={run} locked={false} />
+          {run.playstyle === "deck" ? <DeckPanel key={run.id} run={run} /> : <Workbench key={run.id} run={run} locked={false} />}
         </div>
       </>
     );
@@ -112,7 +113,7 @@ function RunHeader({ run }: { run: ShardrunView }) {
         </b>
       </div>
       <span className="meta">
-        {run.sandbox && <b className="shr-dev-tag">DEV</b>} {run.layer.name} ({run.layer.index + 1}/{run.layer.count}) · {run.difficulty.name} ·{" "}
+        {run.sandbox && <b className="shr-dev-tag">DEV</b>} {run.playstyle === "deck" && <b className="shr-exp-tag">EXPERIMENTAL</b>} {run.layer.name} ({run.layer.index + 1}/{run.layer.count}) · {run.difficulty.name} ·{" "}
         {run.language}
       </span>
       <RelicBar relics={run.relics} info={run.relicInfo} />
@@ -248,6 +249,8 @@ function StartPanel({ run }: { run: ShardrunView | undefined }) {
   const difficulty = useShardrun((s) => s.difficulty);
   const setDifficulty = useShardrun((s) => s.setDifficulty);
   const dev = useShardrun((s) => s.dev);
+  const deck = useShardrun((s) => s.playstyle === "deck");
+  const rules = run?.rules;
   const showMenu = useGame((s) => s.showMenu);
   const showCodex = useGame((s) => s.showCodex);
   const emblem = assetUrl("brand", "shardrun");
@@ -255,9 +258,12 @@ function StartPanel({ run }: { run: ShardrunView | undefined }) {
     <section className="shr-start">
       {emblem !== undefined && <img className="shr-emblem" src={emblem} alt="" />}
       <h1 className="shr-title">SHARDRUN</h1>
+      {deck && <p className="shr-experimental">Experimental · shards as cards</p>}
       <p className="narr">
-        Under the Bastion lies the Salvage: old programs, broken into shards. Every shard is a real function. Chain them into spells,
-        climb through three layers of the Machine, and find out what your code can do.
+        Under the Bastion lies the Salvage: old programs, broken into shards. Every shard is a real function.{" "}
+        {deck
+          ? "Carry them as a deck, build your spells from the hand you draw each turn, climb through three layers of the Machine, and find out what your code can do."
+          : "Chain them into spells, climb through three layers of the Machine, and find out what your code can do."}
       </p>
       {run && <EndSummary run={run} />}
 
@@ -315,6 +321,26 @@ function StartPanel({ run }: { run: ShardrunView | undefined }) {
           Main menu
         </button>
       </div>
+      {deck && (
+        <ul className="shr-howto">
+          <li>
+            <b>Your shards are cards.</b> A run starts with a small deck; every fight shuffles it, and every turn deals you a hand of{" "}
+            {rules?.deck.handSize ?? 5}.
+          </li>
+          <li>
+            <b>You carry two blank spells.</b> Play cards into them in the order they should run: Fork then Amplify is not Amplify then
+            Fork. A blank spell still casts one plain bolt.
+          </li>
+          <li>
+            <b>A cast spends its cards.</b> The end of a turn lets the rest go, and when the draw pile runs out the discard pile is
+            shuffled back in.
+          </li>
+          <li>
+            <b>Win cards, melt cards.</b> Fights add a card to the deck; a forge can melt one down, so the cards you want come up
+            together.
+          </li>
+        </ul>
+      )}
       <ul className="shr-howto">
         <li>
           <b>A shard is a function</b> that takes a list of bolts and the battle, and returns bolts.

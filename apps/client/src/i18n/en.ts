@@ -23,11 +23,10 @@ export const en = {
     "Find shards of real code, chain them into spells, and climb three layers of the Machine in turn-based fights. Short runs, new every time.",
   "menu.shardrun.running": "Run in progress: {layer}, Integrity {integrity}/{max}",
   "menu.shardrun.idle": "No run in progress",
-  "menu.dev.tag": "Sandbox",
-  "menu.dev.name": "Shardrun (DEV)",
-  "menu.dev.text":
-    "The same mode with the shelves open: grant any shard or relic, add a spell, set Integrity and mana, spawn any fight, and jump between layers. Start one with the Sandbox buttons.",
-  "menu.dev.status": "This server runs with ROOTWARD_DEV",
+  "menu.experimental.tag": "Experimental",
+  "menu.experimental.name": "Shardrun (Experimental)",
+  "menu.experimental.text":
+    "The same climb, played with cards. Your shards are a deck: every turn, draw a hand and build two spells from it, card by card, in the order they should run.",
   "menu.codex": "Shardrun Codex: every shard, relic, and foe",
 
   "title.tagline": "Bit Rot is eating the Machine. Mend it with real code.",

@@ -166,6 +166,16 @@ Task breakdown:
       for every fighter, and parallax on a shake (ADR-0019 amendment).
       Still open: sound (the cues are ready for it), battle strips and portraits for the planned classes, and a hand
       playtest of the pacing
+- [x] **Shardrun (Experimental), the deck playstyle** (ADR-0020, 2026-09-17, the player's idea: "the cards would be the
+      amplifications that you can add to the spell [...] a different game mode that uses the same exact tower
+      system"): shards are cards. A deck run deals a hand of 5 each turn and plays cards into two blank spells in the
+      order they should run; a cast spends its cards, the turn's end lets the rest go, the discard reshuffles when the
+      draw pile runs out, won cards join the deck, and a forge can melt one down. Same tower, foes, relics, sandbox and
+      stage. A character keeps one run in progress per playstyle (migration 0005); the main menu's **Shardrun
+      (Experimental)** card replaces **Shardrun (DEV)** (sandbox runs start from either card's start screen). The
+      spellbook playstyle is unchanged; the version before this is tagged `checkpoint-before-card-mode`.
+      Still open: deck relics (draw more, keep a card between turns, a card that draws another), keyboard shortcuts
+      for cards, a sorted view of the draw pile, card art, and a balance pass by play and by headless runs
 - [x] **Shardrun** (ADR-0012), a separate roguelite mode at the player's request (2026-09-15: "find pieces of code and
       plug and play them into powerful attacks and spells", turn-based, same art): 23 shards that are real Python and
       JavaScript functions, 6 foes with rule-bending traits, a seven-floor run with fights, elites, rests, forges, and a

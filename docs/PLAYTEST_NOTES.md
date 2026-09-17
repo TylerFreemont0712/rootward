@@ -3,6 +3,22 @@
 Friction found while playing, newest first. Each entry: date, commit, what happened, severity (blocker / annoying /
 polish), and the follow-up (a ROADMAP item or the commit that fixed it).
 
+## 2026-09-17 — Shardrun (Experimental), from screenshots of a deck run (ADR-0020)
+
+Checked by driving a sandbox deck run in headless Chromium through the menu, the map and deck panel, a fight (two cards
+played, a cast, a turn ended), a card reward, and a forge, and by the smoke test playing a deck turn. Not yet played by
+hand, and not balanced.
+
+- **A cast spell showed a blank spell's prediction** ("one plain bolt, 4 damage") right after its cards were spent.
+  Annoying; a cast spell in a deck run now says it was cast and that its cards are in the discard pile.
+- **The footer and the forge spoke spellbook** ("click a shard, then a slot"; "ready for the spare shards you are
+  carrying"). Polish; both read for the deck now.
+- **Two doors named Shardrun** made text lookups ambiguous in the smoke test and the screenshot script. Fixed with exact
+  names; worth remembering for any test that finds a door by its text.
+- **Open, for playing it**: whether 5 cards into two 3-slot spells with 4 mana is a real squeeze (in the screenshots a
+  turn could cast both spells), whether unplayed cards should be kept, and whether a deck keeps up with the tower's
+  foe HP.
+
 ## 2026-09-17 — the player's look at the arenas
 
 - **The Kiln Warden and the Root Daemon faced away from the Maintainer.** Annoying; both were painted turned to the

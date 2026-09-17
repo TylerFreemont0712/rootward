@@ -1,4 +1,4 @@
-import { LOCALES } from "@rootward/shared";
+import { LOCALES, makeTranslate } from "@rootward/shared";
 import { describe, expect, it } from "vitest";
 import { en } from "../src/i18n/en.ts";
 import { translate, useLocaleStore } from "../src/i18n/index.ts";
@@ -9,11 +9,14 @@ import { ja } from "../src/i18n/ja.ts";
 
 describe("message catalogs", () => {
   it("falls back to English one key at a time", () => {
-    expect(translate("ja", "menu.switch")).toBe(ja["menu.switch"]);
-    // A key Japanese does not translate yet still renders, in English, rather than blank.
-    const untranslated = (Object.keys(en) as (keyof typeof en)[]).find((key) => ja[key] === undefined);
-    expect(untranslated).toBeDefined();
-    if (untranslated) expect(translate("ja", untranslated)).toBe(en[untranslated]);
+    const switchJa = ja["menu.switch"];
+    expect(translate("ja", "menu.switch")).toBe(switchJa);
+    if (switchJa === undefined) throw new Error("menu.switch should be translated");
+    // A key a locale does not translate yet still renders, in English, rather than blank. The real catalogs can be
+    // complete at any moment, so the fallback is shown on a partial Japanese catalog built from them.
+    const partial = makeTranslate<keyof typeof en>({ en, ja: { "menu.switch": switchJa } }, en);
+    expect(partial("ja", "menu.switch")).toBe(switchJa);
+    expect(partial("ja", "menu.codex")).toBe(en["menu.codex"]);
   });
 
   it("fills placeholders by name, wherever a translation puts them", () => {

@@ -17,6 +17,7 @@ import {
   ShardrunCodexResponse,
   type ShardrunCommandRequest,
   type ShardrunDevRequest,
+  type ShardrunPlaystyleView,
   ShardrunPreviewsResponse,
   ShardrunResponse,
   ShardrunStatusResponse,
@@ -96,6 +97,7 @@ const profileUrl = (profileId: string, suffix = "") => `/api/profiles/${encodeUR
 const profileRunUrl = (profileId: string, runId: string, suffix = "") =>
   `${profileUrl(profileId)}/runs/${encodeURIComponent(runId)}${suffix}`;
 const worldUrl = (profileId: string, suffix = "") => `${profileUrl(profileId)}/world${suffix}`;
+const playstyleQuery = (playstyle: ShardrunPlaystyleView) => `?playstyle=${playstyle}`;
 const markerUrl = (profileId: string, markerId: string, suffix: string) =>
   worldUrl(profileId, `/markers/${encodeURIComponent(markerId)}${suffix}`);
 
@@ -130,15 +132,18 @@ export const api = {
   resolveMarker: (profileId: string, markerId: string, body: ResolveMarkerRequest) =>
     request("POST", markerUrl(profileId, markerId, "/resolve"), WorldResponse, body),
 
-  // Shardrun (ADR-0012): the roguelite mode.
-  shardrun: (profileId: string) => request("GET", profileUrl(profileId, "/shardrun"), ShardrunStatusResponse),
+  // Shardrun (ADR-0012): the roguelite mode. A character keeps one run in progress per playstyle (ADR-0020), so every
+  // call about a run says which.
+  shardrun: (profileId: string, playstyle: ShardrunPlaystyleView) =>
+    request("GET", profileUrl(profileId, `/shardrun${playstyleQuery(playstyle)}`), ShardrunStatusResponse),
   startShardrun: (profileId: string, body: StartShardrunRequest) =>
     request("POST", profileUrl(profileId, "/shardrun/start"), ShardrunResponse, body),
-  shardrunCommand: (profileId: string, body: ShardrunCommandRequest) =>
-    request("POST", profileUrl(profileId, "/shardrun/command"), ShardrunResponse, body),
-  shardrunDev: (profileId: string, body: ShardrunDevRequest) =>
-    request("POST", profileUrl(profileId, "/shardrun/dev"), ShardrunResponse, body),
-  shardrunPreviews: (profileId: string) => request("GET", profileUrl(profileId, "/shardrun/previews"), ShardrunPreviewsResponse),
+  shardrunCommand: (profileId: string, playstyle: ShardrunPlaystyleView, body: ShardrunCommandRequest) =>
+    request("POST", profileUrl(profileId, `/shardrun/command${playstyleQuery(playstyle)}`), ShardrunResponse, body),
+  shardrunDev: (profileId: string, playstyle: ShardrunPlaystyleView, body: ShardrunDevRequest) =>
+    request("POST", profileUrl(profileId, `/shardrun/dev${playstyleQuery(playstyle)}`), ShardrunResponse, body),
+  shardrunPreviews: (profileId: string, playstyle: ShardrunPlaystyleView) =>
+    request("GET", profileUrl(profileId, `/shardrun/previews${playstyleQuery(playstyle)}`), ShardrunPreviewsResponse),
   /** All Shardrun content, for the Codex; not scoped to a character. */
   shardrunCodex: (language: string) => request("GET", `/api/shardrun/codex?language=${encodeURIComponent(language)}`, ShardrunCodexResponse),
 };

@@ -110,12 +110,12 @@ async function main(): Promise<void> {
     // and `<html lang>` follows so the Japanese font stack and line breaking apply. Switch back before playing, since
     // every step below looks for English.
     await page.getByLabel("Language").selectOption("ja");
-    await page.locator(".menu-mode-name", { hasText: "シャードラン" }).waitFor();
+    await page.locator(".menu-mode-name", { hasText: /^シャードラン$/ }).waitFor();
     if ((await page.locator("html").getAttribute("lang")) !== "ja") throw new Error("the document language did not follow the picker");
     await page.screenshot({ path: path.join(resultsDir, "main-menu-ja.png") });
     await page.reload();
     // The preference survives a reload, and reaches `<html lang>` on load rather than only on change.
-    await page.locator(".menu-mode-name", { hasText: "シャードラン" }).waitFor();
+    await page.locator(".menu-mode-name", { hasText: /^シャードラン$/ }).waitFor();
     if ((await page.locator("html").getAttribute("lang")) !== "ja") throw new Error("the stored language did not reach the document on load");
     await page.getByLabel("言語").selectOption("en");
 
@@ -196,7 +196,8 @@ async function main(): Promise<void> {
     // header, the content overlay and the server's own message catalog, end to end in a real browser.
     await page.getByRole("button", { name: /Main menu/ }).click();
     await page.getByLabel("Language").selectOption("ja");
-    await page.locator(".menu-mode-name", { hasText: "シャードラン" }).click();
+    // Exactly the spellbook's door: Shardrun (Experimental) is a door of its own, and its name contains this one.
+    await page.locator(".menu-mode-name", { hasText: /^シャードラン$/ }).click();
     await page.getByText("防護").first().waitFor();
     await page.screenshot({ path: path.join(resultsDir, "shardrun-battle-ja.png") });
     // A spell's name is still English, on purpose: the code view turns it into a function name.
@@ -204,13 +205,41 @@ async function main(): Promise<void> {
     if (!code.includes("Bolt")) throw new Error(`a spell name should stay English, the first spell reads:\n${code}`);
     await page.getByRole("button", { name: /Main menu|メインメニュー/ }).click();
     await page.getByLabel("言語").selectOption("en");
-    await page.locator(".menu-mode-name", { hasText: "Shardrun" }).click();
+    await page.locator(".menu-mode-name", { hasText: /^Shardrun$/ }).click();
+    await page.getByRole("button", { name: "Abandon", exact: true }).click();
+    await page.getByRole("button", { name: "Abandon this run" }).click();
+    await page.getByRole("heading", { name: "You climbed back out" }).waitFor();
+
+    // Shardrun (Experimental), the deck playstyle (ADR-0020): its own door and its own run. Play two cards from the hand
+    // into the first blank spell (on Beginner no two first-layer cards can finish a first-layer foe), cast it, end the
+    // turn and draw a fresh hand, then abandon. The end screen has a Main menu button of its own beside the top bar's.
+    await page.getByRole("button", { name: "Main menu", exact: true }).click();
+    await page.locator(".menu-mode-name", { hasText: "Shardrun (Experimental)" }).click();
+    await page.getByRole("button", { name: "Descend in javascript" }).click();
+    await page.locator(".shr-map-node.state-open").first().click();
+    const hand = page.locator(".shr-hand-card");
+    const leftHand = page.locator(".shr-spell").first();
+    await hand.first().waitFor();
+    if ((await hand.count()) !== 5) throw new Error(`expected a hand of 5 cards, found ${await hand.count()}`);
+    await hand.first().click();
+    await leftHand.locator(".shr-flow-shard.card").first().waitFor();
+    await hand.first().click();
+    await leftHand.locator(".shr-flow-shard.card").nth(1).waitFor();
+    if ((await hand.count()) !== 3) throw new Error(`two cards played should leave 3 in hand, found ${await hand.count()}`);
+    await leftHand.getByRole("button", { name: "Cast" }).waitFor();
+    await page.keyboard.press("1");
+    await leftHand.getByRole("button", { name: "Spent this turn" }).waitFor();
+    await page.locator(".shr-pile", { hasText: "discard" }).getByText("2", { exact: true }).waitFor();
+    await page.screenshot({ path: path.join(resultsDir, "shardrun-experimental.png") });
+    await page.getByRole("button", { name: /End turn/ }).click();
+    await page.locator(".shr-self > .meta").getByText(/^Turn 2/).waitFor();
+    if ((await hand.count()) !== 5) throw new Error(`a new turn should deal 5 cards, found ${await hand.count()}`);
     await page.getByRole("button", { name: "Abandon", exact: true }).click();
     await page.getByRole("button", { name: "Abandon this run" }).click();
     await page.getByRole("heading", { name: "You climbed back out" }).waitFor();
 
     console.log(
-      `E2E passed: a character was created, arrived in the world and took a quest, won a practice fight, and played a Shardrun turn in the browser. Screenshots in ${path.relative(root, resultsDir)}`,
+      `E2E passed: a character was created, arrived in the world and took a quest, won a practice fight, and played a Shardrun turn in each playstyle in the browser. Screenshots in ${path.relative(root, resultsDir)}`,
     );
   } catch (error) {
     console.error(`--- server output ---\n${serverLog.join("")}`);

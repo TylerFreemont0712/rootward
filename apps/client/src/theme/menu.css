@@ -56,9 +56,10 @@
 .menu-extra { display: flex; justify-content: center; }
 .menu-extra .btn { background: rgb(18 14 10 / 86%); }
 
-.menu-mode.shardrun.dev:hover, .menu-mode.shardrun.dev:focus-visible { border-color: #6ddf9a; box-shadow: 0 0 28px rgb(109 223 154 / 30%); }
-.menu-mode.shardrun.dev .menu-mode-tag { background: #6ddf9a; }
-.menu-mode.shardrun.dev .menu-mode-name { color: #6ddf9a; text-shadow: 0 0 12px rgb(109 223 154 / 35%), 0 3px 0 #000; }
+/* Shardrun (Experimental), the deck playstyle (ADR-0020): the same door, in a color of its own. */
+.menu-mode.shardrun.experimental:hover, .menu-mode.shardrun.experimental:focus-visible { border-color: #6ddf9a; box-shadow: 0 0 28px rgb(109 223 154 / 30%); }
+.menu-mode.shardrun.experimental .menu-mode-tag { background: #6ddf9a; }
+.menu-mode.shardrun.experimental .menu-mode-name { color: #6ddf9a; text-shadow: 0 0 12px rgb(109 223 154 / 35%), 0 3px 0 #000; }
 
 /* The language control (ADR-0017): a plain select, so it inherits the CRT palette without needing its own widget. */
 .lang-picker { display: inline-flex; align-items: center; gap: 8px; }

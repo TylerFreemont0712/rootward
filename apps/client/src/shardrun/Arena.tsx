@@ -7,6 +7,7 @@ import { useGame } from "../state/store.ts";
 import { CodeView } from "./CodeView.tsx";
 import { shownIntegrity } from "./fx/pending.ts";
 import { planTimeline } from "./fx/timeline.ts";
+import { Hand, useComposer } from "./Hand.tsx";
 import { HeroPanel } from "./HeroPanel.tsx";
 import { SpellCard } from "./SpellCard.tsx";
 import { Stage } from "./Stage.tsx";
@@ -43,6 +44,9 @@ export function Arena({ run, battle: current, frozen }: { run: ShardrunView; bat
   // While a cast's code plays, the stage still shows the battle before it: the result arrives with the hits.
   const battle = playingCode && staged ? staged : current;
   const disabled = frozen || busy || playingCode;
+  // A deck run (ADR-0020) plays cards from a hand into its spells; the hand is always the live battle's.
+  const deck = run.playstyle === "deck";
+  const composer = useComposer(run, current, disabled);
   const closeExplore = useCallback(() => {
     setExploring(undefined);
   }, []);
@@ -80,7 +84,9 @@ export function Arena({ run, battle: current, frozen }: { run: ShardrunView; bat
   // The pose on screen: whatever a cue is holding, else channelling while the cast runs as code, else readying the
   // spell under the pointer.
   const pose: BattlePose = held.pose !== "idle" ? held.pose : playingCode ? "channel" : ready !== undefined && !disabled ? "windup" : "idle";
-  const castSpell = replay ? run.spells.find((spell) => spell.id === replay.spellId) : undefined;
+  // The cast's own shards: a deck run's spell is blank again by the time its cast plays as code.
+  const castFrom = replay ? run.spells.find((spell) => spell.id === replay.spellId) : undefined;
+  const castSpell = replay && castFrom ? { ...castFrom, shards: replay.shards } : undefined;
   const exploreSpell = exploring === undefined ? undefined : run.spells.find((spell) => spell.id === exploring);
   // The cast's code while it plays, then its lingering score; a spell opened to read replaces the score.
   const castView = replay !== undefined && castSpell !== undefined && (playingCode || exploreSpell === undefined) ? { replay, spell: castSpell } : undefined;
@@ -148,26 +154,30 @@ export function Arena({ run, battle: current, frozen }: { run: ShardrunView; bat
             {t("battle.endTurn")} <kbd>E</kbd>
           </button>
         </HeroPanel>
-        <div className="shr-spells">
-          {run.spells.map((spell, index) => (
-            <SpellCard
-              key={spell.id}
-              run={run}
-              spell={spell}
-              index={index}
-              disabled={disabled}
-              casting={(playingCode && replay.spellId === spell.id) || (held.spell === spell.id && (held.pose === "windup" || held.pose === "cast"))}
-              onCast={() => {
-                setExploring(undefined);
-                setReady(undefined);
-                void command({ type: "cast", spellId: spell.id });
-              }}
-              onExplore={() => {
-                setExploring((open) => (open === spell.id ? undefined : spell.id));
-              }}
-              onReady={setReady}
-            />
-          ))}
+        <div className={deck ? "shr-deck-side" : "shr-spells-side"}>
+          <div className="shr-spells">
+            {run.spells.map((spell, index) => (
+              <SpellCard
+                key={spell.id}
+                run={run}
+                spell={spell}
+                index={index}
+                disabled={disabled}
+                casting={(playingCode && replay.spellId === spell.id) || (held.spell === spell.id && (held.pose === "windup" || held.pose === "cast"))}
+                onCast={() => {
+                  setExploring(undefined);
+                  setReady(undefined);
+                  void command({ type: "cast", spellId: spell.id });
+                }}
+                onExplore={() => {
+                  setExploring((open) => (open === spell.id ? undefined : spell.id));
+                }}
+                onReady={setReady}
+                slots={deck ? composer.slotsFor(spell) : undefined}
+              />
+            ))}
+          </div>
+          {deck && <Hand run={run} battle={current} composer={composer} disabled={disabled} />}
         </div>
       </div>
     </div>

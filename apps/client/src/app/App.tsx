@@ -6,6 +6,7 @@ import { CodexScreen } from "../screens/CodexScreen.tsx";
 import { GuildBoard } from "../screens/GuildBoard.tsx";
 import { MainMenu } from "../screens/MainMenu.tsx";
 import { ShardrunScreen } from "../screens/ShardrunScreen.tsx";
+import { useShardrun } from "../state/shardrun.ts";
 import { TitleScreen } from "../screens/TitleScreen.tsx";
 import { WorldScreen } from "../screens/WorldScreen.tsx";
 import { useGame } from "../state/store.ts";
@@ -24,6 +25,7 @@ export function App() {
   const showBoard = useGame((s) => s.showBoard);
   const showMenu = useGame((s) => s.showMenu);
   const showCodex = useGame((s) => s.showCodex);
+  const deckRun = useShardrun((s) => s.playstyle === "deck");
 
   useEffect(() => {
     void restoreProfile();
@@ -160,7 +162,9 @@ export function App() {
             <span>
               <kbd>1</kbd>-<kbd>3</kbd> cast · <kbd>E</kbd> end turn
             </span>
-            <span>click a shard, then a slot, to move it · or drag it</span>
+            <span>
+              {deckRun ? "click a card to play it · drag it to a slot · click a played card to take it back" : "click a shard, then a slot, to move it · or drag it"}
+            </span>
           </>
         ) : inCodex ? (
           <>

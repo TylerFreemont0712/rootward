@@ -96,7 +96,8 @@ thing that changes world state.
 ## Modes and the main menu
 
 Choosing a character opens the main menu (`apps/client/src/screens/MainMenu.tsx`), which has one door per mode: The
-World (towns, quests, and code-graded fights, with the Guild Board inside it) and Shardrun. Only the chosen mode's
+World (towns, quests, and code-graded fights, with the Guild Board inside it), Shardrun, and Shardrun (Experimental), the
+same climb in the deck playstyle (ADR-0020). Only the chosen mode's
 screens and bars are shown. Classes are content with a `status`: only `playable` ones can be chosen at creation
 (`POST /api/profiles` checks it), and `planned` ones are shown with their subjects (ADR-0013).
 
@@ -106,7 +107,8 @@ The roguelite mode (ADR-0012, ADR-0013). Content is `shardrun/shards/`, `shardru
 every rule number is under `shardrun` in `config/balance.yaml`. Routes are under `/api/profiles/:profileId/shardrun`;
 `ShardrunService` (`apps/server/src/shardrun/service.ts`) is the only thing that changes a run.
 
-1. **Starting.** `POST .../shardrun/start` takes a language and a difficulty, refuses while another run is active, then
+1. **Starting.** `POST .../shardrun/start` takes a language, a difficulty and a playstyle, refuses while another run of
+   that playstyle is active (a character keeps one of each; every route takes `?playstyle=`, migration 0005), then
    saves a new snapshot from `startShardrun` in `shardrun_runs` (migration 0004). A run climbs layers; each layer's map
    is generated from the seed by `generateLayerMap` (`packages/core/src/shardrun/map.ts`), and rooms are entered only
    along its edges (`nextRooms`).
@@ -122,6 +124,11 @@ every rule number is under `shardrun` in `config/balance.yaml`. Routes are under
    from the `spell_slots` name pool (`bindableSpell` decides what is offered), and a `spell-slot` relic binds one when
    claimed; `max_spells` caps the book. Adding a shard needs no engine change: any `draftable` shard joins the reward
    pool by rarity.
+3c. **The deck playstyle** (ADR-0020). A `deck` run carries its shards as cards (`state.deck`) and blank spells. A fight
+   shuffles the deck into `battle.draw` and deals `battle.hand`; `compose` moves cards between the hand and the spells
+   (a multiset check keeps every card in exactly one place), a cast moves its spell's cards to `battle.discard`, and
+   ending a turn discards the rest and draws again, reshuffling the discard when the pile runs out. Won cards join the
+   deck, and a forge can `purge` one. The client's table is `Hand.tsx` (the hand and `useComposer`) and `DeckPanel.tsx`.
 4. **Resolving.** A bolt deals `power x mult` (ADR-0014): the multiplier is the second axis a build grows on, and
    both numbers are clamped (`max_bolt_power`, `max_bolt_mult`) because a shard's output is player code. `mult`
    defaults to 1, so shards written before that ADR keep their meaning and flow it through unchanged.

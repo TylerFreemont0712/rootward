@@ -450,4 +450,16 @@ language feature took more than a minute to understand.
   field as `null` still changes every hash, so adding pose guidance made 77 old renders look stale, and adding layout
   sketches made 175. `cached_hashes` in `scripts/art/generate.py` also accepts the hash an older key list gave, but
   only while the newer fields are unset: an old render is still the right render for an asset that never used them.
+- **Conservation as a multiset check.** "No command may create or destroy a card" is one comparison: count every card
+  in the hand and the spells before and after a proposed move (`sameMultiset` in `packages/core/src/shardrun/engine.ts`).
+  The client can propose any arrangement at all, and the rules only need to check that it is a rearrangement.
+- **A draw pile is a queue, a discard pile a stack.** Cards leave the draw pile from the front and land on the discard;
+  when the pile runs out, the discard is shuffled into a new queue. The shuffle's random stream is named after the
+  command's revision and the card being drawn, so a state always deals the same hand (`draw` in the engine).
+- **A new column with a default files the old rows.** `ALTER TABLE ... ADD COLUMN playstyle TEXT NOT NULL DEFAULT
+  'spellbook'` (migration 0005) made every saved Shardrun run a spellbook run in one statement, and the service's lookup
+  became "the run in progress of this playstyle" with one more `WHERE` clause.
+- **Do not test a mechanism through a gap in the data.** The locale test proved English fallback with whichever key
+  Japanese happened not to translate; translating the last one broke it. It now builds a deliberately partial catalog
+  with `makeTranslate` (`apps/client/test/i18n.test.ts`).
 

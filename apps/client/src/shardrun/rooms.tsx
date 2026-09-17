@@ -1,7 +1,7 @@
 import type { ShardrunView } from "@rootward/shared";
 import { assetUrl } from "../assets/AssetRegistry.ts";
 import { useShardrun } from "../state/shardrun.ts";
-import { RelicCard, ShardCard } from "./parts.tsx";
+import { RelicCard, ShardCard, ShardIcon } from "./parts.tsx";
 
 // The rooms that are not battles: rewards (shards, relics, a new spell), rests, and forges.
 
@@ -62,8 +62,12 @@ export function RewardPanel({ run }: { run: ShardrunView }) {
 
       {reward.shards && (
         <div className="shr-reward-part">
-          <h3>Take one shard</h3>
-          <p className="meta">It joins your spare shards; slot it into a spell before the next fight.</p>
+          <h3>{run.playstyle === "deck" ? "Add one card to your deck" : "Take one shard"}</h3>
+          <p className="meta">
+            {run.playstyle === "deck"
+              ? "It is shuffled in from the next fight on. A thinner deck draws its best cards together, so skipping is a real choice."
+              : "It joins your spare shards; slot it into a spell before the next fight."}
+          </p>
           <div className="shr-cards">
             {reward.shards.map((shardId) => {
               const shard = run.shards[shardId];
@@ -78,7 +82,7 @@ export function RewardPanel({ run }: { run: ShardrunView }) {
                       void command({ type: "take", shardId });
                     }}
                   >
-                    Take {shard.name}
+                    {run.playstyle === "deck" ? "Add" : "Take"} {shard.name}
                   </button>
                 </ShardCard>
               );
@@ -92,7 +96,7 @@ export function RewardPanel({ run }: { run: ShardrunView }) {
               void command({ type: "take", shardId: null });
             }}
           >
-            Skip the shards
+            {run.playstyle === "deck" ? "Skip the cards" : "Skip the shards"}
           </button>
         </div>
       )}
@@ -126,8 +130,8 @@ export function RestPanel({ run }: { run: ShardrunView }) {
           A quiet alcove
         </h2>
         <p className="narr">
-          The hum of the Machine is almost soothing. Rest to recover {heal} Integrity. Rearrange your spells first if you like; resting
-          moves you on.
+          The hum of the Machine is almost soothing. Rest to recover {heal} Integrity.{" "}
+          {run.playstyle === "deck" ? "Resting moves you on." : "Rearrange your spells first if you like; resting moves you on."}
         </p>
         <button
           type="button"
@@ -148,20 +152,58 @@ export function ForgePanel({ run }: { run: ShardrunView }) {
   const command = useShardrun((s) => s.command);
   const busy = useShardrun((s) => s.busy);
   const forge = run.forge ?? { shards: [], spells: [] };
+  const deck = run.playstyle === "deck";
   return (
     <section className="shr-room" aria-labelledby="shr-forge-title">
       <h2 id="shr-forge-title" className="crt-title">
         An abandoned forge
       </h2>
       <p className="narr">
-        Do one thing here: rework a shard (upgrade it, or repair a broken one), widen a spell by one slot, or bind a new spell to your book.
+        {deck
+          ? "Do one thing here: melt a card down to thin your deck, upgrade a card, widen a spell by one slot, or bind a new blank spell."
+          : "Do one thing here: rework a shard (upgrade it, or repair a broken one), widen a spell by one slot, or bind a new spell to your book."}
       </p>
+
+      {forge.purge && (
+        <div className="shr-reward-part">
+          <h3>Melt a card down</h3>
+          <p className="meta">
+            {forge.purge.length > 0
+              ? `One copy leaves the deck for good (${run.deck.length} cards now). The fewer the cards, the more often the ones you keep come up.`
+              : `Your deck is as small as it can be (${run.rules.deck.minCards} cards).`}
+          </p>
+          <div className="shr-deck-cards">
+            {forge.purge.map((shardId) => {
+              const shard = run.shards[shardId];
+              const copies = run.deck.filter((card) => card === shardId).length;
+              return (
+                <button
+                  key={shardId}
+                  type="button"
+                  className={`shr-chip rarity-${shard?.rarity ?? "common"}`}
+                  disabled={busy}
+                  title={shard?.summary}
+                  onClick={() => {
+                    void command({ type: "purge", shardId });
+                  }}
+                >
+                  <ShardIcon shardId={shardId} size={24} />
+                  <span>Melt {shard?.name ?? shardId}</span>
+                  <b className="shr-deck-count">×{copies}</b>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {forge.bind && (
         <div className="shr-reward-part">
           <h3>Bind a new spell</h3>
           <p className="meta">
-            An empty spell with {forge.bind.capacity} slots, ready for the spare shards you are carrying.
+            {deck
+              ? `A blank spell with ${forge.bind.capacity} slots: one more spell to build from your hand every turn.`
+              : `An empty spell with ${forge.bind.capacity} slots, ready for the spare shards you are carrying.`}
           </p>
           <button
             type="button"
@@ -203,7 +245,7 @@ export function ForgePanel({ run }: { run: ShardrunView }) {
 
       {forge.shards.length > 0 && (
         <div className="shr-reward-part">
-          <h3>Rework a shard</h3>
+          <h3>{deck ? "Upgrade a card" : "Rework a shard"}</h3>
           <div className="shr-cards">
             {forge.shards.map((shardId) => {
               const shard = run.shards[shardId];

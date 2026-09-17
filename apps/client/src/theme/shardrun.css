@@ -600,3 +600,47 @@
 /* Overkill (ADR-0016): the score is what the volley was worth, with what the foes could absorb as a footnote. */
 .shr-score .shr-overkill { display: block; margin-top: 2px; font-style: normal; font-size: 10px; color: var(--muted); letter-spacing: 0.04em; }
 .shr-spell .dmg .over { font-style: normal; color: var(--muted); }
+
+/* ---- Shardrun (Experimental): the deck playstyle's hand, slots, and deck (ADR-0020) ---- */
+
+.shr-exp-tag { padding: 0 5px; font-size: 10px; letter-spacing: 0.12em; color: #08110b; background: #6ddf9a; }
+.shr-experimental { margin: -6px 0 0; font-family: var(--font-crt); font-size: 22px; letter-spacing: 3px; color: #6ddf9a; text-shadow: 0 0 10px rgb(109 223 154 / 35%); }
+
+.shr-deck-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+/* A card dropped anywhere on a spell's flow goes to its end; on a card, into that card's place. */
+.shr-spell.targeted { border-color: var(--shard-dim); box-shadow: inset 0 0 0 1px var(--shard-dim); }
+.shr-target {
+  padding: 1px 6px; border: 1px solid var(--line); background: transparent; color: var(--muted);
+  font: inherit; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
+}
+.shr-target.on { border-color: var(--shard); color: var(--shard); }
+.shr-flow-shard.card { font: inherit; color: inherit; cursor: pointer; }
+.shr-flow-shard.card:hover:not(:disabled), .shr-flow-shard.card:focus-visible { border-color: var(--amber); }
+.shr-slot-open { display: inline-block; min-width: 44px; padding: 1px 8px; border: 1px dashed var(--shard-dim); color: var(--faint); font-size: 11px; text-align: center; }
+
+.shr-hand {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px 10px;
+  padding: 8px 10px; border: 1px solid var(--line); background: rgb(26 20 16 / 96%);
+}
+.shr-hand-cards { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; min-height: 84px; }
+.shr-hand-card {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; width: 96px; padding: 8px 6px 6px;
+  border: 1px solid var(--line); background: var(--panel-3); color: var(--text); font: inherit; cursor: pointer;
+  transition: transform 0.12s ease-out, border-color 0.12s, box-shadow 0.12s;
+}
+.shr-hand-card:hover:not(:disabled), .shr-hand-card:focus-visible { transform: translateY(-4px); border-color: var(--amber); box-shadow: 0 6px 16px rgb(0 0 0 / 55%); }
+.shr-hand-card:disabled { opacity: 0.5; cursor: default; }
+.shr-hand-card.rarity-uncommon { border-color: var(--teal-dim); }
+.shr-hand-card.rarity-rare { border-color: var(--shard-dim); }
+.shr-hand-name { font-size: 12px; line-height: 1.15; text-align: center; }
+.shr-pile {
+  display: flex; flex-direction: column; align-items: center; min-width: 54px; padding: 6px 4px;
+  border: 1px dashed var(--line); color: var(--muted); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.shr-pile b { font-family: var(--font-crt); font-weight: 400; font-size: 28px; line-height: 1; letter-spacing: 0; color: var(--amber); }
+.shr-hand-hint { grid-column: 1 / -1; margin: 0; text-align: center; }
+
+.shr-deck-spells { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.shr-deck-cards { display: flex; flex-wrap: wrap; gap: 6px; }
+.shr-deck-count { font-family: var(--font-crt); font-weight: 400; font-size: 18px; line-height: 1; color: var(--amber); }
+@media (prefers-reduced-motion: reduce) { .shr-hand-card { transition: none; } .shr-hand-card:hover:not(:disabled) { transform: none; } }

@@ -1,5 +1,7 @@
 import "../theme/menu.css";
-import { useEffect } from "react";
+import type { ShardrunPlaystyleView, ShardrunView } from "@rootward/shared";
+import { useEffect, useState } from "react";
+import { api } from "../api/client.ts";
 import { assetUrl } from "../assets/AssetRegistry.ts";
 import { useT } from "../i18n/index.ts";
 import { LanguagePicker } from "../i18n/LanguagePicker.tsx";
@@ -10,9 +12,16 @@ import { whereabouts } from "./title.ts";
 
 const ENDED = new Set(["won", "lost", "abandoned"]);
 
+interface ShardrunDoors {
+  spellbook: ShardrunView | null;
+  deck: ShardrunView | null;
+  playstyles: ShardrunPlaystyleView[];
+}
+
 /**
  * The main menu for the chosen character: one door into each mode. The World is the classic game (a town, quests, and
- * fights that are programming problems); Shardrun is the roguelite. Only the mode you pick runs.
+ * fights that are programming problems); Shardrun is the roguelite, and Shardrun (Experimental) the same climb played
+ * with a deck of cards (ADR-0020). Only the mode you pick runs.
  */
 export function MainMenu() {
   const profile = useGame((s) => s.activeProfile);
@@ -23,17 +32,28 @@ export function MainMenu() {
   const showCodex = useGame((s) => s.showCodex);
   const switchProfile = useGame((s) => s.switchProfile);
   const loadProfiles = useGame((s) => s.loadProfiles);
-  const shardrun = useShardrun((s) => s.run);
-  const dev = useShardrun((s) => s.dev);
-  const loadShardrun = useShardrun((s) => s.load);
+  const choosePlaystyle = useShardrun((s) => s.choosePlaystyle);
   const profileId = profile?.id;
   const t = useT();
+  // Each Shardrun door shows its own run (a character keeps one of each), so the menu asks about both.
+  const [doors, setDoors] = useState<{ profileId: string; doors: ShardrunDoors } | undefined>();
 
   useEffect(() => {
     if (profileId === undefined) return;
     void loadProfiles();
-    void loadShardrun(profileId);
-  }, [profileId, loadProfiles, loadShardrun]);
+    let cancelled = false;
+    Promise.all([api.shardrun(profileId, "spellbook"), api.shardrun(profileId, "deck")])
+      .then(([spellbook, deck]) => {
+        if (!cancelled) setDoors({ profileId, doors: { spellbook: spellbook.run, deck: deck.run, playstyles: spellbook.playstyles } });
+      })
+      .catch((error: unknown) => {
+        // The doors still open without a status line; the Shardrun screen reports the error properly when entered.
+        console.warn("Shardrun status is unavailable", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId, loadProfiles]);
 
   if (!profile) return null;
   const summary = summaries[profile.id];
@@ -42,8 +62,17 @@ export function MainMenu() {
   const backdrop = assetUrl("backgrounds", "title");
   const worldArt = assetUrl("backgrounds", "title");
   const shardrunArt = assetUrl("backgrounds", "arena-salvage") ?? assetUrl("backgrounds", "salvage");
+  const experimentalArt = assetUrl("backgrounds", "arena-heap") ?? shardrunArt;
   const emblem = assetUrl("brand", "emblem");
-  const runInProgress = shardrun && !ENDED.has(shardrun.status) ? shardrun : undefined;
+  const known = doors?.profileId === profile.id ? doors.doors : undefined;
+  const status = (run: ShardrunView | null | undefined) =>
+    run && !ENDED.has(run.status)
+      ? t("menu.shardrun.running", { layer: run.layer.name, integrity: run.integrity, max: run.integrityMax })
+      : t("menu.shardrun.idle");
+  const open = (playstyle: ShardrunPlaystyleView) => {
+    choosePlaystyle(playstyle);
+    showShardrun();
+  };
 
   return (
     <div className="menu-screen">
@@ -81,28 +110,33 @@ export function MainMenu() {
             </span>
           </button>
 
-          <button type="button" className="menu-mode shardrun" onClick={showShardrun}>
+          <button
+            type="button"
+            className="menu-mode shardrun"
+            onClick={() => {
+              open("spellbook");
+            }}
+          >
             {shardrunArt && <span className="menu-mode-art" style={{ backgroundImage: `url("${shardrunArt}")` }} aria-hidden="true" />}
             <span className="menu-mode-tag">{t("menu.shardrun.tag")}</span>
             <span className="menu-mode-name">{t("menu.shardrun.name")}</span>
             <span className="menu-mode-text">{t("menu.shardrun.text")}</span>
-            <span className="menu-mode-status">
-              {runInProgress
-                ? t("menu.shardrun.running", {
-                    layer: runInProgress.layer.name,
-                    integrity: runInProgress.integrity,
-                    max: runInProgress.integrityMax,
-                  })
-                : t("menu.shardrun.idle")}
-            </span>
+            <span className="menu-mode-status">{status(known?.spellbook)}</span>
           </button>
-          {dev && (
-            <button type="button" className="menu-mode shardrun dev" onClick={showShardrun}>
-              {shardrunArt && <span className="menu-mode-art" style={{ backgroundImage: `url("${shardrunArt}")` }} aria-hidden="true" />}
-              <span className="menu-mode-tag">{t("menu.dev.tag")}</span>
-              <span className="menu-mode-name">{t("menu.dev.name")}</span>
-              <span className="menu-mode-text">{t("menu.dev.text")}</span>
-              <span className="menu-mode-status">{t("menu.dev.status")}</span>
+          {/* Shown until the server says otherwise: a pack without a deck playstyle hides it. */}
+          {(known?.playstyles.includes("deck") ?? true) && (
+            <button
+              type="button"
+              className="menu-mode shardrun experimental"
+              onClick={() => {
+                open("deck");
+              }}
+            >
+              {experimentalArt && <span className="menu-mode-art" style={{ backgroundImage: `url("${experimentalArt}")` }} aria-hidden="true" />}
+              <span className="menu-mode-tag">{t("menu.experimental.tag")}</span>
+              <span className="menu-mode-name">{t("menu.experimental.name")}</span>
+              <span className="menu-mode-text">{t("menu.experimental.text")}</span>
+              <span className="menu-mode-status">{status(known?.deck)}</span>
             </button>
           )}
         </div>
