@@ -474,4 +474,20 @@ language feature took more than a minute to understand.
 - **Optimistic UI without a second source of truth.** A card move is shown from a local copy of the table only while its
   command is in flight, and the copy is dropped when the command's promise settles; the server's view is always what
   remains (`useTable`).
+- **Scale a fixed-size scene to its panel.** The map is laid out in its own 840-pixel-wide coordinates and scaled with one
+  CSS transform, inside a sizer element that takes the scaled size (a transform does not change layout, so the sizer is
+  what the scroll container measures). Positions stay simple numbers, and pixel art is crisp at 1:1 (`LayerMap.tsx`).
+- **Darkness everywhere but a circle, in one element.** The lantern is a circle with a radial gradient and a huge
+  `box-shadow` spread in the shadow's color: the spread covers everything outside the circle, and moving the circle
+  with a `transform` transition moves the light (`.shr-map-lantern`).
+- **Walking along a curve without an animation loop.** The walk samples the tunnel's cubic Bézier (the Bernstein
+  weights u³, 3u²t, 3ut², t³) into keyframes and plays them with the Web Animations API (`element.animate`), while
+  React already renders the destination: when the animation ends, the rendered style takes over where it stopped. The
+  walk strip steps through its frames with `animation: ... steps(4)` on `background-position` (`LayerMap.tsx`,
+  `.shr-walker`). A CSS transition would have cut straight across the rock, and would also outrank the animation: in
+  the cascade, transitions sit above animations.
+- **Container query units for particles that cross a box.** A percentage in `translate` is a percentage of the element
+  itself, so a 2-pixel mote cannot be told to cross its container that way. With `container-type: size` on the overlay,
+  `cqh` is a hundredth of the overlay's own height, and `translate: 0 -106cqh` in the keyframes crosses the map's view
+  exactly, whatever the window's size (`.shr-map-air`).
 

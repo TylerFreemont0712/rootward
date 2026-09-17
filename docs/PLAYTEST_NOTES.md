@@ -3,6 +3,22 @@
 Friction found while playing, newest first. Each entry: date, commit, what happened, severity (blocker / annoying /
 polish), and the follow-up (a ROADMAP item or the commit that fixed it).
 
+## 2026-09-17 — the layer map as a place (ADR-0021)
+
+Checked with screenshots of a sandbox run's map on each layer: the start at the way in, a room's card, a walk caught
+mid-tunnel, the map after the first room, and the guardian's room at the top. Found on the way:
+
+- **Elites looked like fights** until hovered, since both show foes. Annoying; elites carry a red badge and rim.
+- **A room's card ran off the map** near its right edge, and "cleared" sat under the Maintainer's feet. Polish; the
+  card is kept inside, and the room the Maintainer stands in needs no label.
+- **The map's rooms reused the panels' class name** (`shr-room`), which would have turned the reward, rest and forge
+  panels into floating boxes. Caught before shipping; the map's rooms are `shr-chamber`.
+- **A picture of a place that climbs, in a run that descends.** The menu says "Descend" and a guardian's fall opens
+  "the way down", but the map climbs from the bottom. A chart of icons got away with it; a cross-section makes it
+  literal. A top-down version was built and looked right, then set back, because climbing was the player's own request
+  (ADR-0013). Left as a question for the player.
+- **The room's card stayed up while walking**, over the Maintainer. Polish; it goes away once they set off.
+
 ## 2026-09-17 — the deck table after the player's first look (ADR-0020 amendment)
 
 What the player asked for, all built: dragging cards, the code on screen while a spell is built, deck relics, holding

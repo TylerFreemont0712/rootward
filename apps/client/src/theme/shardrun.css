@@ -439,38 +439,172 @@
 .shr-reward-part > h3 { margin: 0; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
 .shr-new-spell b { color: var(--shard); font-weight: 500; }
 
-/* The layer map: bottom to top */
+/* The layer map, as the layer itself in cross-section (ADR-0021): chambers carved into rock, tunnels between them, the
+ * guardian's room at the top, and the Maintainer's lantern moving through the dark. */
 .shr-map-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .shr-map-scroll {
-  position: relative; height: min(66vh, 620px); overflow-y: auto; border: 1px solid var(--line-soft);
-  background: radial-gradient(ellipse at 50% 10%, rgb(180 140 255 / 10%), transparent 60%), linear-gradient(0deg, #0d0a08, #16110c);
+  position: relative; height: min(68vh, 660px); overflow: auto; border: 1px solid var(--line-soft); background: #070504;
+  scrollbar-color: #4a3828 #0b0806;
 }
-.shr-map-svg { display: block; width: 100%; }
-.shr-map-edge { stroke-width: 3; stroke-linecap: round; }
-.shr-map-edge.edge-idle { stroke: #4a3c2c; stroke-dasharray: 2 9; }
-.shr-map-edge.edge-taken { stroke: var(--teal); stroke-width: 4; opacity: 0.8; }
-.shr-map-edge.edge-open { stroke: var(--amber); stroke-dasharray: 8 7; animation: shr-march 0.9s linear infinite; }
-.shr-map-disc { fill: #1c1510; stroke: #5a4632; stroke-width: 2; }
-.shr-map-node image { image-rendering: pixelated; }
-.shr-map-node.kind-elite .shr-map-disc { stroke: var(--warn); }
-.shr-map-node.kind-boss .shr-map-disc { fill: #241018; stroke: var(--fail); stroke-width: 3; }
-.shr-map-node.kind-treasure .shr-map-disc { stroke: #c9a24a; }
-.shr-map-node.state-passed, .shr-map-node.state-ahead { opacity: 0.55; }
-.shr-map-node.state-passed { opacity: 0.25; }
-.shr-map-node.state-visited .shr-map-disc { stroke: var(--teal-dim); }
-.shr-map-node.state-open { cursor: pointer; }
-.shr-map-node.state-open .shr-map-disc { stroke: var(--amber); stroke-width: 3; }
-.shr-map-node.state-open:hover .shr-map-disc, .shr-map-node.state-open:focus-visible .shr-map-disc { fill: #33261a; }
-.shr-map-node:focus-visible { outline: none; }
-/* The ring pulses in brightness only: a ring that grew and shrank would keep the room's box moving, and pointers and tools
-   need a target that holds still. */
-.shr-map-pulse { fill: none; stroke: var(--amber); stroke-width: 3; animation: shr-pulse 1.6s ease-in-out infinite; }
-.shr-map-you { fill: none; stroke: var(--teal); stroke-width: 3; stroke-dasharray: 4 4; }
-.shr-map-check { fill: var(--teal); font-size: 16px; }
-.shr-map-glyph { fill: var(--amber-dim); font-family: var(--font-crt); font-size: 26px; text-anchor: middle; }
+.shr-map-sizer { position: relative; margin: 0 auto; }
+.shr-map-canvas {
+  position: absolute; left: 0; top: 0; transform-origin: 0 0; overflow: hidden;
+  background-color: #120d09; background-size: 192px 192px; image-rendering: pixelated;
+}
+.shr-map-canvas.no-art { background-image: radial-gradient(ellipse at 50% 10%, rgb(180 140 255 / 10%), transparent 60%), linear-gradient(0deg, #0d0a08, #16110c); }
+/* Deeper is darker: a wash over the rock that thickens toward the guardian. */
+.shr-map-canvas::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgb(4 3 2 / 55%), rgb(4 3 2 / 15%) 40%, rgb(4 3 2 / 30%));
+}
+.shr-map-scroll.layer-heap .shr-map-canvas { background-color: #0a0f10; }
+.shr-map-scroll.layer-kernel .shr-map-canvas { background-color: #07060a; }
+
+.shr-map-tunnels { position: absolute; left: 0; top: 0; z-index: 1; overflow: visible; }
+.shr-tunnel path { fill: none; stroke-linecap: round; }
+.shr-tunnel-rock { stroke: rgb(3 2 1 / 88%); stroke-width: 26; }
+.shr-tunnel-floor { stroke: #2e2319; stroke-width: 12; }
+.shr-map-scroll.layer-heap .shr-tunnel-floor { stroke: #1d2a2c; }
+.shr-map-scroll.layer-kernel .shr-tunnel-floor { stroke: #221c24; }
+.shr-tunnel-light { stroke-width: 3; }
+.tunnel-taken .shr-tunnel-light { stroke: #ffcf8a; opacity: 0.7; filter: drop-shadow(0 0 4px rgb(255 207 138 / 70%)); }
+.tunnel-open .shr-tunnel-light {
+  stroke: #ffe7b0; stroke-dasharray: 6 12; filter: drop-shadow(0 0 5px rgb(255 190 110 / 90%));
+  animation: shr-tunnel-flow 1.1s linear infinite;
+}
+.tunnel-open .shr-tunnel-floor { stroke: #4a3828; }
+@keyframes shr-tunnel-flow { to { stroke-dashoffset: -36; } }
+
+/* The lantern: warm near the Maintainer, the rest of the rock in shadow. Rooms sit above it, lit by their own light. */
+.shr-map-lantern {
+  position: absolute; left: 0; top: 0; z-index: 2; width: 760px; height: 760px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgb(255 196 120 / 16%) 0, rgb(255 196 120 / 5%) 22%, transparent 34%, rgb(3 2 1 / 58%) 70%);
+  box-shadow: 0 0 0 2400px rgb(3 2 1 / 58%);
+}
+
+.shr-map-entrance {
+  position: absolute; z-index: 3; width: 120px; height: 68px; display: grid; place-items: end center; padding-bottom: 4px;
+  border-radius: 60px 60px 6px 6px; background: radial-gradient(ellipse at 50% 100%, #000 45%, #120d09 75%);
+  box-shadow: 0 0 0 5px #2a2018, 0 0 0 8px #0b0806; color: var(--faint); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+}
+
+/* A room: its chamber, a light of its own, and what waits inside. */
+.shr-chamber, .shr-gate { position: absolute; z-index: 3; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: default; }
+.shr-chamber { width: 128px; height: 96px; transition: transform 0.15s ease-out, filter 0.2s; }
+.shr-chamber-art {
+  position: absolute; inset: 0; background-size: 100% 100%; image-rendering: pixelated;
+  border-radius: 46% 46% 10px 10px / 58% 58% 10px 10px;
+  background-color: #2a2018; background-image: radial-gradient(ellipse at 50% 38%, rgb(255 207 138 / 35%), transparent 62%);
+  box-shadow: 0 0 0 3px #1a130d, 0 0 0 5px rgb(0 0 0 / 70%), 0 6px 14px rgb(0 0 0 / 60%);
+}
+.shr-chamber-glow { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; }
+.shr-chamber-inside {
+  position: absolute; left: 0; right: 0; bottom: 14px; display: flex; justify-content: center; align-items: flex-end; gap: 2px;
+  pointer-events: none;
+}
+.shr-chamber-foe { height: 46px; width: auto; max-width: 58px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 2px 0 rgb(0 0 0 / 60%)); }
+.shr-chamber.kind-elite .shr-chamber-foe { height: 56px; max-width: 70px; }
+.shr-chamber-prop { width: 56px; height: 56px; image-rendering: pixelated; filter: drop-shadow(0 2px 0 rgb(0 0 0 / 60%)); }
+.shr-chamber-glyph { font-family: var(--font-crt); font-size: 30px; color: var(--amber-dim); }
+.shr-chamber-cleared {
+  position: absolute; left: 50%; bottom: 10px; translate: -50% 0; padding: 0 6px; font-size: 9px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--teal); background: rgb(0 0 0 / 55%); pointer-events: none;
+}
+.shr-chamber.kind-elite .shr-chamber-glow { background: radial-gradient(ellipse at 50% 75%, rgb(226 88 79 / 38%), transparent 65%); }
+.shr-chamber-badge {
+  position: absolute; left: 50%; top: -12px; translate: -50% 0; display: inline-flex; align-items: center; gap: 3px; padding: 0 6px 0 2px;
+  border: 1px solid #8a3a32; background: #1a0b0a; color: #ff8f7a; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+  pointer-events: none;
+}
+.shr-chamber-badge img { width: 18px; height: 18px; image-rendering: pixelated; }
+.shr-chamber.kind-elite .shr-chamber-art { box-shadow: 0 0 0 3px #5a1f1a, 0 0 0 5px rgb(0 0 0 / 70%), 0 6px 14px rgb(0 0 0 / 60%); }
+.shr-chamber.kind-treasure .shr-chamber-glow { background: radial-gradient(ellipse at 50% 78%, rgb(233 196 106 / 34%), transparent 60%); }
+.shr-chamber.kind-rest .shr-chamber-glow { background: radial-gradient(ellipse at 50% 80%, rgb(255 160 80 / 30%), transparent 60%); }
+.shr-chamber.kind-forge .shr-chamber-glow { background: radial-gradient(ellipse at 50% 80%, rgb(255 120 60 / 30%), transparent 60%); }
+
+/* States: what can be entered shines and lifts; what is further on is dim, its foes only shapes; roads not taken fade. */
+.shr-chamber.state-open { cursor: pointer; }
+.shr-chamber.state-open .shr-chamber-art { box-shadow: 0 0 0 3px #ffcf8a, 0 0 0 5px rgb(0 0 0 / 70%), 0 0 22px rgb(255 190 110 / 55%); animation: shr-chamber-beckon 1.8s ease-in-out infinite; }
+.shr-chamber.state-open:hover, .shr-chamber.state-open:focus-visible { transform: translateY(-4px) scale(1.05); outline: none; }
+.shr-chamber.state-ahead { filter: brightness(0.62) saturate(0.7); }
+.shr-chamber.state-passed { filter: brightness(0.35) grayscale(0.7); }
+.shr-chamber.state-visited { filter: brightness(0.82) saturate(0.8); }
+.shr-chamber.state-ahead .shr-chamber-foe, .shr-chamber.state-passed .shr-chamber-foe { filter: brightness(0) drop-shadow(0 0 1px rgb(255 230 200 / 35%)); }
+.shr-chamber.state-current .shr-chamber-art { box-shadow: 0 0 0 3px var(--teal-dim), 0 0 0 5px rgb(0 0 0 / 70%), 0 0 18px var(--teal-glow); }
+@keyframes shr-chamber-beckon {
+  0%, 100% { box-shadow: 0 0 0 3px #ffcf8a, 0 0 0 5px rgb(0 0 0 / 70%), 0 0 12px rgb(255 190 110 / 35%); }
+  50% { box-shadow: 0 0 0 3px #ffe7b0, 0 0 0 5px rgb(0 0 0 / 70%), 0 0 28px rgb(255 190 110 / 75%); }
+}
+
+/* The guardian's room at the top of the layer: its own painted arena, framed in an arch of rock. */
+.shr-gate-room {
+  position: absolute; inset: 0; background-color: #1a0f10; background-size: cover; background-position: center 62%; image-rendering: pixelated;
+  border-radius: 50% 50% 14px 14px / 34% 34% 14px 14px; filter: brightness(0.55) saturate(0.8);
+  box-shadow: inset 0 0 50px 22px rgb(0 0 0 / 85%), 0 0 0 7px #2a2018, 0 0 0 11px #0b0806, 0 10px 30px rgb(0 0 0 / 70%);
+}
+.shr-gate-guardian {
+  position: absolute; left: 50%; bottom: 8px; translate: -50% 0; height: 150px; width: auto; image-rendering: pixelated;
+  filter: brightness(0.35) drop-shadow(0 0 10px rgb(226 88 79 / 30%));
+}
+.shr-gate-plaque {
+  position: absolute; left: 50%; top: 10px; translate: -50% 0; display: flex; flex-direction: column; align-items: center;
+  padding: 3px 12px; background: rgb(8 5 4 / 82%); border: 1px solid #5a3a2a; white-space: nowrap;
+}
+.shr-gate-plaque b { font-family: var(--font-crt); font-weight: 400; font-size: 24px; line-height: 1; color: #ff8f7a; }
+.shr-gate-plaque span { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.shr-gate.state-open { cursor: pointer; }
+.shr-gate.state-open .shr-gate-room { filter: brightness(0.9); animation: shr-gate-beckon 2.2s ease-in-out infinite; }
+.shr-gate.state-open .shr-gate-guardian, .shr-gate.state-current .shr-gate-guardian { filter: brightness(1) drop-shadow(0 0 16px rgb(226 88 79 / 55%)); }
+.shr-gate.state-open:hover .shr-gate-room, .shr-gate.state-open:focus-visible .shr-gate-room { filter: brightness(1.05); }
+.shr-gate:focus-visible { outline: none; }
+@keyframes shr-gate-beckon {
+  0%, 100% { box-shadow: inset 0 0 50px 22px rgb(0 0 0 / 85%), 0 0 0 7px #5a3a2a, 0 0 0 11px #0b0806, 0 0 20px rgb(226 88 79 / 25%); }
+  50% { box-shadow: inset 0 0 50px 22px rgb(0 0 0 / 85%), 0 0 0 7px #8a4a3a, 0 0 0 11px #0b0806, 0 0 40px rgb(226 88 79 / 55%); }
+}
+
+/* The Maintainer and the lantern they carry. */
+.shr-walker { position: absolute; left: 0; top: 0; z-index: 5; width: 48px; height: 75px; pointer-events: none; }
+.shr-walker-light {
+  position: absolute; left: 50%; bottom: -10px; width: 84px; height: 26px; translate: -50% 0; border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(255 207 138 / 50%), transparent);
+}
+.shr-walker.no-art .shr-walker-light { bottom: 20px; width: 26px; height: 26px; background: radial-gradient(closest-side, #fff1d6, rgb(255 207 138 / 60%) 50%, transparent); }
+.shr-walker-sprite {
+  position: absolute; inset: 0; background-repeat: no-repeat; background-size: 240px 75px; background-position: 0 0;
+  image-rendering: pixelated; filter: drop-shadow(0 2px 0 rgb(0 0 0 / 65%));
+}
+.shr-walker.walking .shr-walker-sprite { animation: shr-walker-cycle 0.48s steps(4) infinite; }
+@keyframes shr-walker-cycle { from { background-position: -48px 0; } to { background-position: -240px 0; } }
+
+.shr-chamber-tip {
+  position: absolute; z-index: 8; width: 260px; translate: 0 -100%; display: flex; flex-direction: column; gap: 2px;
+  padding: 7px 10px; background: rgb(12 9 7 / 95%); border: 1px solid var(--amber-dim); box-shadow: 0 6px 20px rgb(0 0 0 / 70%);
+  pointer-events: none; font-size: 12px;
+}
+.shr-chamber-tip.below { translate: 0 0; }
+.shr-chamber-tip b { font-family: var(--font-crt); font-weight: 400; font-size: 20px; line-height: 1; color: var(--amber); }
+.shr-chamber-tip i { font-style: normal; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+/* The layer's air, over the view. LEARN: `container-type: size` makes the overlay a size container, so `cqh` in the
+ * keyframes is a hundredth of its own height: every particle crosses exactly the view, however tall the window is. */
+.shr-map-view { position: relative; }
+.shr-map-air { position: absolute; inset: 1px; z-index: 1; overflow: hidden; pointer-events: none; container-type: size; }
+.shr-map-air i { position: absolute; bottom: -6px; border-radius: 50%; animation-name: shr-air-rise; animation-timing-function: linear; animation-iteration-count: infinite; }
+.shr-map-air.air-dust i { width: 2px; height: 2px; background: rgb(240 222 196 / 70%); animation-name: shr-air-float; }
+.shr-map-air.air-spores i { width: 3px; height: 3px; background: #b8f5d2; box-shadow: 0 0 6px rgb(120 240 180 / 80%); animation-name: shr-air-sway; }
+.shr-map-air.air-embers i { width: 2px; height: 2px; background: #ffd27a; box-shadow: 0 0 5px #ff9a3a; }
+@keyframes shr-air-rise { 0% { translate: 0 0; opacity: 0; } 12% { opacity: 0.9; } 80% { opacity: 0.7; } 100% { translate: 36px -106cqh; opacity: 0; } }
+@keyframes shr-air-float { 0% { translate: 0 0; opacity: 0; } 20% { opacity: 0.55; } 50% { translate: -22px -30cqh; } 80% { opacity: 0.45; } 100% { translate: 10px -62cqh; opacity: 0; } }
+@keyframes shr-air-sway { 0% { translate: 0 0; opacity: 0; } 15% { opacity: 0.85; } 50% { translate: -20px -50cqh; } 85% { opacity: 0.6; } 100% { translate: 16px -100cqh; opacity: 0; } }
+
 .shr-map-legend { display: flex; flex-wrap: wrap; gap: 12px; list-style: none; margin: 8px 0 0; padding: 0; font-size: 11px; color: var(--muted); }
 .shr-map-legend li { display: inline-flex; align-items: center; gap: 4px; }
-.shr-map-legend img { width: 20px; height: 20px; image-rendering: pixelated; }
+.shr-map-legend img { width: 22px; height: 22px; image-rendering: pixelated; }
+@media (prefers-reduced-motion: reduce) {
+  .tunnel-open .shr-tunnel-light, .shr-chamber.state-open .shr-chamber-art, .shr-gate.state-open .shr-gate-room { animation: none; }
+  .shr-walker.walking .shr-walker-sprite { animation: none; }
+  .shr-map-air { display: none; }
+}
 
 /* The whole spell as code: centered over the stage, clear of the Maintainer. When a cast's code has run it folds away to
  * its score, which stays up while the hits land and then fades (ADR-0019). */

@@ -166,6 +166,13 @@ Task breakdown:
       for every fighter, and parallax on a shake (ADR-0019 amendment).
       Still open: sound (the cues are ready for it), battle strips and portraits for the planned classes, and a hand
       playtest of the pacing
+- [x] **The layer map as a place** (ADR-0021, 2026-09-17, the player: "a more authentic feeling", "a little more unique
+      concept for the map", "go all out"): a layer's map is the layer in cross-section. Rooms are chambers painted for
+      each layer, with their foes standing in them (silhouettes until near) or a painted campfire, anvil or chest;
+      tunnels are carved paths, lit where walked and flowing where they can be taken; the guardian waits at the top in its
+      own painted room; the Maintainer walks each tunnel with a lantern before the room opens; the layer's dust, spores
+      or embers drift over it; rooms explain themselves on hover. Shared by both playstyles. Open question for the
+      player: the map still climbs, while a run "descends" (ADR-0021, Consequences).
 - [x] **Shardrun (Experimental), the deck playstyle** (ADR-0020, 2026-09-17, the player's idea: "the cards would be the
       amplifications that you can add to the spell [...] a different game mode that uses the same exact tower
       system"): shards are cards. A deck run deals a hand of 5 each turn and plays cards into two blank spells in the
