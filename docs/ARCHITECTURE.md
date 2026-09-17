@@ -1,9 +1,12 @@
 # Architecture
 
-How Rootward is put together, as of M1 in progress. Decisions behind it live in `docs/decisions/` (ADR-0001 stack,
-ADR-0002 content format, ADR-0003 JavaScript sandbox, ADR-0004 encounter rules, ADR-0005 Python sandbox, ADR-0006
-persistence, ADR-0007 planner and map, ADR-0008 expedition run flow, ADR-0009 learner model, ADR-0010 characters,
-ADR-0011 the world as content). The build spec is `PROMPT.md`.
+How Rootward is put together, as of M1 in progress (updated 2026-09-17). Decisions behind it live in
+`docs/decisions/`: ADR-0001 stack, ADR-0002 content format, ADR-0003 JavaScript sandbox, ADR-0004 encounter rules,
+ADR-0005 Python sandbox, ADR-0006 persistence, ADR-0007 planner and map, ADR-0008 expedition run flow, ADR-0009 learner
+model, ADR-0010 characters, ADR-0011 the world as content; for Shardrun, ADR-0012 the mode, ADR-0013 layers, the code
+view and modes, ADR-0014 compounding damage, ADR-0015 complexity pricing, ADR-0016 big numbers, ADR-0019 the battle
+stage, ADR-0020 the deck playstyle, ADR-0021 the map as a place, ADR-0022 the damage that lands and one code view; and
+ADR-0017 and ADR-0018 localization. The original build spec is `PROMPT.md`.
 
 ## The big picture
 
@@ -32,7 +35,7 @@ ADR-0011 the world as content). The build spec is `PROMPT.md`.
 | `packages/core` | pure engine: seeded RNG, run events, `decide`/`evolve` for fights and rooms, moves, rewards, planner, learner model, map layout and pathfinding (`./map` is browser-safe), world rules (conditions, quests, effects, dialogue, zone collision) | content-schema (types), zod | do I/O, read clocks, or call `Math.random` |
 | `packages/shared` | HTTP contract as zod schemas | zod | import Node modules (the browser loads it) |
 | `apps/server` | Fastify host: content at startup, planner catalog, run service, world service, sandbox, views | everything above | send hidden test data, the run seed, or keys to the client |
-| `apps/client` | React UI: the walkable world (canvas ground, sprites, dialogue, journal), Guild Board, walkable expedition map, three-pane encounter | shared, runners/static, core/map | run game rules (it renders server views; walking, fog, and the camera are presentation) |
+| `apps/client` | React UI: title screen and main menu, the walkable world (canvas ground, sprites, dialogue, journal), Guild Board, three-pane encounter, and Shardrun (layer map, battle stage with its effects engine, code view, workbench, deck table, Codex) | shared, runners/static, core/map | run game rules (it renders server views; walking, fog, the camera, the stage's timeline, and hiding predictions are presentation) |
 | `e2e` | browser smoke test | playwright-core | run in `pnpm test` |
 
 There is no build step for packages or the server: Node 26 runs the TypeScript sources directly (ADR-0001). Vite
@@ -141,7 +144,11 @@ every rule number is under `shardrun` in `config/balance.yaml`. Routes are under
    difficulty decides what is sent: on Programmer, no shard summaries and no predictions. Runs are cached by exact
    input, so a cast reuses its preview's run and answers without the sandbox; its response carries a full replay.
    Relics (content) change resolution through `relicModifiers`. Encounters on the map come from the seed
-   (`encounterFor`), so the map shows who waits where.
+   (`encounterFor`), so the map shows who waits where. A preview's `damage` is exactly what the cast will land (the
+   cast applies the rules in the preview's order; ADR-0022), and it is what the code view and the spell cards
+   headline; `potential`, what the volley would do to foes that cannot die, is the footnote and the run's best cast
+   (ADR-0016). With predictions turned off in Options, the client strips each preview to what Programmer sends before
+   rendering (`withoutPredictions`, `apps/client/src/shardrun/predictions.ts`).
 6. **Seeing it all.** `GET /api/shardrun/codex` lists every shard, relic, foe, and layer with where each one is found
    (derived from the reward weights, the forge chains, and the starting loadout, so it cannot drift from the rules).
    Every view carries the rules the run plays by (`rulesView`) and what its relics changed (`modifierViews`) for the
@@ -156,7 +163,14 @@ every rule number is under `shardrun` in `config/balance.yaml`. Routes are under
    engine's clock, which stops for a few frames on a heavy hit; `Stage.tsx` answers the same cues with poses, hit
    flashes, rising numbers and banners. HP and Integrity wait for the hits through a small ledger (`fx/pending.ts`).
    Where everyone stands comes from `fx/layout.ts`, from each foe's `size` in content. None of this changes what the
-   server decided; it only decides when the player sees it.
+   server decided; it only decides when the player sees it. The code view (`CodeView.tsx`) has one size and place
+   whether a spell is built, cast or read: the stage's left half, because foes are laid out in its right half
+   (`FOE_BAND`), so it never covers one (ADR-0022).
+8. **The layer map.** `LayerMap.tsx` draws the view's nodes and edges as the layer in cross-section (ADR-0021): each
+   room a chamber painted for its layer with its foes (from `encounterFor`, silhouettes until near) or a prop standing
+   in it, tunnels as layered SVG strokes, the guardian's arena at the top, and the Maintainer walking a tunnel's
+   curve (Web Animations keyframes sampled from the same Bézier) before `enter` is sent. Which rooms are open still
+   comes only from the server.
 
 ## Language
 

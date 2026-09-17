@@ -5,7 +5,7 @@ task list, what is done, what is next, and decisions made in conversation. Updat
 (`AGENT.md` section 7).
 
 - **Current milestone:** M1 — Vertical slice (in progress). M0 is done.
-- **Last updated:** 2026-09-16
+- **Last updated:** 2026-09-17
 
 ## Kickoff decisions (2026-09-13)
 
@@ -258,7 +258,8 @@ These three come from the player directly and outrank the generic milestone orde
       exponent tier replaced by a third multiplicative tier. The same ADR fixes the thing that made all of this
       invisible: damage *dealt* is capped by a foe's Integrity, so a cast is now also scored against foes that cannot
       die (`potential`, `stats.bestCast`), and the scoreboard shows what the volley was worth with what landed as a
-      footnote.
+      footnote. (Reversed on the player's report in ADR-0022: the scoreboard headlines what lands, and the potential
+      is the footnote and the best cast.)
       Next: Phase 2, higher-order shards (`twice`, `compose`, `repeat`), which needs a sandbox spike first because a
       shard would receive another shard; endless layers, which are no longer blocked on anything; and a playtest pass,
       since `max_bolt_mult` at 1000 is a real balance change.
@@ -346,29 +347,38 @@ These three come from the player directly and outrank the generic milestone orde
 
 ## Next session: start here
 
-State (2026-09-15): M0 is done. M1 has the Python runner, SQLite persistence with resume, planner v1, expeditions
-playable end to end, the learner model with Debrief and Chronicle, characters (ADR-0010), a walkable world
-(ADR-0011), and Shardrun, a roguelite mode built from found code (ADR-0012). A new character arrives in the Bastion, picks the language their fights use, meets Lint, is sworn in by
-Guildmaster Orin, and walks south to the Foundry, whose eleven fights are real challenges picked for their mastery. The
-Foundry questline (three wins, then the Kiln Warden) and four side quests run on real facts only. The Guild Board is
-behind the Guild Hall's door and in the top bar. Art comes from `scripts/art/generate.py` (ComfyUI on this machine).
-Suggested order:
-0. The player keeps a `WIP.md` of tweaks at the repository root (not committed). Read it first; it is the current
-   focus. Then see "Named next milestones" above: scaling (`POSSIBILITIES.md`), the Apprentice class, and Japanese
-   (ADR-0017 for the interface, ADR-0018 for content; Shardrun reads Japanese end to end — the open items are the
-   engine's battle log, the unconverted client screens, and the World's content).
-   Those three are the player's own asks and come before the generic milestone order.
-1. Playtest a full quest line in the browser and log friction in `docs/PLAYTEST_NOTES.md` (the first pass was from
-   screenshots only).
-2. Content: a second and third challenge per node, then comprehensions, exceptions, and functions with arguments;
+State (2026-09-17): M0 is done and M1 is in progress. A character is made on the title screen, in English or Japanese,
+and the main menu opens a mode:
+- **The World** (ADR-0010, ADR-0011): the Bastion and the Foundry, ten people, seven quests (the Foundry questline ends
+  at the Kiln Warden), and 17 challenges picked for the learner's mastery. The Guild Board is behind the Guild Hall's
+  door. Expeditions (ADR-0007, ADR-0008) still work in the engine and the API, but the board no longer offers them.
+- **Shardrun** (ADR-0012 to ADR-0016, ADR-0019, ADR-0021, ADR-0022):
+  - three layers, each mapped as a place, with a guardian;
+  - 45 shards, 23 relics, and 15 foes;
+  - Beginner and Programmer difficulties;
+  - a battle stage in painted arenas;
+  - a code view whose numbers are exactly what a cast lands.
+- **Shardrun (Experimental)** (ADR-0020): the same climb as a deckbuilder, with a hand, holding, and deck relics.
+
+Art comes from `scripts/art/generate.py` (ComfyUI on this machine). Suggested order:
+0. The player keeps a `WIP.md` of tweaks at the repository root (never committed). Read it first; it is the current
+   focus. Its section 0 ends with questions for the player: whether the layer map should read downward, a middle
+   difficulty that hides only damage, and a per-foe damage preview.
+1. Shardrun balance, by play and by headless runs (WIP section 3): both playstyles against the compounding foe HP, and
+   whether the deck playstyle's hand, slots and mana are the right squeeze.
+2. The named milestones below, which come from the player: scaling's Phase 2 (higher-order shards, after a sandbox
+   spike) and endless layers (`POSSIBILITIES.md`); the Apprentice class; Japanese (the engine's battle log, the
+   unconverted client screens, then the World's content).
+3. Playtest a full World quest line in the browser and log friction in `docs/PLAYTEST_NOTES.md`.
+4. Content: a second and third challenge per node, then comprehensions, exceptions, and functions with arguments;
    give new nodes Foundry markers too.
-3. Rest rooms with FSRS review cards (ts-fsrs), which also bring Bit Rot; then Shrine and Puzzle rooms. The Warm Cache
+5. Rest rooms with FSRS review cards (ts-fsrs), which also bring Bit Rot; then Shrine and Puzzle rooms. The Warm Cache
    inn is the natural home for reviews in the world.
-4. An economy ADR (Cycles that persist, the Package Manager's stall, the Compiler's Spells), then the class and Oath
+6. An economy ADR (Cycles that persist, the Package Manager's stall, the Compiler's Spells), then the class and Oath
    choice at character creation.
-5. `db:export` / `db:import`, the learner simulation script, and the JavaScript track nodes.
-6. Polish: port expedition maps onto the world renderer's canvas-and-sprites approach; regenerate the first-pass enemy
-   portraits with the new pipeline so the enemy card matches the world's creature sprites.
+7. `db:export` / `db:import`, the learner simulation script, and the JavaScript track nodes.
+8. Polish: regenerate the first-pass enemy portraits with the art pipeline, so the encounter's enemy card matches the
+   world's creature sprites.
 
 Housekeeping: the folder is still named `ProgramMe`. Rename it to `Rootward` between sessions, not during one (moving
 the working directory breaks a running session), then run `scripts/rootward-launch.sh --install` so the desktop

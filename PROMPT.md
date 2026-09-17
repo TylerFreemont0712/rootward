@@ -1,5 +1,27 @@
 # Session Prompt: Design and Build **Rootward**
 
+> **Status (2026-09-17): past kickoff and being built.** This file is kept as the original design intent. Where the
+> build has moved on, the ADRs in `docs/decisions/` are the record, and they win where the two disagree (`AGENT.md`).
+> A new session starts from `AGENT.md`'s read order, not the kickoff prompt below. Current state is in
+> `docs/ROADMAP.md`, and how it fits together in `docs/ARCHITECTURE.md`. The main differences from the text below:
+>
+> - **Progress.** M0 is done and M1 is in progress. The AI layer (section 11, M2) and containers with the Warden
+>   (section 12's Docker tier, M3) are not built yet.
+> - **Stack.** As section 14, but source-first on Node 26 with no build step outside the client (ADR-0001), and
+>   `node:sqlite` with plain SQL migrations instead of Drizzle and better-sqlite3 (ADR-0006).
+> - **The Bastion is walkable** already, in M1 rather than M6: towns, people, and quests as validated content, with
+>   code-graded fights on the map (ADR-0010, ADR-0011).
+> - **Shardrun, a second mode.** A roguelite in which shards of real code chain into spells that run in the
+>   sandbox, with compounding damage, Big-O-priced mana, relics, three layers, a battle stage, and a deck playstyle
+>   (ADR-0012 to ADR-0016, ADR-0019 to ADR-0022). A main menu picks the mode, and Shardrun took the place of planned
+>   expeditions on the Guild Board (ADR-0013). The planner and expedition engine (ADR-0007, ADR-0008) are still in
+>   the code.
+> - **Localization.** English is the source, and Japanese can be switched to (ADR-0017, ADR-0018). The player's
+>   daughters are meant to play it too.
+> - **Art.** Generated locally with ComfyUI and post-processed into pixel art (`scripts/art/`, `assets/README.md`).
+>   It is still optional, and every picture has a fallback. The renderer grew past section 17's "last priority" at
+>   the player's request, and the ADRs quote each ask.
+
 > **How to use this file.** Start a fresh Claude Code session in this directory and paste this session prompt:
 >
 > > Read AGENT.md first, then PROMPT.md in full, then ideas/README.md and mockups/README.md. Follow them. Start

@@ -1,10 +1,20 @@
 # POSSIBILITIES.md — making the numbers get out of hand
 
-Ideas. **Phases 1 and 3 of section 7 have shipped (ADR-0014, ADR-0015), and the big-number question §6 left open
-is settled (ADR-0016);** everything else here is still a
-proposal, and each piece needs an ADR first, because most of it changes the Shardrun damage contract (ADR-0012,
-ADR-0013). Written 2026-09-16 from the player's note: *the fun of a Balatro-like
-is the insane final number, and in a programming game the functions themselves should be what compound.*
+Ideas, written 2026-09-16 from the player's note: *the fun of a Balatro-like is the insane final number, and in a
+programming game the functions themselves should be what compound.*
+
+**Where it stands (2026-09-17).**
+- **Shipped:** the second axis (`mult`, ADR-0014), complexity pricing (ADR-0015), and the settled big-number question
+  (ADR-0016). The multiplicative tier exists as shards (Charge, Cascade, Resonate, Compound, Attune, Tithe,
+  Crosslink) and relics (Tuning Fork, Runaway Coil, Feedback Loop). Section 4 marks what else exists.
+- **Changed since:** the scoreboard shows the damage that lands again, with the volley's potential as its footnote
+  ("worth 4096 · ×24.1 over"). The player wanted the number on the code block to be what the foes actually take
+  (ADR-0022). The run's best cast still records the potential.
+- **Built from a different line of thought:** Shardrun (Experimental), a deckbuilder turn over the same tower
+  (ADR-0020). It answers "every turn is the same turn" (`WIP.md`), not the size of the numbers, but it changes what a
+  build is.
+- **Everything else here is still a proposal**, and each piece needs an ADR first, because most of it changes the
+  Shardrun damage contract (ADR-0012, ADR-0013).
 
 ## 1. Why Shardrun could not explode (before ADR-0014 and ADR-0015)
 
@@ -84,16 +94,16 @@ Ordered roughly by how much they multiply, and each is a thing worth learning.
 
 | # | Mechanic | How it compounds | What it teaches |
 |---|---|---|---|
-| 1 | **Higher-order shards** — `twice(f)`, `compose(f, g)`, `repeat(n, f)` take *another shard* as an argument | Retriggers: turns any additive shard multiplicative | Functions as values, the single best concept fit |
-| 2 | **Recursion with a depth budget** — `recurse` re-runs the pipeline on its own output, depth is a resource relics raise | Exponential in depth | Recursion, base cases, why depth matters |
-| 3 | **Complexity-priced mana** — a shard costs by the work it does: O(1), O(n), O(n²); a rare relic bills you at O(log n) | Makes wide builds *payable*, which is itself the unlock | Big-O, felt rather than recited |
-| 4 | **Scaling shards** — "gains +1 power every time it is cast this run" | Compounds across the whole run | Mutable state, accumulators, persistence |
-| 5 | **`mult` shards** — `+mult` (common) and `×mult` (rare) | The third tier, where explosions live | Fold/reduce with different operators |
-| 6 | **Memoize** — casting the same spell twice in a turn is cheaper the second time | Enables repeat-spam builds | Caching, purity, why a cache needs a key |
-| 7 | **Parallel lanes** — split the volley into k lanes, run them independently, merge | Multiplicative width | map / reduce, independence |
-| 8 | **Tag synergies** — relics pay per shard *kind* in a spell ("+2 mult per list shard") | Rewards coherent builds | Classification, composition over chance |
+| 1 | **Higher-order shards** — `twice(f)`, `compose(f, g)`, `repeat(n, f)` take *another shard* as an argument. *Open; needs a sandbox spike.* | Retriggers: turns any additive shard multiplicative | Functions as values, the single best concept fit |
+| 2 | **Recursion with a depth budget** — `recurse` re-runs the pipeline on its own output, depth is a resource relics raise. *Open.* | Exponential in depth | Recursion, base cases, why depth matters |
+| 3 | **Complexity-priced mana** — a shard costs by the work it does: O(1), O(n), O(n²); a rare relic bills you at O(log n). *Shipped (ADR-0015; the Amortized Ledger bills the logarithm).* | Makes wide builds *payable*, which is itself the unlock | Big-O, felt rather than recited |
+| 4 | **Scaling shards** — "gains +1 power every time it is cast this run". *Within a fight only so far: Patience (+3 power a turn) and the Feedback Loop relic (+2 mult per spell already cast). Across a run: open.* | Compounds across the whole run | Mutable state, accumulators, persistence |
+| 5 | **`mult` shards** — `+mult` (common) and `×mult` (rare). *Shipped: Charge, Cascade, Crosslink add; Resonate, Tithe, Compound, Attune multiply or spread; Runaway Coil doubles after the last shard (ADR-0014, ADR-0016).* | The third tier, where explosions live | Fold/reduce with different operators |
+| 6 | **Memoize** — casting the same spell twice in a turn is cheaper the second time. *Open (Cache Hit only discounts a turn's first spell).* | Enables repeat-spam builds | Caching, purity, why a cache needs a key |
+| 7 | **Parallel lanes** — split the volley into k lanes, run them independently, merge. *Open.* | Multiplicative width | map / reduce, independence |
+| 8 | **Tag synergies** — relics pay per shard *kind* in a spell ("+2 mult per list shard"). *Open.* | Rewards coherent builds | Classification, composition over chance |
 | 9 | ~~**Exponent tier**~~ — **do not build (ADR-0016)**: an exponent on a player-controlled base is uncontrollable (`e = 3` on a base of 10 000 is 1e12 in one step). A third *multiplicative* tier is bounded by the slot budget and just as exciting; the Runaway Coil relic is its first piece | | |
-| 10 | **Endless layers** — after the Kernel, foe HP grows geometrically per layer | Forces the build to compound | — (this is the ante, and it is what makes the rest matter) |
+| 10 | **Endless layers** — after the Kernel, foe HP grows geometrically per layer. *Open, and no longer blocked on anything.* | Forces the build to compound | — (this is the ante, and it is what makes the rest matter) |
 
 ### The two that matter most
 
@@ -114,8 +124,9 @@ Big numbers are only fun against big requirements. Today foe HP is roughly linea
   cannot keep up. "How deep did your function go" is the score, and it is a far better long-term hook than "you won."
 - ~~A per-run **best cast** record in the Stats panel~~ — shipped in ADR-0016 as `stats.bestCast`, and it needed a
   new measurement to be worth anything: damage *dealt* is cut to a foe's remaining Integrity, so every build past the
-  first lethal one read the same. A cast is now scored against foes that cannot die. A personal all-time best across
-  runs is still open, and wants the profile store rather than the run snapshot.
+  first lethal one read the same. A cast is now also scored against foes that cannot die (`potential`), and that is
+  the record. (What the code view *headlines* went back to the damage dealt in ADR-0022, with the potential beside it.)
+  A personal all-time best across runs is still open, and wants the profile store rather than the run snapshot.
 
 ## 6. Engineering notes (the unglamorous, load-bearing part)
 
@@ -129,11 +140,14 @@ Big numbers are only fun against big requirements. Today foe HP is roughly linea
 - **The clamps become balance, not constants.** `max_bolts` / `max_bolt_power` should scale per layer and per relic
   rather than being fixed. They stay as safety rails against a shard returning nonsense; they stop being the ceiling.
 - **Determinism must hold.** Previews are cached and reused as the cast (ADR-0013), so a shard that used randomness
-  would make the preview a lie. Any "gamble" shard needs a seed supplied by the engine, never `Math.random`.
+  would make the preview a lie. Any "gamble" shard needs a seed supplied by the engine, never `Math.random`. The same
+  goes for rules: a preview must apply them in the cast's order. Feedback Loop once counted the cast itself, and its
+  first cast of a fight landed three times what it promised (ADR-0022).
 - **Higher-order shards change the sandbox contract.** A shard receiving another shard means the generated program
   must pass functions between namespaces. Worth a spike before committing.
-- **Display.** e-notation past 1e5, digit-roll animation on the damage number, and the code view showing a running
-  `Σ power × mult` readout per line. The escalation should be *audible and visible* — that is the payoff.
+- **Display.** Built: the code view runs the spell line by line, with the bolts, damage and block after every shard,
+  and each bolt's multiplier on its chip; the score pops as it changes. Still open: e-notation past 1e5, a digit-roll
+  on the damage number, and sound. The escalation should be *audible and visible* — that is the payoff.
 
 ## 7. Suggested order
 
@@ -150,8 +164,7 @@ Big numbers are only fun against big requirements. Today foe HP is roughly linea
    Phase 1: it proves the axis compounds, and it moves **Phase 3 (complexity pricing) ahead of Phase 2 in priority**,
    because paying for a wide build is now the binding constraint rather than computing one. A first cheap step would
    be relics and shards that give mana or discount work, so a big build is reachable before the deep mechanics land.
-2. **Phase 2 — higher-order shards.** `twice`, `compose`, `repeat`. Needs the sandbox spike first.
-3. **Phase 3 — complexity pricing. ✅ Done 2026-09-16, ADR-0015.** A cast is now one bill on a curve: each step pays
+2. **Phase 3 — complexity pricing. ✅ Done 2026-09-16, ADR-0015.** A cast is now one bill on a curve: each step pays
    its shard's complexity class applied to the bolts it was handed (`constant` / `linear` / `linearithmic` /
    `quadratic`), *plus that shard's own cost priced as work* — the flat half of the old bill was the actual wall — and
    the total is billed as its square root, or its logarithm with the Amortized Ledger relic. Mana per turn, the bolt
@@ -167,9 +180,12 @@ Big numbers are only fun against big requirements. Today foe HP is roughly linea
    (25) are the ceiling again, exactly as ADR-0014 predicted, and they are deliberately *not* balance — they are the
    rule that the engine never trusts player code's arithmetic. Past them, the next real growth has to come from the
    exponent tier or from a damage representation that is not a clamped `number`, which is Phase 4's decision.
-4. **Phase 2 — higher-order shards.** `twice`, `compose`, `repeat`. Needs the sandbox spike first. Now the obvious
-   next one: with the bill on a curve, a retrigger is affordable, and `twice(crosslink)` is a sentence a player would
-   want to write.
-5. **Phase 4 — recursion, exponent tier, endless layers, scaling shards.** The deep end, once the big-number
-   representation is decided. Endless layers are cheap now that foe HP compounds and the caps scale — the layer index
-   already drives both.
+
+   **Since then (ADR-0016):** the big-number representation is decided (float64, bounded by `max_foe_hp`), and
+   `max_bolt_mult` went from 25 to 1000, so the clamps are rails again rather than the ceiling.
+3. **Phase 2 — higher-order shards: next.** `twice`, `compose`, `repeat`. Needs a sandbox spike first, because a shard
+   would receive another shard. With the bill on a curve a retrigger is affordable, and `twice(crosslink)` is a
+   sentence a player would want to write.
+4. **Phase 4 — recursion, endless layers, scaling shards** (the exponent tier is replaced by a third multiplicative
+   tier, §4 #9). Endless layers are cheap now that foe HP compounds and the caps scale — the layer index already
+   drives both.
