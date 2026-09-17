@@ -1,0 +1,30 @@
+{
+  "music-bastion": {
+    "loopStart": 9.2508,
+    "loopEnd": 129.2505
+  },
+  "music-battle": {
+    "loopStart": 6.9578,
+    "loopEnd": 132.1748
+  },
+  "music-focus": {
+    "loopStart": 13.7342,
+    "loopEnd": 150.8767
+  },
+  "music-foundry": {
+    "loopStart": 10.4548,
+    "loopEnd": 114.8023
+  },
+  "music-heap": {
+    "loopStart": 11.4486,
+    "loopEnd": 125.7344
+  },
+  "music-salvage": {
+    "loopStart": 12.02,
+    "loopEnd": 120.02
+  },
+  "music-title": {
+    "loopStart": 12.6516,
+    "loopEnd": 88.4411
+  }
+}
