@@ -206,6 +206,9 @@ const CATALOG: Readonly<Record<AssetCategory, ReadonlySet<string>>> = {
     ...["none", "fire", "frost", "spark", "ward"].map((kind) => `bolt-${kind}`),
     ...SHARD_ICONS.map((id) => `shard-${id}`),
     ...["fight", "elite", "boss", "rest", "forge", "treasure"].map((kind) => `map-${kind}`),
+    // The layer map as a place: each layer's chamber and rock, and what stands in the quiet rooms.
+    ...["salvage", "heap", "kernel"].flatMap((layer) => [`map-chamber-${layer}`, `map-wall-${layer}-0`]),
+    ...["rest", "forge", "treasure"].map((kind) => `map-prop-${kind}`),
     ...RELICS.map((id) => `relic-${id}`),
   ]),
   /** Shardrun's arena (ADR-0019): a class's battle poses as one strip, and its high-detail battle portrait. */

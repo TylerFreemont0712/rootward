@@ -1,6 +1,22 @@
 {
   "comfy_url": "http://127.0.0.1:8188",
   "styles": {
+    "chamber": {
+      "checkpoint": "novaAnimeXL_ilV190.safetensors",
+      "prefix": "masterpiece, best quality, scenery, no humans, ",
+      "suffix": ", cross-section cutaway of one small room carved into solid rock, side view, dark rock all around the room, light inside the room, flat floor, highly detailed",
+      "negative": "worst quality, low quality, blurry, text, watermark, signature, logo, people, person, character, creature, monster, animal, statue, furniture, ui, frame, border, multiple rooms, split screen, window, sky, lens flare",
+      "width": 1024,
+      "height": 768,
+      "steps": 30,
+      "cfg": 6,
+      "sampler": "euler_ancestral",
+      "scheduler": "normal",
+      "rmbg": false,
+      "candidates": 3,
+      "init": { "denoise": 0.8 },
+      "post": { "kind": "picture", "size": [128, 96], "colors": 64 }
+    },
     "arena": {
       "checkpoint": "novaAnimeXL_ilV190.safetensors",
       "prefix": "masterpiece, best quality, scenery, no humans, ",
@@ -279,6 +295,15 @@
     {"id": "shardrun-map-forge", "out": "shardrun/map-forge", "style": "prop", "seed": 1343, "prompt": "(single object:1.4), game item icon, one heavy black iron blacksmith anvil, side view, a glowing orange hot hammer resting on top", "post": {"size": [32, 32], "anchor": "center", "colors": 16}, "candidates": 3, "pick": 2},
     {"id": "shardrun-map-treasure", "out": "shardrun/map-treasure", "style": "prop", "seed": 1344, "prompt": "(single object:1.3), game item icon, closed wooden treasure chest with gold trim", "post": {"size": [32, 32], "anchor": "center", "colors": 16}, "pick": 1},
     {"id": "shardrun-map-boss", "out": "shardrun/map-boss", "style": "prop", "seed": 1345, "prompt": "(single object:1.3), game item icon, large crowned skull with glowing red eyes", "post": {"size": [32, 32], "anchor": "center", "colors": 16}},
+    {"id": "shardrun-map-chamber-salvage", "out": "shardrun/map-chamber-salvage", "style": "chamber", "seed": 3401, "prompt": "small ruined chamber of ancient brown stone blocks, an old brass lantern hanging from the ceiling, rusted pipes along the walls, dusty stone floor, empty, quiet", "init": {"layout": "chamber-salvage", "denoise": 0.8}, "pick": 2},
+    {"id": "shardrun-map-chamber-heap", "out": "shardrun/map-chamber-heap", "style": "chamber", "seed": 3402, "candidates": 4, "prompt": "small damp cave chamber of dark slate rock, one dim green glass lamp hanging from the ceiling, black cables running down the side walls, patches of faintly glowing green moss low on the side walls, wet flat stone floor, empty open floor in the middle, eerie", "negative": "worst quality, low quality, blurry, text, watermark, signature, logo, people, person, character, creature, monster, animal, statue, furniture, ui, frame, border, multiple rooms, split screen, window, sky, lens flare, slime, dripping liquid, waterfall, pillar, column, stalactite, puddle, light beam, pillar of light, ray of light", "init": {"layout": "chamber-heap", "denoise": 0.8}},
+    {"id": "shardrun-map-chamber-kernel", "out": "shardrun/map-chamber-kernel", "style": "chamber", "seed": 3403, "candidates": 4, "pick": 1, "prompt": "small gothic chapel carved into black obsidian, pointed arch ceiling edged with thin glowing gold lines, one small gold diamond lantern hanging from the ceiling, gold filigree on the dark side walls, dim warm gold glow on the black back wall, polished black obsidian floor with faint gold reflections, empty open floor in the middle, sacred, ominous", "negative": "worst quality, low quality, blurry, text, watermark, signature, logo, people, person, character, creature, monster, animal, statue, furniture, ui, frame, border, multiple rooms, split screen, window, sky, lens flare, light beam, pillar of light, ray of light, sun rays, lightning, radial lines, glowing crack, bright window, stained glass, wooden beams, brown brick, gray stone, torch", "init": {"layout": "chamber-kernel", "denoise": 0.8}},
+    {"id": "shardrun-map-wall-salvage", "out": "shardrun/map-wall-salvage", "style": "terrain", "seed": 3411, "candidates": 2, "prompt": "dark ancient stone brick wall with cracks and rusted brass pipes", "post": {"size": [96, 96], "variants": 1, "colors": 20, "brightness": 0.45, "contrast": 0.8, "saturation": 0.7}},
+    {"id": "shardrun-map-wall-heap", "out": "shardrun/map-wall-heap", "style": "terrain", "seed": 3412, "candidates": 2, "prompt": "dark slate cave rock with tangled black cables and specks of green moss", "post": {"size": [96, 96], "variants": 1, "colors": 20, "brightness": 0.45, "contrast": 0.8, "saturation": 0.7}},
+    {"id": "shardrun-map-wall-kernel", "out": "shardrun/map-wall-kernel", "style": "terrain", "seed": 3413, "candidates": 2, "pick": 1, "prompt": "polished black obsidian stone with thin gold circuit lines", "post": {"size": [96, 96], "variants": 1, "colors": 20, "brightness": 0.45, "contrast": 0.8, "saturation": 0.7}},
+    {"id": "shardrun-map-prop-rest", "out": "shardrun/map-prop-rest", "style": "prop", "seed": 3421, "candidates": 3, "prompt": "(single object:1.3), small campfire with a rolled bedroll and a brass lantern beside it", "post": {"size": [64, 64], "anchor": "bottom", "colors": 28}},
+    {"id": "shardrun-map-prop-forge", "out": "shardrun/map-prop-forge", "style": "prop", "seed": 3424, "candidates": 6, "pick": 5, "checkpoint": "novaAnimeXL_ilV190.safetensors", "lora_strength": 0.8, "cfg": 5.5, "prefix": "masterpiece, best quality, pixel art, ", "suffix": ", no humans, object focus, still life, simple background, white background, game item", "prompt": "anvil, black iron blacksmith anvil, pointed horn, flat top, glowing orange hot metal on the anvil, hammer", "negative": "worst quality, low quality, blurry, text, watermark, multiple views, sprite sheet, cropped, realistic, 1girl, 1boy, person, hands, room, building, floor, wall, brick, furnace, fireplace, sword", "post": {"size": [64, 64], "anchor": "bottom", "colors": 28}},
+    {"id": "shardrun-map-prop-treasure", "out": "shardrun/map-prop-treasure", "style": "prop", "seed": 3423, "candidates": 3, "prompt": "(single object:1.3), ornate wooden treasure chest with gold trim, lid open, glowing gold coins inside", "post": {"size": [64, 64], "anchor": "bottom", "colors": 28}},
     {"id": "shardrun-relic-debugger-duck", "out": "shardrun/relic-debugger-duck", "style": "prop", "seed": 1350, "prompt": "(single object:1.3), game item icon, yellow rubber duck wearing tiny headphones", "post": {"size": [32, 32], "anchor": "center", "colors": 20}, "pick": 1},
     {"id": "shardrun-relic-overclocked-core", "out": "shardrun/relic-overclocked-core", "style": "prop", "seed": 1351, "prompt": "(single object:1.3), game item icon, glowing red cpu chip wreathed in flames", "post": {"size": [32, 32], "anchor": "center", "colors": 20}, "pick": 1},
     {"id": "shardrun-relic-mana-capacitor", "out": "shardrun/relic-mana-capacitor", "style": "prop", "seed": 1352, "prompt": "(single object:1.3), game item icon, glass capacitor tube filled with glowing violet energy", "post": {"size": [32, 32], "anchor": "center", "colors": 20}, "pick": 1},

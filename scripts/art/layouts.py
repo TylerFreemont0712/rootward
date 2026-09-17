@@ -195,9 +195,47 @@ def structures(draw: ImageDraw.ImageDraw, kind: str, width: int, height: int, ho
             draw.rectangle([width * x - width * 0.025, base - height * 0.48, width * x + width * 0.025, base], fill=back)
 
 
+# A layer map's rooms (ADR-0021): one small chamber carved into the layer's rock, seen in cross-section, lit from inside,
+# with a flat floor for whatever waits there (a foe, a campfire, a chest) to stand on. The client puts the contents in,
+# so every room of a layer shares one chamber and the map reads as one place. Keep the light warm and dim: a white light
+# in the middle of the sketch came back as a pillar of light right where the foes stand.
+CHAMBERS: dict[str, dict[str, str]] = {
+    "salvage": {"rock": "#120d09", "rim": "#4a3828", "inside": "#3a2c22", "light": "#ffcf8a", "floor": "#6b5240"},
+    "heap": {"rock": "#080c0e", "rim": "#2a3a3e", "inside": "#1e2a2e", "light": "#a8f0c8", "floor": "#34484a"},
+    "kernel": {"rock": "#050407", "rim": "#3a3020", "inside": "#141118", "light": "#e0a84a", "floor": "#1e1a22"},
+}
+
+
+def chamber(name: str, width: int, height: int) -> Image.Image:
+    spec = {key: hex_color(value) for key, value in CHAMBERS[name].items()}
+    image = Image.new("RGB", (width, height), spec["rock"])
+    draw = ImageDraw.Draw(image)
+    left, right, top, bottom = width * 0.1, width * 0.9, height * 0.12, height * 0.84
+    rim = height * 0.035
+    # The rock's lit edge, then the room: an arched ceiling, square at the floor.
+    draw.rounded_rectangle([left - rim, top - rim, right + rim, bottom + rim], radius=height * 0.36, fill=spec["rim"])
+    draw.rounded_rectangle([left, top, right, bottom], radius=height * 0.33, fill=spec["inside"])
+    draw.rectangle([left, bottom - height * 0.3, right, bottom], fill=spec["inside"])
+    pixels = image.load()
+    floor_top = bottom - height * 0.2
+    for y in range(round(top), round(bottom)):
+        for x in range(round(left), round(right)):
+            if pixels[x, y] != spec["inside"]:
+                continue
+            dx, dy = (x / width - 0.5) * 1.6, (y / height - 0.34) * 2.0
+            glow = max(0.0, 1 - math.hypot(dx, dy) / 0.62) ** 1.8
+            base = spec["floor"] if y >= floor_top else spec["inside"]
+            pixels[x, y] = mix(base, spec["light"], glow * 0.55)
+    image = image.filter(ImageFilter.GaussianBlur(radius=height * 0.012))
+    grain = np.random.default_rng(sum(f"chamber-{name}".encode())).normal(128, 18, (height, width, 1)).clip(0, 255).astype(np.uint8)
+    return Image.blend(image, Image.fromarray(np.repeat(grain, 3, axis=2), "RGB"), 0.06)
+
+
 def sheet(name: str, width: int, height: int) -> Image.Image:
+    if name.startswith("chamber-") and name.removeprefix("chamber-") in CHAMBERS:
+        return chamber(name.removeprefix("chamber-"), width, height)
     if name not in ARENAS:
-        raise ValueError(f"unknown layout {name!r}; known: {', '.join(ARENAS)}")
+        raise ValueError(f"unknown layout {name!r}; known: {', '.join([*ARENAS, *(f'chamber-{c}' for c in CHAMBERS)])}")
     return arena(name, width, height)
 
 
