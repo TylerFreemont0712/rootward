@@ -16,7 +16,7 @@ import { useShardrun } from "../state/shardrun.ts";
 import { type Pending, shownFallen, shownHp } from "./fx/pending.ts";
 import type { FoeArt } from "./fx/engine.ts";
 import { FxLayer, type StagePlacements } from "./fx/FxLayer.tsx";
-import { heroPlacement, layoutFoes, type Placement } from "./fx/layout.ts";
+import { codeLane, heroPlacement, layoutFoes, type Placement } from "./fx/layout.ts";
 import type { Cue, ImpactCue, Timeline } from "./fx/timeline.ts";
 import { ElementTag } from "./parts.tsx";
 
@@ -35,6 +35,10 @@ const MAX_FLOATS = 28;
 const FLOAT_MS = 1100;
 /** The walk strip's frame, for classes without battle poses. */
 const WALK_FRAME = { width: 32, height: 50 } as const;
+/** How far `.shr-world` overhangs the stage on every side (shardrun.css), so a shake never shows its edge. */
+const WORLD_OVERHANG = 16;
+/** The code view's width in pixels, and the room it keeps from the Maintainer and the nearest foe. */
+const CODE_VIEW = { min: 480, max: 720, gap: 12 } as const;
 
 type ReactionKind = "hit" | "heavy" | "absorb" | "glance" | "lunge" | "shield" | "stoke" | "heal" | "rise";
 
@@ -84,6 +88,7 @@ export function Stage({ run, battle, timeline, onStart, pending, classId, pose, 
   const worldRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const [aspect, setAspect] = useState(2.8);
+  const [worldWidth, setWorldWidth] = useState(0);
   const [spriteAspects, setSpriteAspects] = useState<Readonly<Record<string, number>>>({});
   const [reactions, setReactions] = useState<Readonly<Record<string, Reaction>>>({});
   const [floats, setFloats] = useState<readonly Float[]>([]);
@@ -97,7 +102,10 @@ export function Stage({ run, battle, timeline, onStart, pending, classId, pose, 
     const world = worldRef.current;
     if (!world) return;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry && entry.contentRect.height > 0) setAspect(entry.contentRect.width / entry.contentRect.height);
+      if (entry && entry.contentRect.height > 0) {
+        setAspect(entry.contentRect.width / entry.contentRect.height);
+        setWorldWidth(entry.contentRect.width);
+      }
     });
     observer.observe(world);
     const pendingTimers = timers.current;
@@ -153,6 +161,23 @@ export function Stage({ run, battle, timeline, onStart, pending, classId, pose, 
     [battle.kind, battle.foes],
   );
   const bossIds = new Set(bosses.map((foe) => foe.uid));
+  // The code views stand between the Maintainer and the nearest foe (ADR-0022), centred in that lane and as wide as it
+  // allows. The world overhangs the stage, and the code views are placed in the stage, hence the offsets.
+  const codeLayout = useMemo((): CSSProperties | undefined => {
+    if (worldWidth === 0) return undefined;
+    const guardians = new Set(bosses.map((foe) => foe.uid));
+    const foes = battle.foes.flatMap((foe) => {
+      const at = placements.foes[foe.uid];
+      return at ? [{ at, plate: !guardians.has(foe.uid) }] : [];
+    });
+    const lane = codeLane(placements.hero, foes, worldWidth);
+    const left = lane.left * worldWidth - WORLD_OVERHANG + CODE_VIEW.gap;
+    const right = lane.right * worldWidth - WORLD_OVERHANG - CODE_VIEW.gap;
+    const width = Math.min(CODE_VIEW.max, Math.max(CODE_VIEW.min, right - left));
+    const stageWidth = worldWidth - WORLD_OVERHANG * 2;
+    const x = Math.min(stageWidth - width - CODE_VIEW.gap, Math.max(CODE_VIEW.gap, (left + right - width) / 2));
+    return { "--code-left": `${Math.round(x)}px`, "--code-width": `${Math.round(width)}px` } as CSSProperties;
+  }, [battle.foes, bosses, placements, worldWidth]);
 
   const react = useCallback(
     (uid: string, kind: ReactionKind, element: ElementView, ms: number) => {
@@ -316,7 +341,7 @@ export function Stage({ run, battle, timeline, onStart, pending, classId, pose, 
   const frameIndex = BATTLE_POSES.indexOf(pose);
 
   return (
-    <div className={`shr-stage${bosses.length > 0 ? " boss-fight" : ""}${run.playstyle === "deck" ? " deck-run" : ""}`}>
+    <div className={`shr-stage${bosses.length > 0 ? " boss-fight" : ""}${run.playstyle === "deck" ? " deck-run" : ""}`} style={codeLayout}>
       <div ref={worldRef} className="shr-world">
         <div ref={backdropRef} className="shr-arena" style={backdrop !== undefined ? { backgroundImage: backdrop } : undefined} aria-hidden="true" />
         <div className="shr-stage-shade" aria-hidden="true" />

@@ -7,6 +7,7 @@ import { useGame } from "../state/store.ts";
 import { CodeView } from "./CodeView.tsx";
 import { shownIntegrity } from "./fx/pending.ts";
 import { planTimeline } from "./fx/timeline.ts";
+import { CardTipLayer } from "./Card.tsx";
 import { DragGhost, Hand, useTable } from "./Hand.tsx";
 import { HeroPanel } from "./HeroPanel.tsx";
 import { SpellCard } from "./SpellCard.tsx";
@@ -203,6 +204,7 @@ export function Arena({ run, battle: current, frozen }: { run: ShardrunView; bat
           </div>
           {deck && <Hand run={run} battle={current} controls={table} disabled={table.locked} />}
           {deck && <DragGhost run={run} card={table.dragging} />}
+          {deck && <CardTipLayer run={run} hidden={table.dragging !== undefined} />}
         </div>
       </div>
     </div>

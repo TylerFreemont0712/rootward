@@ -3,7 +3,7 @@ import { type MouseEvent, type PointerEvent, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { create } from "zustand";
 import { useShardrun } from "../state/shardrun.ts";
-import { CardFace } from "./Card.tsx";
+import { CardFace, cardTipHandlers } from "./Card.tsx";
 import { moveCard, parseSpot, type Spot, spotKey, type Table } from "./table.ts";
 
 // The deck playstyle's hand (ADR-0020): the cards, the hold, the piles, and how a card is picked up. A card is played by
@@ -207,7 +207,12 @@ export function Hand({ run, battle, controls, disabled }: { run: ShardrunView; b
           const spot: Spot = { zone: "hand", index };
           const name = run.shards[card]?.name ?? card;
           return (
-            <div key={`${card}-${index}`} className={`shr-hand-card${controls.lifted(spot) ? " lifted" : ""}`} {...controls.dropAt(spot)}>
+            <div
+              key={`${card}-${index}`}
+              className={`shr-hand-card${controls.lifted(spot) ? " lifted" : ""}`}
+              {...controls.dropAt(spot)}
+              {...cardTipHandlers(card)}
+            >
               <button
                 type="button"
                 className="shr-card-button"
@@ -258,6 +263,7 @@ export function Hand({ run, battle, controls, disabled }: { run: ShardrunView; b
                   aria-label={`${run.shards[card]?.name ?? card}, held. Click to take it back into the hand.`}
                   {...controls.dropAt(spot)}
                   {...controls.grab(spot, card)}
+                  {...cardTipHandlers(card)}
                 >
                   <CardFace run={run} shardId={card} size="mini" badge="held" />
                 </button>

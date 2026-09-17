@@ -1,6 +1,6 @@
 import type { ElementView, ShardrunView, SpellView } from "@rootward/shared";
 import { Fragment } from "react";
-import { CardFace } from "./Card.tsx";
+import { CardFace, cardTipHandlers } from "./Card.tsx";
 import { dominant } from "./fx/timeline.ts";
 import type { TableControls } from "./Hand.tsx";
 import { ManaCost, ShardIcon } from "./parts.tsx";
@@ -91,6 +91,7 @@ export function SpellCard(props: {
                   aria-label={`${run.shards[shardId]?.name ?? shardId}, slot ${step + 1}. Click to take it back into the hand.`}
                   {...table.dropAt(spot)}
                   {...table.grab(spot, shardId)}
+                  {...cardTipHandlers(shardId)}
                 >
                   <CardFace run={run} shardId={shardId} size="mini" />
                 </button>

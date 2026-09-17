@@ -31,15 +31,18 @@ const FOE_GROUND: Readonly<Record<FoeSizeView, number>> = {
   colossal: 0.92,
 };
 
-/** The Maintainer's spot, left of centre. */
-export const HERO_SPOT = { x: 0.2, y: 0.8, height: 0.46 } as const;
+/** The Maintainer's spot, near the left edge: the middle of the stage is the code view's (see `codeLane`). */
+export const HERO_SPOT = { x: 0.11, y: 0.8, height: 0.46 } as const;
 
 /**
- * The strip of the stage foes share, and the room kept between two of them. The code view keeps to the stage's left of
- * `from` (`.shr-code-view` in shardrun.css), so no foe is ever under it: move the two together.
+ * The strip of the stage foes share, and the room kept between two of them. It starts past the middle, so the stage
+ * between the Maintainer and the nearest foe is wide enough for the code view to stand there (ADR-0022).
  */
-const FOE_BAND = { from: 0.5, to: 0.95 } as const;
+export const FOE_BAND = { from: 0.6, to: 0.96 } as const;
 const GAP = 0.012;
+
+/** A foe's plate under its feet, in pixels: `.shr-plate` in shardrun.css. Under a small foe it reaches past the sprite. */
+export const PLATE_WIDTH = 196;
 
 export interface FoeShape {
   uid: string;
@@ -69,6 +72,17 @@ export function layoutFoes(foes: readonly FoeShape[], stageAspect: number): Reco
     left += width + gap;
   });
   return placed;
+}
+
+/**
+ * The open stage between the Maintainer and the nearest foe, as fractions of the world's width: where the code view
+ * stands, so it covers neither (ADR-0022). A foe wearing a plate reaches as far as its plate does. The lane ends at the
+ * foes' band even when a lone foe stands further right, so the code view stays in one place from fight to fight.
+ */
+export function codeLane(hero: Placement, foes: readonly { at: Placement; plate: boolean }[], worldWidth: number): { left: number; right: number } {
+  const plate = PLATE_WIDTH / 2 / Math.max(1, worldWidth);
+  const reaches = foes.map(({ at, plate: plated }) => at.x - Math.max(at.width / 2, plated ? plate : 0));
+  return { left: hero.x + hero.width / 2, right: Math.min(FOE_BAND.from, ...reaches) };
 }
 
 /** The Maintainer's placement, for a sprite of this width over height. */

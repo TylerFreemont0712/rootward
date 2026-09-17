@@ -1,6 +1,6 @@
 import type { ShardrunLogView } from "@rootward/shared";
 import { describe, expect, it } from "vitest";
-import { FOE_HEIGHT, layoutFoes } from "../src/shardrun/fx/layout.ts";
+import { codeLane, FOE_BAND, FOE_HEIGHT, heroPlacement, layoutFoes, PLATE_WIDTH } from "../src/shardrun/fx/layout.ts";
 import { NOTHING_PENDING, pendingOf, settled, shownFallen, shownHp, shownIntegrity } from "../src/shardrun/fx/pending.ts";
 import { planTimeline } from "../src/shardrun/fx/timeline.ts";
 
@@ -15,9 +15,9 @@ describe("where foes stand (ADR-0019)", () => {
     expect(feet).toEqual([...feet].sort((a, b) => a - b));
   });
 
-  it("centres a lone guardian in the foes' half of the stage", () => {
+  it("centres a lone guardian in the foes' band", () => {
     const boss = layoutFoes([{ uid: "daemon", size: "colossal", aspect: 0.92 }], STAGE).daemon;
-    expect(boss?.x).toBeCloseTo(0.725, 3);
+    expect(boss?.x).toBeCloseTo((FOE_BAND.from + FOE_BAND.to) / 2, 3);
   });
 
   it("keeps a group in order, apart, and inside the band, shrinking it when it cannot fit", () => {
@@ -29,8 +29,8 @@ describe("where foes stand (ADR-0019)", () => {
       const placed = group.map((foe) => layoutFoes(group, STAGE)[foe.uid]);
       for (const [index, at] of placed.entries()) {
         if (!at) throw new Error("a foe was not placed");
-        expect(at.x - at.width / 2).toBeGreaterThanOrEqual(0.5 - 1e-9);
-        expect(at.x + at.width / 2).toBeLessThanOrEqual(0.95 + 1e-9);
+        expect(at.x - at.width / 2).toBeGreaterThanOrEqual(FOE_BAND.from - 1e-9);
+        expect(at.x + at.width / 2).toBeLessThanOrEqual(FOE_BAND.to + 1e-9);
         const next = placed[index + 1];
         if (next) expect(at.x + at.width / 2).toBeLessThanOrEqual(next.x - next.width / 2 + 1e-9);
       }
@@ -39,6 +39,38 @@ describe("where foes stand (ADR-0019)", () => {
     const crowd = layoutFoes([1, 2, 3, 4].map((n) => ({ uid: `g${n}`, size: "huge" as const })), STAGE);
     expect(crowd.g1?.height).toBeLessThan(FOE_HEIGHT.huge);
     expect(crowd.g1?.height).toBeCloseTo(crowd.g4?.height ?? 0, 9);
+  });
+});
+
+describe("where the code view stands (ADR-0022)", () => {
+  // The battle strip's frame is 96 by 104; the stages are about 1434 by 592 (a spellbook fight) and 1434 by 452 (a deck
+  // run's shorter stage), world pixels. Content spawns at most two foes, and guardians alone.
+  const WORLD_WIDTH = 1434;
+  const groups = [
+    [{ uid: "wisp", size: "small" as const, aspect: 0.88 }],
+    [{ uid: "wisp", size: "small" as const, aspect: 0.88 }, { uid: "goblin", size: "medium" as const, aspect: 1 }],
+    [{ uid: "sphinx", size: "large" as const, aspect: 1 }, { uid: "bomb", size: "large" as const, aspect: 1 }],
+    [{ uid: "warden", size: "huge" as const, aspect: 1 }],
+    [{ uid: "daemon", size: "colossal" as const, aspect: 0.92 }],
+  ];
+
+  it("leaves a lane between the Maintainer and the nearest foe that is wide enough for the code, and touches neither", () => {
+    for (const aspect of [WORLD_WIDTH / 592, WORLD_WIDTH / 452]) {
+      const hero = heroPlacement(aspect, 96 / 104);
+      for (const group of groups) {
+        const placed = layoutFoes(group, aspect);
+        const guardian = group.length === 1 && (group[0]?.size === "huge" || group[0]?.size === "colossal");
+        const foes = group.map((foe) => ({ at: placed[foe.uid] ?? hero, plate: !guardian }));
+        const lane = codeLane(hero, foes, WORLD_WIDTH);
+        // The code view's narrowest (480 pixels) plus its gap on both sides fits.
+        expect((lane.right - lane.left) * WORLD_WIDTH).toBeGreaterThanOrEqual(480 + 24);
+        expect(lane.left).toBeGreaterThanOrEqual(hero.x + hero.width / 2 - 1e-9);
+        for (const { at, plate } of foes) {
+          const reach = at.x - Math.max(at.width / 2, plate ? PLATE_WIDTH / 2 / WORLD_WIDTH : 0);
+          expect(lane.right).toBeLessThanOrEqual(reach + 1e-9);
+        }
+      }
+    }
   });
 });
 

@@ -129,3 +129,20 @@ look, and the deck shown next to Stats. What changed:
   and during a fight the draw pile (sorted, so its order stays hidden), the discard pile, and what is held. The view
   carries the piles' cards for it (`battle.drawPile`, `battle.discardPile`), not only their sizes.
 
+## Amendment (2026-09-17): cards that fit what they say, and their code on hover
+
+After the player's next look: "the descriptions are getting cut off", and "when hovering over the card, it should
+also show the code that the card is associated with. Again, if you're playing the 'difficult' mode, the simple
+explanations should be hidden."
+
+- **Sized to their text.** A card in the hand is 136 by 224 pixels and one in the deck views 124 by 208. Every one of the
+  45 shards' summaries fits whole: measured in the browser without the line clamp, since a clamp hides lines rather
+  than overflowing. A summary over 118 characters is set a size smaller, for the few longest (Compound, Singularity).
+- **The code on hover.** Hovering a card, or reaching it with the keyboard, shows the function it runs in the run's
+  language: in the hand, in a spell's slots, and in the hold. It floats over the page (`CardTipLayer` in `Card.tsx`),
+  placed from the card and kept inside the window, above the card when there is room. It follows the card when the
+  page scrolls, and never shows during a drag.
+- **Difficulty.** On Programmer the server sends no summaries, so a card names its function
+  (`kindle(bolts, battle)`) and its code is on hover. On Beginner the card keeps its plain-words summary, and the hover
+  adds the code.
+

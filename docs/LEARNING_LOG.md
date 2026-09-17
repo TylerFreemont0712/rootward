@@ -501,6 +501,15 @@ language feature took more than a minute to understand.
 - **`flex: none` for what must not shrink.** In a column flex box, every child may shrink by default (`flex-shrink: 1`).
   The code view's score and bolt chips are `flex: none`, so only the code, which scrolls, gives way when the view runs
   out of height (`.shr-code-view` in `shardrun.css`).
-- **Name a coupling where both halves live.** The code view keeps to the left half of the stage because foes are laid
-  out in its right half; a comment on each (`FOE_BAND` in `fx/layout.ts`, `.shr-code-view` in `shardrun.css`) says to
-  move them together.
+- **Compute a place from the layout instead of copying its numbers.** The code view stands between the Maintainer and
+  the nearest foe: `codeLane` (`fx/layout.ts`) derives that lane from the same placements the sprites use, and
+  `Stage.tsx` passes it to CSS as custom properties (`--code-left`, `--code-width`). Move a sprite and the code view
+  follows. The one number CSS and TypeScript must share, a plate's width, says so on both sides.
+- **A line clamp hides lines; it does not overflow.** With `-webkit-line-clamp`, `scrollHeight` equals `clientHeight`,
+  so a clipped summary looks like it fits. Measure the text with the clamp lifted instead: its lines against the clamp,
+  and its bottom against the card (`.shr-cardface-text`).
+- **Place a floating box before the browser paints.** The card's code renders into `document.body` hidden, a
+  `useLayoutEffect` measures it and the card, keeps it inside the window, and only then shows it
+  (`CardTipLayer` in `Card.tsx`). The card element itself is kept in the store, so the effect can measure it again on
+  scroll. Hiding on scroll failed: a scroll event arrives a frame after the scroll, which can be after the pointer has
+  already arrived on a card.

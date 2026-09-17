@@ -131,7 +131,8 @@ every rule number is under `shardrun` in `config/balance.yaml`. Routes are under
    shuffles the deck into `battle.draw` and deals `battle.hand`; `compose` moves cards between the hand and the spells
    (a multiset check keeps every card in exactly one place), a cast moves its spell's cards to `battle.discard`, and
    ending a turn discards the rest and draws again, reshuffling the discard when the pile runs out. Won cards join the
-   deck, and a forge can `purge` one. The client's table is `Hand.tsx` (the hand and `useComposer`) and `DeckPanel.tsx`.
+   deck, and a forge can `purge` one. The client's table is `Hand.tsx` (the hand and `useComposer`) and `DeckPanel.tsx`;
+   hovering a card on it shows the card's code (`CardTipLayer` in `Card.tsx`).
 4. **Resolving.** A bolt deals `power x mult` (ADR-0014): the multiplier is the second axis a build grows on, and
    both numbers are clamped (`max_bolt_power`, `max_bolt_mult`) because a shard's output is player code. `mult`
    defaults to 1, so shards written before that ADR keep their meaning and flow it through unchanged.
@@ -164,8 +165,9 @@ every rule number is under `shardrun` in `config/balance.yaml`. Routes are under
    flashes, rising numbers and banners. HP and Integrity wait for the hits through a small ledger (`fx/pending.ts`).
    Where everyone stands comes from `fx/layout.ts`, from each foe's `size` in content. None of this changes what the
    server decided; it only decides when the player sees it. The code view (`CodeView.tsx`) has one size and place
-   whether a spell is built, cast or read: the stage's left half, because foes are laid out in its right half
-   (`FOE_BAND`), so it never covers one (ADR-0022).
+   whether a spell is built, cast or read: centred in the lane between the Maintainer and the nearest foe, which
+   `codeLane` (`fx/layout.ts`) measures from the layout and `Stage.tsx` hands to CSS as `--code-left` and
+   `--code-width`, so it covers neither (ADR-0022).
 8. **The layer map.** `LayerMap.tsx` draws the view's nodes and edges as the layer in cross-section (ADR-0021): each
    room a chamber painted for its layer with its foes (from `encounterFor`, silhouettes until near) or a prop standing
    in it, tunnels as layered SVG strokes, the guardian's arena at the top, and the Maintainer walking a tunnel's

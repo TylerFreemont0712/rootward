@@ -3,6 +3,20 @@
 Friction found while playing, newest first. Each entry: date, commit, what happened, severity (blocker / annoying /
 polish), and the follow-up (a ROADMAP item or the commit that fixed it).
 
+## 2026-09-17 — the code view between the fighters, cards that fit, and code on hover (ADR-0022, ADR-0020)
+
+From the player's next look, checked with screenshots and measurements in headless Chromium:
+
+- **The code view covered the Maintainer** once it moved out of the foes' way. Annoying; it now stands in the lane
+  between them, computed from the layout. Measured clear of every sprite, plate and intent at 1440 and 1280 pixels, in a
+  pair, a large pair, both guardians, and a deck run.
+- **Card descriptions were cut off.** Annoying; cards are bigger and all 45 summaries fit. The first measurement said
+  none were cut, because a line clamp hides lines instead of overflowing; measured again without the clamp.
+- **A card's code wasn't reachable from the table.** Hovering a card now shows it; on Programmer the card shows only its
+  function name. On the way: the code first stayed up during drags (a CSS specificity tie), two boxes showed at once
+  (a click's focus kept one open), and a box near the page edge vanished (a late scroll event hid it). All three are
+  fixed and checked.
+
 ## 2026-09-17 — the damage on the code block, and where the code sits (ADR-0022)
 
 From the player, then measured with a scratch script against the real server and sandbox (28 casts, eleven foe groups,

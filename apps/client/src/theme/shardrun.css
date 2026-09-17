@@ -248,6 +248,7 @@
 }
 .shr-intent.intent-shield, .shr-intent.intent-heal { border-color: var(--teal-dim); }
 .shr-intent.intent-stoke { border-color: var(--warn); }
+/* Its width is PLATE_WIDTH in fx/layout.ts, which keeps the code view clear of it. */
 .shr-plate {
   position: absolute; top: calc(100% + 10px); left: 50%; translate: -50% 0; width: 196px; z-index: 1;
   padding: 5px 7px; font-size: 11px; background: rgb(18 14 10 / 88%); border: 1px solid var(--line); transition: opacity 0.3s;
@@ -610,12 +611,12 @@
   .shr-map-air { display: none; }
 }
 
-/* The whole spell as code, in one place and at one size whether it is being built, cast, or read (ADR-0022): the left
- * half of the stage, which foes never stand in (they share its right half, see fx/layout.ts), so no foe, intent, or
- * health plate is ever under it. The Maintainer is while code is on screen; when a cast's code has run it folds away to
- * its score, above their head, which stays up while the hits land and then fades (ADR-0019). */
+/* The whole spell as code, in one place and at one size whether it is being built, cast, or read (ADR-0022): between
+ * the Maintainer and the nearest foe, so it covers neither. Stage.tsx measures that lane from the layout
+ * (`codeLane` in fx/layout.ts) and sets --code-left and --code-width; the fallbacks hold until the stage is measured.
+ * When a cast's code has run it folds away to its score, which stays up while the hits land and then fades (ADR-0019). */
 .shr-code-view {
-  position: absolute; z-index: 8; left: 1.5%; top: 2.5%; width: min(47.5%, 720px); max-height: 76%;
+  position: absolute; z-index: 8; left: var(--code-left, 20%); top: 2.5%; width: var(--code-width, min(38%, 720px)); max-height: 76%;
   display: flex; flex-direction: column; padding: 10px 12px;
   border: 1px solid var(--shard-dim); background: rgb(12 9 16 / 94%); box-shadow: 0 0 30px rgb(0 0 0 / 70%), 0 0 18px var(--shard-glow);
   transition: opacity 0.4s ease, background-color 0.3s ease;
@@ -753,7 +754,7 @@
 .shr-cardface {
   --card-edge: #7a6442; --card-top: #2c2217; --card-bottom: #15100b;
   position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px;
-  width: 108px; height: 152px; padding: 14px 6px 7px; box-sizing: border-box;
+  width: 136px; height: 224px; padding: 14px 7px 8px; box-sizing: border-box;
   border: 2px solid var(--card-edge); border-radius: 8px;
   background: linear-gradient(180deg, var(--card-top), var(--card-bottom) 72%);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 6%), 0 4px 10px rgb(0 0 0 / 45%);
@@ -775,8 +776,9 @@
 .shr-cardface-name { font-family: var(--font-crt); font-weight: 400; font-size: 20px; line-height: 0.95; color: var(--amber); }
 .shr-cardface-text {
   font-size: 10px; line-height: 1.25; color: var(--muted); overflow: hidden;
-  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+  display: -webkit-box; -webkit-line-clamp: 9; -webkit-box-orient: vertical;
 }
+.shr-cardface-text.long { font-size: 9px; }
 .shr-cardface-count {
   position: absolute; bottom: -8px; right: -8px; padding: 1px 6px; border-radius: 10px; border: 1px solid var(--card-edge);
   background: #0b0806; font-family: var(--font-crt); font-size: 18px; line-height: 1; color: var(--amber);
@@ -785,10 +787,10 @@
   position: absolute; bottom: 4px; left: 50%; translate: -50% 0; padding: 0 5px; font-size: 9px; letter-spacing: 0.12em;
   text-transform: uppercase; color: #08110b; background: #6ddf9a;
 }
-.shr-cardface.size-deck { width: 100px; height: 142px; padding-top: 14px; }
+.shr-cardface.size-deck { width: 124px; height: 208px; padding-top: 14px; }
 .shr-cardface.size-deck .shr-cardface-art { width: 52px; height: 52px; }
 .shr-cardface.size-deck .shr-cardface-name { font-size: 17px; }
-.shr-cardface.size-deck .shr-cardface-text { -webkit-line-clamp: 3; }
+.shr-cardface.size-deck .shr-cardface-text { -webkit-line-clamp: 9; }
 .shr-cardface.size-mini { width: 66px; height: 82px; padding: 8px 3px 4px; gap: 2px; border-radius: 6px; }
 .shr-cardface.size-mini .shr-cardface-art { width: 38px; height: 38px; }
 .shr-cardface.size-mini .shr-cardface-name { font-size: 14px; }
@@ -797,6 +799,20 @@
 
 /* A card as a button: pressed, it lifts; dragged, the original fades while its ghost follows the pointer. */
 .shr-card-button { display: block; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: grab; touch-action: none; }
+
+/* A card's code over the page while the card is hovered (CardTipLayer in Card.tsx, which places it inside the window). */
+.shr-card-tip {
+  position: fixed; left: 0; top: 0; z-index: 900; display: flex; flex-direction: column; gap: 5px;
+  width: max-content; max-width: min(820px, calc(100vw - 24px)); padding: 7px 9px 9px; text-align: left; pointer-events: none;
+  background: rgb(12 9 16 / 97%); border: 1px solid var(--shard-dim); box-shadow: 0 10px 26px rgb(0 0 0 / 70%), 0 0 12px var(--shard-glow);
+}
+.shr-card-tip-head { display: flex; align-items: baseline; gap: 10px; font-size: 11px; color: var(--muted); }
+.shr-card-tip-head b { font-family: var(--font-crt); font-weight: 400; font-size: 20px; line-height: 1; color: var(--shard); }
+/* Code keeps its lines, and only a line too long for the window wraps. */
+.shr-card-tip-code {
+  display: block; padding: 6px 8px; white-space: pre-wrap; overflow-wrap: anywhere;
+  background: #0b0806; border: 1px solid var(--line-soft); font-size: 11px; line-height: 1.45; color: var(--text); tab-size: 4;
+}
 .shr-card-button:disabled { cursor: default; }
 .shr-card-button:disabled .shr-cardface { filter: saturate(0.6) brightness(0.8); }
 .shr-card-button:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 8px; }
@@ -836,7 +852,7 @@
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 6px 14px;
   padding: 12px 14px 6px; border: 1px solid var(--line); background: rgb(26 20 16 / 96%);
 }
-.shr-hand-cards { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 10px; min-height: 160px; padding: 4px; border-radius: 6px; }
+.shr-hand-cards { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 10px; min-height: 232px; padding: 4px; border-radius: 6px; }
 .shr-hand-card { position: relative; transition: transform 0.12s ease-out; }
 .shr-hand-card:hover, .shr-hand-card:focus-within { transform: translateY(-8px); }
 .shr-hand-card:hover .shr-cardface { border-color: var(--amber); }
