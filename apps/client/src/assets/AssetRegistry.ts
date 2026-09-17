@@ -63,6 +63,14 @@ const RELICS = [
   "amortized-ledger",
   "wider-aperture",
   "thread-pool",
+  // Relics only Shardrun (Experimental) runs find (ADR-0020).
+  "clipboard",
+  "read-ahead-buffer",
+  "warm-cache",
+  "generator",
+  "compacting-collector",
+  "dependency-bundle",
+  "tree-shaker",
 ];
 const SHARD_ICONS = [
   "fork",
