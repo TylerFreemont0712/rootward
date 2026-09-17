@@ -490,4 +490,17 @@ language feature took more than a minute to understand.
   itself, so a 2-pixel mote cannot be told to cross its container that way. With `container-type: size` on the overlay,
   `cqh` is a hundredth of the overlay's own height, and `translate: 0 -106cqh` in the keyframes crosses the map's view
   exactly, whatever the window's size (`.shr-map-air`).
-
+- **A preview must do things in the real thing's order.** Feedback Loop's preview and its cast ran the same functions,
+  but the cast counted itself *before* making its bolts and the preview never did, so the first cast of a fight landed
+  three times what it promised. Two code paths that must agree are worth a test that runs both and compares
+  (`packages/core/test/shardrun.test.ts`, "lands exactly what its preview said").
+- **Hide at the render edge, in the same shape the server uses.** Turning predictions off does not add a flag to every
+  component: `withoutPredictions` strips the spells' previews down to exactly what the server sends on a difficulty
+  that predicts nothing, once, where the screen hands the run down. Every component already handles that shape
+  (`apps/client/src/shardrun/predictions.ts`).
+- **`flex: none` for what must not shrink.** In a column flex box, every child may shrink by default (`flex-shrink: 1`).
+  The code view's score and bolt chips are `flex: none`, so only the code, which scrolls, gives way when the view runs
+  out of height (`.shr-code-view` in `shardrun.css`).
+- **Name a coupling where both halves live.** The code view keeps to the left half of the stage because foes are laid
+  out in its right half; a comment on each (`FOE_BAND` in `fx/layout.ts`, `.shr-code-view` in `shardrun.css`) says to
+  move them together.

@@ -3,6 +3,20 @@
 Friction found while playing, newest first. Each entry: date, commit, what happened, severity (blocker / annoying /
 polish), and the follow-up (a ROADMAP item or the commit that fixed it).
 
+## 2026-09-17 — the damage on the code block, and where the code sits (ADR-0022)
+
+From the player, then measured with a scratch script against the real server and sandbox (28 casts, eleven foe groups,
+five relics), and with screenshots of both playstyles' code views, mid-cast and folded, in a group fight and a guardian's:
+
+- **The code block's damage was not the damage.** Blocking; the headline was the volley's potential, which differed
+  from what landed in 15 of the 28 casts. It now shows what lands; the potential is the footnote.
+- **Feedback Loop landed three times its preview on a fight's first cast.** Blocking; the cast counted itself. Fixed,
+  with a test.
+- **The cast and read views covered the front foe** of a group, and the build view did too. Annoying; every code view
+  now sits in the stage's left half, where foes never stand.
+- **The bolt chips were cut off** in the bigger view (the row shrank). Polish; it keeps its height.
+- **Map rooms took too much space.** Polish; three quarters of their size.
+
 ## 2026-09-17 — the layer map as a place (ADR-0021)
 
 Checked with screenshots of a sandbox run's map on each layer: the start at the way in, a room's card, a walk caught

@@ -34,7 +34,10 @@ const FOE_GROUND: Readonly<Record<FoeSizeView, number>> = {
 /** The Maintainer's spot, left of centre. */
 export const HERO_SPOT = { x: 0.2, y: 0.8, height: 0.46 } as const;
 
-/** The strip of the stage foes share, and the room kept between two of them. */
+/**
+ * The strip of the stage foes share, and the room kept between two of them. The code view keeps to the stage's left of
+ * `from` (`.shr-code-view` in shardrun.css), so no foe is ever under it: move the two together.
+ */
 const FOE_BAND = { from: 0.5, to: 0.95 } as const;
 const GAP = 0.012;
 

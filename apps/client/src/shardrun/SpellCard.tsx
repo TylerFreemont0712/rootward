@@ -145,10 +145,10 @@ export function SpellCard(props: {
               {preview.result.bolts} {preview.result.bolts === 1 ? "bolt" : "bolts"}
             </span>
             {/* Zero damage is worth saying out loud: it is how a nullify or a thick hide shows up before the cast. */}
-            {(preview.result.potential > 0 || preview.result.block === 0) && (
+            {(preview.result.damage > 0 || preview.result.potential > 0 || preview.result.block === 0) && (
               <span className="dmg">
-                {preview.result.potential} damage
-                {preview.result.potential > preview.result.damage && <i className="over"> ({preview.result.damage} needed)</i>}
+                {preview.result.damage} damage
+                {preview.result.potential > preview.result.damage && <i className="over"> (worth {preview.result.potential})</i>}
               </span>
             )}
             {preview.result.block > 0 && <span className="blk">{preview.result.block} block</span>}

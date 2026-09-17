@@ -1,5 +1,6 @@
 import type { BoltOutcomeView, ShardrunView, SpellRunView, SpellView } from "@rootward/shared";
 import { useEffect, useMemo, useState } from "react";
+import { useShardrun } from "../state/shardrun.ts";
 import { type CodeSpeed, CODE_SPEEDS, composeSpell, playbackFrames, playbackLength, type SpellSource } from "./source.ts";
 
 /**
@@ -25,6 +26,7 @@ export function CodeView(props: {
   const { run, spell, spellRun, speed, mode, onDone } = props;
   const finished = props.finished === true;
   const building = mode === "build";
+  const predictions = useShardrun((s) => s.predictions);
   const playSpeed = speed === "off" ? "fast" : speed;
   const source = useMemo(
     () => composeSpell(run.language, spell.name, spell.shards, run.shards, run.rules.baseBoltPower),
@@ -96,7 +98,7 @@ export function CodeView(props: {
         <h3>{spell.name}</h3>
         {building && <span className="shr-building">building</span>}
         <span className="meta">
-          {run.language} · {spell.shards.length} {building ? (spell.shards.length === 1 ? "card" : "cards") : spell.shards.length === 1 ? "shard" : "shards"}
+          {run.language} · {spell.shards.length} {run.playstyle === "deck" ? (spell.shards.length === 1 ? "card" : "cards") : spell.shards.length === 1 ? "shard" : "shards"}
           {spellRun && ` · ${spellRun.cost} mana`}
           {work > 0 && ` · ${work} work`}
         </span>
@@ -132,11 +134,13 @@ export function CodeView(props: {
           </div>
           <div className="shr-score damage">
             <span>damage</span>
-            <b key={`d-${outcome?.potential ?? 0}`}>{outcome?.potential ?? 0}</b>
-            {/* What the volley is worth is the score; how much of it the foes could absorb is a footnote (ADR-0016). */}
+            <b key={`d-${outcome?.damage ?? 0}`}>{outcome?.damage ?? 0}</b>
+            {/* The score is what lands on these foes, exactly. What the volley would do to foes that cannot die is the
+                footnote, so a build that outgrows its target still shows how big it got (ADR-0022, amending ADR-0016). */}
             {outcome !== undefined && outcome.potential > outcome.damage && (
-              <i className="shr-overkill">
-                {outcome.damage} lands · ×{Math.round((outcome.potential / Math.max(1, outcome.damage)) * 10) / 10} over
+              <i key={`w-${outcome.potential}`} className="shr-overkill">
+                worth {outcome.potential}
+                {outcome.damage > 0 && ` · ×${Math.round((outcome.potential / outcome.damage) * 10) / 10} over`}
               </i>
             )}
           </div>
@@ -147,11 +151,13 @@ export function CodeView(props: {
         </div>
       ) : (
         <p className="meta shr-code-hint">
-          {run.difficulty.showPredictions
-            ? building
-              ? "Running the cards…"
-              : "Reading the shards…"
-            : "No predictions on this difficulty: read the code, then cast it to watch it run."}
+          {!run.difficulty.showPredictions
+            ? "No predictions on this difficulty: read the code, then cast it to watch it run."
+            : !predictions
+              ? "Predictions are off in Options: read the code, then cast it to watch it run."
+              : building
+                ? "Running the cards…"
+                : "Reading the shards…"}
         </p>
       )}
 
@@ -192,7 +198,7 @@ export function CodeView(props: {
               {step?.outcome && (
                 <span className="shr-annotation">
                   → {step.outcome.bolts} {step.outcome.bolts === 1 ? "bolt" : "bolts"}
-                  {step.outcome.potential > 0 && ` · ${step.outcome.potential} dmg`}
+                  {step.outcome.damage > 0 && ` · ${step.outcome.damage} dmg`}
                   {step.outcome.block > 0 && ` · ${step.outcome.block} block`}
                   {billed !== undefined && (
                     <i className="shr-work" title="Work units this line was billed">{` · ${billed} work`}</i>

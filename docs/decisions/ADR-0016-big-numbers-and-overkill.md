@@ -1,6 +1,7 @@
 # ADR-0016 — Big numbers: float64 forever, and scoring the volley instead of the fight
 
-Status: accepted (2026-09-16)
+Status: accepted (2026-09-16). §3's display amended by ADR-0022: the scoreboard shows the damage that lands, with the
+potential as its footnote; the potential is still computed, and is still the run's best cast.
 Amends the damage rules of ADR-0012, ADR-0014 and ADR-0015. Settles the question ADR-0014 and `POSSIBILITIES.md` §6
 deliberately left open.
 

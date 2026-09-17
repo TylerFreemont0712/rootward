@@ -29,9 +29,13 @@ seen rather than labeled.
 
 ## Decision
 
-- **Chambers, one per layer.** Each layer has a chamber painted for it (`shardrun/map-chamber-<layer>`, 128x96, from a
-  layout sketch of an arched room so all three share a shape) and a seamless rock wall behind the map
+- **Chambers, one per layer.** Each layer has a chamber painted for it (`shardrun/map-chamber-<layer>`, from a layout
+  sketch of an arched room so all three share a shape) and a seamless rock wall behind the map
   (`shardrun/map-wall-<layer>-0`). Every room of a layer is that chamber; what differs is what stands in it.
+- **Room size (amended the same day, after the player's look: the rooms took "a little too much space").** A chamber is
+  96x72 and a prop 42x42, both posted at that size so they are drawn 1:1; foes, the Maintainer, the way in, the
+  tunnels and the guardian's room are three quarters of their first size, and rows are closer. The first size was
+  128x96.
 - **What waits inside is shown, not named.** A fight or elite shows its foes' own sprites; rests, forges and treasure
   show a painted prop (`shardrun/map-prop-<kind>`). Foes in rooms that are not yet reachable are silhouettes: you see a
   shape in every room, and who it is when the room is near. Elites carry a red badge and light. A cleared room is empty.

@@ -1,6 +1,6 @@
 import "../theme/shardrun.css";
 import type { ShardrunView } from "@rootward/shared";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { assetUrl } from "../assets/AssetRegistry.ts";
 import { useT } from "../i18n/index.ts";
 import { Arena } from "../shardrun/Arena.tsx";
@@ -8,6 +8,7 @@ import { DeckDrawer, DeckPanel } from "../shardrun/DeckPanel.tsx";
 import { DevDrawer } from "../shardrun/DevDrawer.tsx";
 import { SPEED_CHOICES } from "../shardrun/CodeView.tsx";
 import { LayerMap } from "../shardrun/LayerMap.tsx";
+import { withoutPredictions } from "../shardrun/predictions.ts";
 import { RelicBar } from "../shardrun/parts.tsx";
 import { ForgePanel, RestPanel, RewardPanel } from "../shardrun/rooms.tsx";
 import { RunTotals, StatsPanel } from "../shardrun/StatsPanel.tsx";
@@ -27,6 +28,13 @@ export function ShardrunScreen() {
   const afterglow = useShardrun((s) => s.afterglow);
   const load = useShardrun((s) => s.load);
   const dismissError = useShardrun((s) => s.dismissError);
+  const predictions = useShardrun((s) => s.predictions);
+  // With predictions turned off in Options, a fight is shown as a difficulty that predicts nothing would show it.
+  const fight = useMemo(() => (run && !predictions ? withoutPredictions(run) : run), [run, predictions]);
+  const glow = useMemo(
+    () => (afterglow && !predictions ? { ...afterglow, run: withoutPredictions(afterglow.run) } : afterglow),
+    [afterglow, predictions],
+  );
 
   useEffect(() => {
     if (profileId !== undefined) void load(profileId);
@@ -35,23 +43,23 @@ export function ShardrunScreen() {
   let body;
   if (!loaded) {
     body = <p className="narr shr-loading">Lowering a lantern into the Salvage…</p>;
-  } else if (afterglow) {
+  } else if (glow) {
     body = (
       <>
-        <RunHeader run={afterglow.run} />
-        <Arena run={afterglow.run} battle={afterglow.battle} frozen />
+        <RunHeader run={glow.run} />
+        <Arena run={glow.run} battle={glow.battle} frozen />
       </>
     );
   } else if (!run || ENDED.has(run.status)) {
     body = <StartPanel run={run} />;
-  } else if (run.status === "battle" && run.battle) {
+  } else if (run.status === "battle" && run.battle && fight?.battle) {
     body = (
       <>
-        <RunHeader run={run} />
-        <Arena run={run} battle={run.battle} frozen={false} />
+        <RunHeader run={fight} />
+        <Arena run={fight} battle={fight.battle} frozen={false} />
         <details className="shr-book">
-          <summary>{run.playstyle === "deck" ? "Deck and card code" : "Spellbook and shard code"}</summary>
-          {run.playstyle === "deck" ? <DeckPanel run={run} /> : <Workbench run={run} locked />}
+          <summary>{fight.playstyle === "deck" ? "Deck and card code" : "Spellbook and shard code"}</summary>
+          {fight.playstyle === "deck" ? <DeckPanel run={fight} /> : <Workbench run={fight} locked />}
         </details>
       </>
     );
@@ -215,8 +223,32 @@ function OptionsPanel() {
   const deck = useShardrun((s) => s.playstyle === "deck");
   const buildCode = useShardrun((s) => s.buildCode);
   const setBuildCode = useShardrun((s) => s.setBuildCode);
+  const predictions = useShardrun((s) => s.predictions);
+  const setPredictions = useShardrun((s) => s.setPredictions);
   return (
     <div className="shr-options" role="group" aria-label="Options">
+      <div className="shr-option">
+        <span>Show what a spell will do before you cast it</span>
+        <div className="actions">
+          {([true, false] as const).map((on) => (
+            <button
+              key={String(on)}
+              type="button"
+              className={predictions === on ? "btn primary" : "btn"}
+              aria-pressed={predictions === on}
+              onClick={() => {
+                setPredictions(on);
+              }}
+            >
+              {t(on ? "options.on" : "options.off")}
+            </button>
+          ))}
+        </div>
+        <p className="meta shr-option-note">
+          Its bolts, damage, and block, counted against the foes in front of you. Off keeps them hidden until the spell
+          runs, as the Programmer difficulty does.
+        </p>
+      </div>
       {deck && (
         <div className="shr-option">
           <span>Show a spell's code while you build it</span>

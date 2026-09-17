@@ -427,7 +427,9 @@
 .shr-relic-bar li { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line); background: var(--panel-3); }
 .shr-options { position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; width: min(560px, 90vw); padding: 12px; border: 1px solid var(--line); background: var(--panel); box-shadow: 0 10px 30px rgb(0 0 0 / 60%); }
 .shr-option { display: flex; flex-direction: column; gap: 6px; }
+.shr-option + .shr-option { margin-top: 14px; }
 .shr-option > span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.shr-option-note { margin: 0; font-size: 11px; }
 .shr-icon.glyph.relic { color: var(--warn); }
 .shr-relic-card.relic-uncommon { border-color: var(--teal-dim); }
 .shr-relic-card.relic-rare { border-color: var(--shard-dim); }
@@ -462,11 +464,11 @@
 
 .shr-map-tunnels { position: absolute; left: 0; top: 0; z-index: 1; overflow: visible; }
 .shr-tunnel path { fill: none; stroke-linecap: round; }
-.shr-tunnel-rock { stroke: rgb(3 2 1 / 88%); stroke-width: 26; }
-.shr-tunnel-floor { stroke: #2e2319; stroke-width: 12; }
+.shr-tunnel-rock { stroke: rgb(3 2 1 / 88%); stroke-width: 20; }
+.shr-tunnel-floor { stroke: #2e2319; stroke-width: 9; }
 .shr-map-scroll.layer-heap .shr-tunnel-floor { stroke: #1d2a2c; }
 .shr-map-scroll.layer-kernel .shr-tunnel-floor { stroke: #221c24; }
-.shr-tunnel-light { stroke-width: 3; }
+.shr-tunnel-light { stroke-width: 2.5; }
 .tunnel-taken .shr-tunnel-light { stroke: #ffcf8a; opacity: 0.7; filter: drop-shadow(0 0 4px rgb(255 207 138 / 70%)); }
 .tunnel-open .shr-tunnel-light {
   stroke: #ffe7b0; stroke-dasharray: 6 12; filter: drop-shadow(0 0 5px rgb(255 190 110 / 90%));
@@ -483,31 +485,32 @@
 }
 
 .shr-map-entrance {
-  position: absolute; z-index: 3; width: 120px; height: 68px; display: grid; place-items: end center; padding-bottom: 4px;
-  border-radius: 60px 60px 6px 6px; background: radial-gradient(ellipse at 50% 100%, #000 45%, #120d09 75%);
-  box-shadow: 0 0 0 5px #2a2018, 0 0 0 8px #0b0806; color: var(--faint); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  position: absolute; z-index: 3; width: 96px; height: 54px; display: grid; place-items: end center; padding-bottom: 3px;
+  border-radius: 48px 48px 6px 6px; background: radial-gradient(ellipse at 50% 100%, #000 45%, #120d09 75%);
+  box-shadow: 0 0 0 4px #2a2018, 0 0 0 7px #0b0806; color: var(--faint); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
 }
 
 /* A room: its chamber, a light of its own, and what waits inside. */
 .shr-chamber, .shr-gate { position: absolute; z-index: 3; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: default; }
-.shr-chamber { width: 128px; height: 96px; transition: transform 0.15s ease-out, filter 0.2s; }
+/* A room's size comes from LayerMap's CHAMBER, the size its painting is posted at. */
+.shr-chamber { transition: transform 0.15s ease-out, filter 0.2s; }
 .shr-chamber-art {
   position: absolute; inset: 0; background-size: 100% 100%; image-rendering: pixelated;
-  border-radius: 46% 46% 10px 10px / 58% 58% 10px 10px;
+  border-radius: 46% 46% 8px 8px / 58% 58% 8px 8px;
   background-color: #2a2018; background-image: radial-gradient(ellipse at 50% 38%, rgb(255 207 138 / 35%), transparent 62%);
   box-shadow: 0 0 0 3px #1a130d, 0 0 0 5px rgb(0 0 0 / 70%), 0 6px 14px rgb(0 0 0 / 60%);
 }
 .shr-chamber-glow { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; }
 .shr-chamber-inside {
-  position: absolute; left: 0; right: 0; bottom: 14px; display: flex; justify-content: center; align-items: flex-end; gap: 2px;
+  position: absolute; left: 0; right: 0; bottom: 10px; display: flex; justify-content: center; align-items: flex-end; gap: 2px;
   pointer-events: none;
 }
-.shr-chamber-foe { height: 46px; width: auto; max-width: 58px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 2px 0 rgb(0 0 0 / 60%)); }
-.shr-chamber.kind-elite .shr-chamber-foe { height: 56px; max-width: 70px; }
-.shr-chamber-prop { width: 56px; height: 56px; image-rendering: pixelated; filter: drop-shadow(0 2px 0 rgb(0 0 0 / 60%)); }
-.shr-chamber-glyph { font-family: var(--font-crt); font-size: 30px; color: var(--amber-dim); }
+.shr-chamber-foe { height: 34px; width: auto; max-width: 44px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 2px 0 rgb(0 0 0 / 60%)); }
+.shr-chamber.kind-elite .shr-chamber-foe { height: 42px; max-width: 52px; }
+.shr-chamber-prop { width: 42px; height: 42px; image-rendering: pixelated; filter: drop-shadow(0 2px 0 rgb(0 0 0 / 60%)); }
+.shr-chamber-glyph { font-family: var(--font-crt); font-size: 24px; color: var(--amber-dim); }
 .shr-chamber-cleared {
-  position: absolute; left: 50%; bottom: 10px; translate: -50% 0; padding: 0 6px; font-size: 9px; letter-spacing: 0.14em;
+  position: absolute; left: 50%; bottom: 7px; translate: -50% 0; padding: 0 5px; font-size: 9px; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--teal); background: rgb(0 0 0 / 55%); pointer-events: none;
 }
 .shr-chamber.kind-elite .shr-chamber-glow { background: radial-gradient(ellipse at 50% 75%, rgb(226 88 79 / 38%), transparent 65%); }
@@ -516,7 +519,7 @@
   border: 1px solid #8a3a32; background: #1a0b0a; color: #ff8f7a; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
   pointer-events: none;
 }
-.shr-chamber-badge img { width: 18px; height: 18px; image-rendering: pixelated; }
+.shr-chamber-badge img { width: 16px; height: 16px; image-rendering: pixelated; }
 .shr-chamber.kind-elite .shr-chamber-art { box-shadow: 0 0 0 3px #5a1f1a, 0 0 0 5px rgb(0 0 0 / 70%), 0 6px 14px rgb(0 0 0 / 60%); }
 .shr-chamber.kind-treasure .shr-chamber-glow { background: radial-gradient(ellipse at 50% 78%, rgb(233 196 106 / 34%), transparent 60%); }
 .shr-chamber.kind-rest .shr-chamber-glow { background: radial-gradient(ellipse at 50% 80%, rgb(255 160 80 / 30%), transparent 60%); }
@@ -543,7 +546,7 @@
   box-shadow: inset 0 0 50px 22px rgb(0 0 0 / 85%), 0 0 0 7px #2a2018, 0 0 0 11px #0b0806, 0 10px 30px rgb(0 0 0 / 70%);
 }
 .shr-gate-guardian {
-  position: absolute; left: 50%; bottom: 8px; translate: -50% 0; height: 150px; width: auto; image-rendering: pixelated;
+  position: absolute; left: 50%; bottom: 8px; translate: -50% 0; height: 124px; width: auto; image-rendering: pixelated;
   filter: brightness(0.35) drop-shadow(0 0 10px rgb(226 88 79 / 30%));
 }
 .shr-gate-plaque {
@@ -563,18 +566,19 @@
 }
 
 /* The Maintainer and the lantern they carry. */
-.shr-walker { position: absolute; left: 0; top: 0; z-index: 5; width: 48px; height: 75px; pointer-events: none; }
+.shr-walker { position: absolute; left: 0; top: 0; z-index: 5; width: 36px; height: 56px; pointer-events: none; }
 .shr-walker-light {
-  position: absolute; left: 50%; bottom: -10px; width: 84px; height: 26px; translate: -50% 0; border-radius: 50%;
+  position: absolute; left: 50%; bottom: -8px; width: 64px; height: 20px; translate: -50% 0; border-radius: 50%;
   background: radial-gradient(closest-side, rgb(255 207 138 / 50%), transparent);
 }
-.shr-walker.no-art .shr-walker-light { bottom: 20px; width: 26px; height: 26px; background: radial-gradient(closest-side, #fff1d6, rgb(255 207 138 / 60%) 50%, transparent); }
+.shr-walker.no-art .shr-walker-light { bottom: 15px; width: 20px; height: 20px; background: radial-gradient(closest-side, #fff1d6, rgb(255 207 138 / 60%) 50%, transparent); }
 .shr-walker-sprite {
-  position: absolute; inset: 0; background-repeat: no-repeat; background-size: 240px 75px; background-position: 0 0;
+  position: absolute; inset: 0; background-repeat: no-repeat; background-size: 180px 56px; background-position: 0 0;
   image-rendering: pixelated; filter: drop-shadow(0 2px 0 rgb(0 0 0 / 65%));
 }
 .shr-walker.walking .shr-walker-sprite { animation: shr-walker-cycle 0.48s steps(4) infinite; }
-@keyframes shr-walker-cycle { from { background-position: -48px 0; } to { background-position: -240px 0; } }
+/* Five 36-pixel frames: the first stands, the other four walk. */
+@keyframes shr-walker-cycle { from { background-position: -36px 0; } to { background-position: -180px 0; } }
 
 .shr-chamber-tip {
   position: absolute; z-index: 8; width: 260px; translate: 0 -100%; display: flex; flex-direction: column; gap: 2px;
@@ -606,15 +610,19 @@
   .shr-map-air { display: none; }
 }
 
-/* The whole spell as code: centered over the stage, clear of the Maintainer. When a cast's code has run it folds away to
- * its score, which stays up while the hits land and then fades (ADR-0019). */
+/* The whole spell as code, in one place and at one size whether it is being built, cast, or read (ADR-0022): the left
+ * half of the stage, which foes never stand in (they share its right half, see fx/layout.ts), so no foe, intent, or
+ * health plate is ever under it. The Maintainer is while code is on screen; when a cast's code has run it folds away to
+ * its score, above their head, which stays up while the hits land and then fades (ADR-0019). */
 .shr-code-view {
-  position: absolute; z-index: 8; left: 50%; top: 2.5%; translate: -50% 0; width: min(60%, 800px); max-height: 90%;
-  display: flex; flex-direction: column; padding: 12px 14px;
+  position: absolute; z-index: 8; left: 1.5%; top: 2.5%; width: min(47.5%, 720px); max-height: 76%;
+  display: flex; flex-direction: column; padding: 10px 12px;
   border: 1px solid var(--shard-dim); background: rgb(12 9 16 / 94%); box-shadow: 0 0 30px rgb(0 0 0 / 70%), 0 0 18px var(--shard-glow);
   transition: opacity 0.4s ease, background-color 0.3s ease;
 }
-.shr-code-view > * + * { margin-top: 8px; }
+.shr-code-view > * + * { margin-top: 6px; }
+/* Only the code gives way when space runs short: the score and the bolts between it and the code keep their height. */
+.shr-code-view .shr-scoreboard, .shr-code-view .shr-bolt-row { flex: none; }
 /* A guardian's health bar owns the top of the stage, so the code sits below it. */
 .shr-stage.boss-fight .shr-code-view { top: 132px; max-height: calc(100% - 144px); }
 .shr-code-view.finished { pointer-events: none; background: rgb(12 9 16 / 82%); }
@@ -633,7 +641,7 @@
 .shr-scoreboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .shr-score { display: flex; flex-direction: column; align-items: center; padding: 4px; border: 1px solid var(--line); background: #0b0806; }
 .shr-score span { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
-.shr-score b { font-family: var(--font-crt); font-weight: 400; font-size: 46px; line-height: 1; animation: shr-count-pop 0.35s ease-out; }
+.shr-score b { font-family: var(--font-crt); font-weight: 400; font-size: 30px; line-height: 1; animation: shr-count-pop 0.35s ease-out; }
 .shr-score.damage b { color: var(--amber); text-shadow: 0 0 12px var(--amber-glow); }
 .shr-score.block b { color: var(--teal); text-shadow: 0 0 12px var(--teal-glow); }
 .shr-score.bolts b { color: var(--shard); text-shadow: 0 0 12px var(--shard-glow); }
@@ -642,7 +650,7 @@
 .shr-bolt-chip.ward { border-style: dashed; }
 .shr-code-lines {
   flex: 1 1 auto; min-height: 0; max-height: 64cqh; overflow: auto; margin: 0; padding: 6px 0; list-style: none;
-  background: #070508; border: 1px solid var(--line-soft); font-size: 13px; line-height: 1.6;
+  background: #070508; border: 1px solid var(--line-soft); font-size: 12px; line-height: 1.5;
   transition: max-height 0.4s ease-in, opacity 0.25s ease-in, margin-top 0.4s ease-in, padding 0.4s ease-in;
 }
 .shr-code-lines li { display: grid; grid-template-columns: 36px minmax(0, auto) 1fr; align-items: baseline; gap: 8px; padding: 0 8px 0 0; white-space: pre; }
@@ -732,7 +740,7 @@
 .shr-work { font-style: normal; color: var(--muted); }
 
 /* Overkill (ADR-0016): the score is what the volley was worth, with what the foes could absorb as a footnote. */
-.shr-score .shr-overkill { display: block; margin-top: 2px; font-style: normal; font-size: 10px; color: var(--muted); letter-spacing: 0.04em; }
+.shr-score .shr-overkill { display: block; margin-top: 2px; font-style: normal; font-size: 10px; color: var(--muted); letter-spacing: 0.04em; animation: shr-count-pop 0.3s ease-out; }
 .shr-spell .dmg .over { font-style: normal; color: var(--muted); }
 
 /* ---- Shardrun (Experimental): the deck playstyle's cards, hand, hold, slots, and deck (ADR-0020) ---- */
@@ -854,15 +862,8 @@
 
 /* The code of the spell being built grows as cards go in: what a card just added lights up. */
 .shr-building { padding: 0 6px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #08110b; background: #6ddf9a; }
-/* Left of center: the foes' intents and plates on the right stay in view while a spell is built. */
-.shr-code-view.mode-build {
-  left: 43%; width: min(52%, 720px); max-height: 76%; padding: 10px 12px;
-  border-color: rgb(109 223 154 / 55%); box-shadow: 0 0 30px rgb(0 0 0 / 70%), 0 0 18px rgb(109 223 154 / 25%);
-}
-.shr-code-view.mode-build > * + * { margin-top: 6px; }
-.shr-code-view.mode-build .shr-scoreboard, .shr-code-view.mode-build .shr-bolt-row { flex: none; }
-.shr-code-view.mode-build .shr-score b { font-size: 30px; }
-.shr-code-view.mode-build .shr-code-lines { font-size: 12px; line-height: 1.5; }
+/* Where every code view sits (see .shr-code-view); a spell being built only wears green. */
+.shr-code-view.mode-build { border-color: rgb(109 223 154 / 55%); box-shadow: 0 0 30px rgb(0 0 0 / 70%), 0 0 18px rgb(109 223 154 / 25%); }
 .shr-code-lines li.added { animation: shr-line-added 1.6s ease-out; }
 @keyframes shr-line-added {
   0% { background: rgb(109 223 154 / 38%); box-shadow: inset 3px 0 0 #6ddf9a; translate: -6px 0; }

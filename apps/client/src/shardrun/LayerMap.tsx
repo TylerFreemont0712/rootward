@@ -15,14 +15,16 @@ import { useGame } from "../state/store.ts";
 /** The map's own coordinates, scaled to fit its panel. Chambers are drawn at 1:1 when the panel is wide enough. */
 const WIDTH = 840;
 /** From the top: the guardian's room, a band for each row of rooms, then the way in. */
-const GATE_HEIGHT = 250;
-const ROW_HEIGHT = 136;
-const ENTRANCE_HEIGHT = 120;
+const GATE_HEIGHT = 214;
+const ROW_HEIGHT = 112;
+const ENTRANCE_HEIGHT = 100;
 const SIDE = 34;
-const CHAMBER = { width: 128, height: 96 };
+/** A room at 1:1 with its painted chamber (`shardrun/map-chamber-<layer>`), which is posted at this size. */
+const CHAMBER = { width: 96, height: 72 };
 /** How long the Maintainer takes to walk a tunnel before the room opens. */
 const WALK_MS = 850;
-const WALKER = { width: 48, height: 75 };
+/** The walk strip's frames, drawn at three quarters of their size so the Maintainer fits a room. */
+const WALKER = { width: 36, height: 56 };
 const LANTERN = 760;
 /** How far down the scrolled view the Maintainer is kept: below the middle, so more of what is ahead shows. */
 const VIEW_AT = 0.62;
@@ -110,7 +112,7 @@ export function LayerMap({ run }: { run: ShardrunView }) {
   const standing = (node: ShardrunMapNodeView | undefined): Point => {
     if (!node) return entrance;
     const at = place(node);
-    return node.kind === "boss" ? { x: at.x, y: at.y + 18 } : { x: at.x, y: at.y + 34 };
+    return node.kind === "boss" ? { x: at.x, y: at.y + 14 } : { x: at.x, y: at.y + 25 };
   };
   const current = nodes.find((node) => node.state === "current");
   const walker = standing(walkingTo === undefined ? current : byId.get(walkingTo));
@@ -218,7 +220,7 @@ export function LayerMap({ run }: { run: ShardrunView }) {
 
               <div ref={lanternElement} className="shr-map-lantern" style={{ transform: lanternAt(walker) }} aria-hidden="true" />
 
-              <div className="shr-map-entrance" style={{ left: entrance.x - 60, top: entrance.y - 34 }} aria-hidden="true">
+              <div className="shr-map-entrance" style={{ left: entrance.x - 48, top: entrance.y - 27 }} aria-hidden="true">
                 <span>the way in</span>
               </div>
 
@@ -266,7 +268,7 @@ export function LayerMap({ run }: { run: ShardrunView }) {
                     key={node.id}
                     type="button"
                     className={`shr-map-node shr-chamber kind-${node.kind} state-${node.state}`}
-                    style={{ left: at.x - CHAMBER.width / 2, top: at.y - CHAMBER.height / 2 }}
+                    style={{ left: at.x - CHAMBER.width / 2, top: at.y - CHAMBER.height / 2, width: CHAMBER.width, height: CHAMBER.height }}
                     aria-disabled={!open}
                     tabIndex={open ? 0 : -1}
                     aria-label={`${KIND_NAME[node.kind]}${node.foes.length > 0 ? `: ${node.foes.map((foe) => foe.name).join(", ")}` : ""}. ${STATE_NOTE[node.state]}`}

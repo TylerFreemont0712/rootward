@@ -166,6 +166,14 @@ Task breakdown:
       for every fighter, and parallax on a shake (ADR-0019 amendment).
       Still open: sound (the cues are ready for it), battle strips and portraits for the planned classes, and a hand
       playtest of the pacing
+- [x] **The damage that lands, one code view, predictions as an option** (ADR-0022, 2026-09-17, the player: two code
+      views in two places, the middle one covering foes; the bolt chips cut off; "the final damage ... isn't what is
+      always displayed"): the code view's headline, line notes and spell cards show the damage that lands, with the
+      volley's potential as the footnote; Feedback Loop no longer counts its own cast (a preview promised a third of what
+      landed); building, casting and reading a spell share one size and place, the stage's left half, where no foe
+      stands; Options can hide predictions as the Programmer difficulty does. Measured against the real sandbox: 28 casts,
+      the preview, the replay and the hits agree on all of them. Map rooms are three quarters of their first size.
+      **Your Turn (medium):** a harder difficulty between Beginner and Programmer that hides only the damage.
 - [x] **The layer map as a place** (ADR-0021, 2026-09-17, the player: "a more authentic feeling", "a little more unique
       concept for the map", "go all out"): a layer's map is the layer in cross-section. Rooms are chambers painted for
       each layer, with their foes standing in them (silhouettes until near) or a painted campfire, anvil or chest;

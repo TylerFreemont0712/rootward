@@ -24,6 +24,7 @@ const SPEED_KEY = "rootward:shardrun:code-speed";
 const DIFFICULTY_KEY = "rootward:shardrun:difficulty";
 const SHAKE_KEY = "rootward:shardrun:shake";
 const BUILD_CODE_KEY = "rootward:shardrun:build-code";
+const PREDICTIONS_KEY = "rootward:shardrun:predictions";
 const SPEEDS: readonly CodeSpeed[] = ["off", "slow", "normal", "fast"];
 /** How long a cast's score stays up after its hits have landed, then how long it takes to fade. */
 const SCORE_LINGER_MS = 900;
@@ -69,6 +70,11 @@ export interface ShardrunStore {
   shake: boolean;
   /** A deck run shows the spell being built as code, growing with every card (ADR-0020); on unless turned off. */
   buildCode: boolean;
+  /**
+   * Show what each spell would do before it is cast, where the difficulty allows it; off hides it as a harder
+   * difficulty does (ADR-0022). A per-browser option, on unless turned off.
+   */
+  predictions: boolean;
   difficulty: string;
   /** Switch to the run of another playstyle; the screen loads it next. */
   choosePlaystyle: (playstyle: ShardrunPlaystyleView) => void;
@@ -88,6 +94,7 @@ export interface ShardrunStore {
   setCodeSpeed: (speed: CodeSpeed) => void;
   setShake: (on: boolean) => void;
   setBuildCode: (on: boolean) => void;
+  setPredictions: (on: boolean) => void;
   setDifficulty: (id: string) => void;
   dismissError: () => void;
 }
@@ -226,6 +233,7 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
     codeSpeed: readSpeed(),
     shake: readStorage(SHAKE_KEY) !== "off",
     buildCode: readStorage(BUILD_CODE_KEY) !== "off",
+    predictions: readStorage(PREDICTIONS_KEY) !== "off",
     difficulty: readStorage(DIFFICULTY_KEY) ?? "beginner",
 
     choosePlaystyle: (playstyle) => {
@@ -308,6 +316,11 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
     setBuildCode: (on) => {
       writeStorage(BUILD_CODE_KEY, on ? "on" : "off");
       set({ buildCode: on });
+    },
+
+    setPredictions: (on) => {
+      writeStorage(PREDICTIONS_KEY, on ? "on" : "off");
+      set({ predictions: on });
     },
 
     setDifficulty: (id) => {
