@@ -154,8 +154,16 @@ background; do not pick those.
 An asset with `raw_from: <other asset id>` renders nothing: it post-processes that asset's cached render with its own
 `post` settings. That is how a foe's arena sprite and its map sprite stay one design.
 
+`flip: true` in `post` mirrors a finished picture or sprite (or a glow) left to right. Foes stand on the right of the
+stage, so one painted looking right faces away from the Maintainer: the Kiln Warden's and the Root Daemon's arena
+sprites are flipped, and so is the battle portrait, so it looks into the stage from the lower left. The file itself is
+mirrored, so the sprite, its hit flash, and the pixels it breaks into all agree.
+
 Changing only `post` settings (or `pick`) never touches the GPU again. Changing a prompt, seed, or model re-renders
-that asset.
+that asset. The cache key is a hash of everything that shapes a render (`GENERATION_KEYS`). When the pipeline learns a
+new kind of input (pose guidance, layout sketches), its keys are also listed in `LATER_GENERATION_KEYS`: a render
+cached before they existed still counts for an asset that does not use them, instead of the whole manifest looking
+stale and rendering again.
 
 #### The first pass (expeditions and HUD)
 

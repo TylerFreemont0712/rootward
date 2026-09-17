@@ -44,6 +44,9 @@ GENERATION_KEYS = (
     "width", "height", "steps", "cfg", "sampler", "scheduler", "seed", "candidates", "rmbg", "control", "control_digest",
     "init", "init_digest",
 )
+# Keys added to GENERATION_KEYS after renders were already cached, oldest first. Adding a key changes every asset's
+# hash, and nearly two hundred cached renders would all look stale and render again.
+LATER_GENERATION_KEYS = (("control", "control_digest"), ("init", "init_digest"))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -76,8 +79,24 @@ def selected(assets: list[dict], only: str | None) -> list[dict]:
     return picked
 
 
-def generation_hash(job: dict) -> str:
-    return hashlib.sha256(json.dumps({k: job.get(k) for k in GENERATION_KEYS}, sort_keys=True).encode()).hexdigest()
+def generation_hash(job: dict, keys: tuple[str, ...] = GENERATION_KEYS) -> str:
+    return hashlib.sha256(json.dumps({k: job.get(k) for k in keys}, sort_keys=True).encode()).hexdigest()
+
+
+def cached_hashes(job: dict) -> list[str]:
+    """Every hash a still-valid cached render of this job could carry: today's, then the one each older key list gave.
+
+    LEARN: an old hash only counts while it still describes the asset. A render cached before `init` existed is the
+    same render for an asset without `init`, but the moment the manifest gives it a layout, the old hash (which never
+    saw `init`) must stop matching, or the layout would be silently ignored."""
+    keys = GENERATION_KEYS
+    hashes = [generation_hash(job, keys)]
+    for added in reversed(LATER_GENERATION_KEYS):
+        if any(job.get(key) is not None for key in added):
+            break
+        keys = tuple(key for key in keys if key not in added)
+        hashes.append(generation_hash(job, keys))
+    return hashes
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -246,7 +265,7 @@ def ensure_raws(comfy: str, job: dict, force: bool, reprocess_only: bool) -> lis
     if sketch is not None:
         job["init_digest"] = hashlib.sha256(sketch.tobytes()).hexdigest()
     digest = generation_hash(job)
-    cached = meta_path.exists() and json.loads(meta_path.read_text()).get("hash") == digest
+    cached = meta_path.exists() and json.loads(meta_path.read_text()).get("hash") in cached_hashes(job)
     if not cached or force:
         if reprocess_only:
             print(f"  skip {job['id']}: no cached render (drop --reprocess to render it)")
@@ -725,6 +744,9 @@ def post_glow(raw: np.ndarray, post: dict) -> Image.Image:
 def process(job: dict, raw: np.ndarray) -> list[tuple[str, Image.Image]]:
     post = job["post"]
     kind = post["kind"]
+    if post.get("flip") and kind not in ("glow", "sprite", "picture"):
+        # Mirroring a strip or a tile set whole would also reverse its frame order or break its seams.
+        raise ValueError(f"{job['id']}: flip works on one image (glow, sprite, picture), not on a {kind}")
     if kind == "pose-strip":
         # Background removal's own mask, unless told to cut the white instead: on a sheet of well-spaced figures it keeps
         # pale skin and white eyes that a white cut would punch holes through.
@@ -733,12 +755,12 @@ def process(job: dict, raw: np.ndarray) -> list[tuple[str, Image.Image]]:
     if kind == "glow":
         return [(job["out"], post_glow(raw, post))]
     if kind == "sprite":
-        return with_copies([(job["out"], post_sprite(raw, post))], post)
+        return with_copies([(job["out"], mirrored(post_sprite(raw, post), post))], post)
     if kind == "tiles":
         variants = post_tiles(raw, post)
         return [(f"{job['out']}-{i}", image) for i, image in enumerate(variants)]
     if kind == "picture":
-        return with_copies([(job["out"], post_picture(raw, post))], post)
+        return with_copies([(job["out"], mirrored(post_picture(raw, post), post))], post)
     if kind == "walk-cycle":
         return post_walk_cycle(sheet_alpha(raw, post), post, job)
     if kind == "walk-sheet":
@@ -753,6 +775,14 @@ def process(job: dict, raw: np.ndarray) -> list[tuple[str, Image.Image]]:
                 outputs.append((job["out"], sprite))
         return outputs
     raise ValueError(f"unknown post kind {kind!r} for {job['id']}")
+
+
+def mirrored(image: Image.Image, post: dict) -> Image.Image:
+    """`flip`: mirror left to right, after everything else. A foe painted looking right has to face the Maintainer on
+    its left, and the battle portrait in the lower left has to look into the stage. The file itself is mirrored rather
+    than the sprite on screen, so everything that reads the image (the sprite, its hit flash's mask, the pixels a
+    defeated foe breaks into) agrees."""
+    return image.transpose(Image.Transpose.FLIP_LEFT_RIGHT) if post.get("flip") else image
 
 
 def with_copies(outputs: list[tuple[str, Image.Image]], post: dict) -> list[tuple[str, Image.Image]]:

@@ -446,4 +446,8 @@ language feature took more than a minute to understand.
   sprite or a number (`light()` and `drawSpots()` in `fx/engine.ts`).
 - **CSS background lists as a fallback.** `background-image: url(a), url(b)` paints `a` over `b`; if `a` fails to
   load, `b` simply shows. A missing optional image degrades without any JavaScript noticing (`Stage.tsx`).
+- **Adding a field to a cache key invalidates everything.** The art cache hashes a list of inputs; hashing a missing
+  field as `null` still changes every hash, so adding pose guidance made 77 old renders look stale, and adding layout
+  sketches made 175. `cached_hashes` in `scripts/art/generate.py` also accepts the hash an older key list gave, but
+  only while the newer fields are unset: an old render is still the right render for an asset that never used them.
 

@@ -3,6 +3,17 @@
 Friction found while playing, newest first. Each entry: date, commit, what happened, severity (blocker / annoying /
 polish), and the follow-up (a ROADMAP item or the commit that fixed it).
 
+## 2026-09-17 — the player's look at the arenas
+
+- **The Kiln Warden and the Root Daemon faced away from the Maintainer.** Annoying; both were painted turned to the
+  right. Their arena sprites are now mirrored in the art pipeline (`flip`), checked in both guardian fights.
+- **The battle portrait wore two pairs of goggles** (one on the hood, one over the eyes). Polish; the player found a
+  better candidate among the renders (`battle-portrait-artificer_rgb_00003_`, one pair). It is the pick now, mirrored
+  to look into the stage.
+- Found on the way: every art asset rendered before the pose-guidance and layout-sketch keys existed looked stale to
+  the cache (175 of 181), so a plain `generate.py` would have rendered the whole manifest again. Fixed; a full
+  `--reprocess` now finds every cached render.
+
 ## 2026-09-17 — the arenas, from screenshots in every room (ADR-0019 amendment)
 
 The player asked to go "a little more all out" on the level backgrounds. Checked by rendering candidates, judging them
