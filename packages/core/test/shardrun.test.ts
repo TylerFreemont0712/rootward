@@ -905,6 +905,32 @@ describe("the multiplier axis (ADR-0014)", () => {
     // The bolt asks for mult 1; the relic makes it 2, so 5 power lands as 10.
     expect(previewBolts(armed, [bolt(5, "none", { mult: 1 })], using).damage).toBe(10);
   });
+
+  it("lands exactly what its preview said with a per-cast multiplier, counting only the spells already cast", () => {
+    // Feedback Loop: every spell already cast this fight adds to the multiplier. The cast used to count itself, so the
+    // first cast of a fight landed three times what its own preview promised.
+    const loop = relic("loop", [{ kind: "mult-per-cast", add: 2 }]);
+    const using: ShardrunCatalog = { ...CATALOG, relics: new Map([...CATALOG.relics, [loop.id, loop]]) };
+    const armed = play(
+      startShardrun(using, { seed: "seed-1", language: "python", difficulty: "normal", sandbox: true }),
+      [
+        { type: "dev-grant-relic", relicId: "loop" },
+        { type: "dev-spawn", kind: "fight", foes: ["dummy"] },
+      ],
+      using,
+    );
+    const hp = (state: ShardrunState) => state.battle?.foes[0]?.hp ?? 0;
+
+    const first = previewBolts(armed, [bolt(3)], using).damage;
+    const once = play(armed, [cast([bolt(3)], "spell-1")], using);
+    expect(first).toBe(3);
+    expect(hp(armed) - hp(once)).toBe(first);
+
+    const second = previewBolts(once, [bolt(3)], using).damage;
+    const twice = play(once, [cast([bolt(3)], "spell-2")], using);
+    expect(second).toBe(9);
+    expect(hp(once) - hp(twice)).toBe(second);
+  });
 });
 
 describe("the deck playstyle (ADR-0020)", () => {

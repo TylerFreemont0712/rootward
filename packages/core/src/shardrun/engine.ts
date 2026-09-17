@@ -1213,12 +1213,13 @@ function castSpell(
   }
   battle.mana -= cost;
   battle.cast.push(spell.id);
-  battle.casts += 1;
   state.stats.casts += 1;
   state.stats.manaSpent += cost;
 
   const normalized = normalizeBolts(outcome.bolts, balance, boltCap(state, catalog));
   const bolts = empower(normalized.bolts, state, catalog);
+  // Counted once its bolts are made: a per-cast relic counts the spells *already* cast, as its preview does.
+  battle.casts += 1;
   state.stats.bolts += bolts.length;
   state.stats.fizzled += normalized.fizzled;
   log(state, {
