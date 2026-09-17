@@ -29,6 +29,7 @@ import {
   relicModifiers,
   type ShardrunCatalog,
   type ShardrunCommand,
+  type ShardrunPlaystyle,
   ShardrunState,
   shardBattle,
   type SpellState,
@@ -60,6 +61,7 @@ import type {
   ShardrunMapNodeView,
   ShardrunCodexResponse,
   ShardrunModifierView,
+  ShardrunPlaystyleView,
   ShardrunPreviewsResponse,
   ShardrunRulesView,
   ShardrunView,
@@ -173,15 +175,21 @@ export class ShardrunService {
     }));
   }
 
-  /** The profile's latest run, finished or not; null before their first. */
-  async latest(profileId: string): Promise<ShardrunView | null> {
+  /** The playstyles this content offers (ADR-0020): the spellbook always, and the deck when the pack defines one. */
+  playstyles(): ShardrunPlaystyleView[] {
+    if (!this.catalog) return [];
+    return this.catalog.config.deck ? ["spellbook", "deck"] : ["spellbook"];
+  }
+
+  /** The profile's latest run of a playstyle, finished or not; null before their first. */
+  async latest(profileId: string, playstyle: ShardrunPlaystyle = "spellbook"): Promise<ShardrunView | null> {
     this.requireProfile(profileId);
     const row = await settle(() =>
       this.db
         .prepare(
-          "SELECT id, state FROM shardrun_runs WHERE profile_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
+          "SELECT id, state FROM shardrun_runs WHERE profile_id = ? AND playstyle = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
         )
-        .get(profileId),
+        .get(profileId, playstyle),
     );
     if (row === undefined) return null;
     const loaded = this.load(RunRow.parse(row));
@@ -193,6 +201,7 @@ export class ShardrunService {
     language: string,
     difficulty: string,
     sandbox = false,
+    playstyle: ShardrunPlaystyle = "spellbook",
   ): Promise<ShardrunView> {
     return this.serialize(profileId, async () => {
       const catalog = this.requireCatalog();
@@ -214,7 +223,10 @@ export class ShardrunService {
           "Sandbox runs need a server started with ROOTWARD_DEV=1.",
         );
       }
-      if (this.active(profileId)) {
+      if (playstyle === "deck" && !catalog.config.deck) {
+        throw new ServiceError(400, "no-deck-playstyle", "No content pack defines Shardrun's deck playstyle.");
+      }
+      if (this.active(profileId, playstyle)) {
         throw new ServiceError(
           409,
           "run-in-progress",
@@ -222,22 +234,26 @@ export class ShardrunService {
         );
       }
       const id = randomUUID();
-      const state = startShardrun(catalog, { seed: randomUUID(), language, difficulty, sandbox });
+      const state = startShardrun(catalog, { seed: randomUUID(), language, difficulty, sandbox, playstyle });
       const now = new Date().toISOString();
       this.db
         .prepare(
-          "INSERT INTO shardrun_runs (id, profile_id, status, state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+          "INSERT INTO shardrun_runs (id, profile_id, playstyle, status, state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
         )
-        .run(id, profileId, state.status, JSON.stringify(state), now, now);
+        .run(id, profileId, playstyle, state.status, JSON.stringify(state), now, now);
       return this.view({ id, state });
     });
   }
 
-  async command(profileId: string, request: ShardrunCommandRequest): Promise<ShardrunView> {
+  async command(
+    profileId: string,
+    request: ShardrunCommandRequest,
+    playstyle: ShardrunPlaystyle = "spellbook",
+  ): Promise<ShardrunView> {
     return this.serialize(profileId, async () => {
       const catalog = this.requireCatalog();
       this.requireProfile(profileId);
-      const run = this.active(profileId);
+      const run = this.active(profileId, playstyle);
       if (!run) throw new ServiceError(404, "no-run", "There is no run underway.");
       const before = run.state;
 
@@ -265,6 +281,7 @@ export class ShardrunService {
       if (result.state.battle) this.warm(result.state);
       const replay = cast && {
         spellId: cast.spell.id,
+        shards: [...cast.spell.shards],
         run: this.spellRunView(before, cast.spell, cast.run, true),
       };
       return this.view({ id: run.id, state: result.state }, replay);
@@ -272,13 +289,17 @@ export class ShardrunService {
   }
 
   /** A dev command: only on a sandbox run, and only when this server allows dev tooling. */
-  async dev(profileId: string, request: ShardrunDevRequest): Promise<ShardrunView> {
+  async dev(
+    profileId: string,
+    request: ShardrunDevRequest,
+    playstyle: ShardrunPlaystyle = "spellbook",
+  ): Promise<ShardrunView> {
     return this.serialize(profileId, () => {
       const catalog = this.requireCatalog();
       this.requireProfile(profileId);
       if (!this.devEnabledFlag)
         throw new ServiceError(403, "dev-disabled", "This server was not started with ROOTWARD_DEV=1.");
-      const run = this.active(profileId);
+      const run = this.active(profileId, playstyle);
       if (!run) throw new ServiceError(404, "no-run", "There is no run underway.");
       if (!run.state.sandbox)
         throw new ServiceError(409, "not-a-sandbox", "Dev tools only work in a sandbox run.");
@@ -293,10 +314,10 @@ export class ShardrunService {
   }
 
   /** Spell previews for the active battle, waiting for any still running. */
-  async previews(profileId: string): Promise<ShardrunPreviewsResponse> {
+  async previews(profileId: string, playstyle: ShardrunPlaystyle = "spellbook"): Promise<ShardrunPreviewsResponse> {
     const catalog = this.requireCatalog();
     this.requireProfile(profileId);
-    const run = this.active(profileId);
+    const run = this.active(profileId, playstyle);
     if (!run?.state.battle) return { revision: run?.state.revision ?? 0, spells: {} };
     const { state } = run;
     const reveal = difficultyOf(catalog, state.difficulty).show_predictions;
@@ -411,6 +432,7 @@ export class ShardrunService {
     const mentioned = new Set([
       ...state.spells.flatMap((spell) => spell.shards),
       ...state.inventory,
+      ...state.deck,
       ...(reward?.shards ?? []),
     ]);
     for (const shardId of [...mentioned]) {
@@ -465,9 +487,15 @@ export class ShardrunService {
     });
 
     const { balance } = catalog;
-    const owned = [...new Set([...state.spells.flatMap((spell) => spell.shards), ...state.inventory])];
+    // What a forge can rework: a deck run's cards, or a spellbook run's slotted and spare shards (one entry per kind).
+    const owned = [
+      ...new Set(
+        state.playstyle === "deck" ? state.deck : [...state.spells.flatMap((spell) => spell.shards), ...state.inventory],
+      ),
+    ];
     return {
       id,
+      playstyle: state.playstyle,
       status: state.status,
       language: state.language,
       difficulty: {
@@ -493,6 +521,7 @@ export class ShardrunService {
       map: { nodes, edges: state.map.edges.map(([from, to]): [string, string] => [from, to]) },
       spells,
       inventory: [...state.inventory],
+      deck: [...state.deck],
       relics: [...state.relics],
       shards,
       relicInfo,
@@ -505,6 +534,9 @@ export class ShardrunService {
               manaMax: manaPerTurn(state, catalog),
               block: battle.block,
               foes: battle.foes.map((foe) => foeView(foe, catalog, say)),
+              hand: [...battle.hand],
+              drawPile: battle.draw.length,
+              discardPile: battle.discard.length,
             },
           }
         : {}),
@@ -526,6 +558,9 @@ export class ShardrunService {
                 .filter((spell) => spell.capacity < balance.max_spell_capacity)
                 .map((spell) => spell.id),
               ...(bind ? { bind } : {}),
+              ...(state.playstyle === "deck"
+                ? { purge: state.deck.length > balance.deck.min_cards ? [...new Set(state.deck)] : [] }
+                : {}),
             },
           }
         : {}),
@@ -758,13 +793,14 @@ export class ShardrunService {
     return next;
   }
 
-  private active(profileId: string): LoadedRun | undefined {
+  /** The run in progress of one playstyle: a character keeps one of each (ADR-0020). */
+  private active(profileId: string, playstyle: ShardrunPlaystyle): LoadedRun | undefined {
     const placeholders = ENDED.map(() => "?").join(", ");
     const row = this.db
       .prepare(
-        `SELECT id, state FROM shardrun_runs WHERE profile_id = ? AND status NOT IN (${placeholders}) ORDER BY created_at DESC LIMIT 1`,
+        `SELECT id, state FROM shardrun_runs WHERE profile_id = ? AND playstyle = ? AND status NOT IN (${placeholders}) ORDER BY created_at DESC LIMIT 1`,
       )
-      .get(profileId, ...ENDED);
+      .get(profileId, playstyle, ...ENDED);
     return row === undefined ? undefined : this.load(RunRow.parse(row));
   }
 
@@ -924,7 +960,7 @@ function modifierViews(state: ShardrunState, catalog: ShardrunCatalog, say: Tran
   return [
     {
       label: say("modifier.manaPerTurn"),
-      base: `${balance.mana_per_turn.base}`,
+      base: `${state.playstyle === "deck" ? balance.deck.mana_per_turn.base : balance.mana_per_turn.base}`,
       now: `${manaPerTurn(state, catalog)}`,
       from: [...from("mana-per-turn"), ...deeper],
     },
@@ -1016,6 +1052,12 @@ function rulesView(catalog: ShardrunCatalog): ShardrunRulesView {
     patternOffMultiplier: balance.pattern_off_multiplier,
     restHealFraction: balance.rest_heal_fraction,
     layerHealFraction: balance.layer_heal_fraction,
+    deck: {
+      handSize: balance.deck.hand_size,
+      manaPerTurn: balance.deck.mana_per_turn.base,
+      manaPerLayer: balance.deck.mana_per_turn.per_layer,
+      minCards: balance.deck.min_cards,
+    },
   };
 }
 

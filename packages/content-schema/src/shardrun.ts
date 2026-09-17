@@ -285,6 +285,16 @@ export const ShardrunConfig = z.strictObject({
   spell_slots: z
     .strictObject({ names: z.array(NonEmptyString).min(1), capacity: z.int().min(1).max(8) })
     .optional(),
+  /**
+   * The experimental deck playstyle (ADR-0020): the cards a deck run starts with, and the blank spells they are played
+   * into every turn. A pack without it offers only the spellbook playstyle.
+   */
+  deck: z
+    .strictObject({
+      spells: z.array(z.strictObject({ name: NonEmptyString, capacity: z.int().min(1).max(8) })).min(1).max(4),
+      cards: z.array(Id).min(1),
+    })
+    .optional(),
   difficulties: z.array(ShardrunDifficulty).min(1),
   layers: z.array(ShardrunLayer).min(1),
   rewards: z.strictObject({

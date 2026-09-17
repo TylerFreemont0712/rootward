@@ -28,6 +28,14 @@ export const FoeState = z.strictObject({
 });
 export type FoeState = z.infer<typeof FoeState>;
 
+/**
+ * How a run plays (ADR-0020). A `spellbook` run builds its spells between fights and casts them every turn; a `deck` run
+ * (Shardrun Experimental) carries its shards as cards, and every turn plays a hand of them into blank spells.
+ */
+export const SHARDRUN_PLAYSTYLES = ["spellbook", "deck"] as const;
+export const ShardrunPlaystyle = z.enum(SHARDRUN_PLAYSTYLES);
+export type ShardrunPlaystyle = z.infer<typeof ShardrunPlaystyle>;
+
 export const BattleKind = z.enum(["fight", "elite", "boss"]);
 export type BattleKind = z.infer<typeof BattleKind>;
 
@@ -41,6 +49,14 @@ export const BattleState = z.strictObject({
   cast: z.array(z.string()),
   /** Spells cast so far in this whole fight, fizzles included. Relics that grow within a fight read it (ADR-0016). */
   casts: z.int().min(0).default(0),
+  // A deck run's cards while the fight is on (ADR-0020); a spellbook run leaves all three empty. Every card of the deck
+  // is in exactly one of these piles or in one of the spells, and no command may create or destroy one.
+  /** Cards still to draw, the next one first. */
+  draw: z.array(z.string()).default([]),
+  /** Cards drawn and not yet played into a spell. */
+  hand: z.array(z.string()).default([]),
+  /** Cards cast or let go; shuffled back into the draw pile when it runs out. */
+  discard: z.array(z.string()).default([]),
 });
 export type BattleState = z.infer<typeof BattleState>;
 
@@ -143,8 +159,12 @@ export const ShardrunState = z.strictObject({
   position: z.string().nullable(),
   /** Rooms entered on this layer, in order. */
   visited: z.array(z.string()),
+  /** Added with the deck playstyle (ADR-0020), so a run saved before it loads as the spellbook run it was. */
+  playstyle: ShardrunPlaystyle.default("spellbook"),
   spells: z.array(SpellState),
   inventory: z.array(z.string()),
+  /** A deck run's cards, by shard id, duplicates as separate copies. Its spells hold cards only during a fight. */
+  deck: z.array(z.string()).default([]),
   relics: z.array(z.string()),
   battle: BattleState.optional(),
   reward: RewardState.optional(),

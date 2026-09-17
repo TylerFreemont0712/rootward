@@ -106,3 +106,20 @@ describe("migration 0003 (the world, ADR-0011)", () => {
     db.close();
   });
 });
+
+describe("migration 0005 (Shardrun playstyles, ADR-0020)", () => {
+  it("files every run saved before it as a spellbook run", () => {
+    const db = new DatabaseSync(MEMORY);
+    const migrations = loadMigrations();
+    migrate(db, MEMORY, migrations.slice(0, 4));
+    db.prepare("INSERT INTO profiles (id, name, class_id, created_at) VALUES ('p1', 'Ada', 'artificer', 'then')").run();
+    db.prepare(
+      "INSERT INTO shardrun_runs (id, profile_id, status, state, created_at, updated_at) VALUES ('r1', 'p1', 'map', '{}', 'then', 'then')",
+    ).run();
+
+    migrate(db, MEMORY, migrations);
+    expect(db.prepare("SELECT id, playstyle FROM shardrun_runs").all()).toEqual([{ id: "r1", playstyle: "spellbook" }]);
+    db.close();
+  });
+});
+

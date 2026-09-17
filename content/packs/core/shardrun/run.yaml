@@ -8,6 +8,15 @@ start:
   inventory: [kindle]
   relics: []
 
+# Shardrun (Experimental), the deck playstyle (ADR-0020): the shards a run starts with are cards, shuffled into a draw
+# pile each fight, and every turn they are played from a hand into these blank spells. Ward turns the first bolt into
+# block, so four of them keep a bad hand survivable; the elements answer the first layer's weaknesses.
+deck:
+  spells:
+    - { name: Left Hand, capacity: 3 }
+    - { name: Right Hand, capacity: 3 }
+  cards: [amplify, amplify, amplify, amplify, ward, ward, ward, ward, fork, fork, kindle, chill]
+
 # Empty spells a forge can bind, or a Second Grimoire can grant, in order. Each name is used at most once in a run, and
 # `max_spells` in config/balance.yaml still caps the book. The guardians' own spells (below) have names of their own.
 spell_slots:

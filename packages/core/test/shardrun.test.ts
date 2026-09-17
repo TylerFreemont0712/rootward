@@ -23,7 +23,7 @@ import {
   type ShardrunBalance,
   type ShardrunCatalog,
   type ShardrunCommand,
-  type ShardrunState,
+  ShardrunState,
   startShardrun,
   stepShardrun,
   workUnits,
@@ -54,6 +54,7 @@ const BALANCE: ShardrunBalance = {
   max_spell_capacity: 3,
   layer_heal_fraction: 0.5,
   trace_bolts: 4,
+  deck: { hand_size: 3, mana_per_turn: { base: 3, per_layer: 1 }, min_cards: 4 },
 };
 
 function shard(id: string, extra: Partial<Shard> = {}): Shard {
@@ -141,6 +142,13 @@ const CONFIG: ShardrunConfig = {
     ],
     inventory: ["fork"],
     relics: [],
+  },
+  deck: {
+    spells: [
+      { name: "Left", capacity: 2 },
+      { name: "Right", capacity: 2 },
+    ],
+    cards: ["amplify", "amplify", "fork", "fork", "chill", "spark"],
   },
   spell_slots: { names: ["Volley", "Requiem"], capacity: 2 },
   difficulties: [
@@ -895,3 +903,173 @@ describe("the multiplier axis (ADR-0014)", () => {
     expect(previewBolts(armed, [bolt(5, "none", { mult: 1 })], using).damage).toBe(10);
   });
 });
+
+describe("the deck playstyle (ADR-0020)", () => {
+  // The fixture's deck: six cards, two blank spells of two slots, a hand of three, and 3 mana a turn.
+  const startDeck = (using: ShardrunCatalog = CATALOG) =>
+    startShardrun(using, { seed: "seed-1", language: "python", difficulty: "normal", playstyle: "deck" });
+  const inDeckFight = (using: ShardrunCatalog = CATALOG) => {
+    const state = startDeck(using);
+    return play(state, [{ type: "enter", nodeId: firstRoom(state) }], using);
+  };
+  const battleOf = (state: ShardrunState) => {
+    if (!state.battle) throw new Error("not in a fight");
+    return state.battle;
+  };
+  /** Every card of a deck run in a fight, wherever it sits. */
+  const cardsOf = (state: ShardrunState) => {
+    const battle = battleOf(state);
+    return [...battle.draw, ...battle.hand, ...battle.discard, ...state.spells.flatMap((spell) => spell.shards)].sort();
+  };
+  /** Put the named cards into spells, and keep the rest of the hand. */
+  const compose = (state: ShardrunState, placed: Record<string, string[]>): ShardrunCommand => {
+    const hand = [...battleOf(state).hand];
+    for (const card of Object.values(placed).flat()) hand.splice(hand.indexOf(card), 1);
+    return {
+      type: "compose",
+      spells: state.spells.map((spell) => ({ id: spell.id, shards: placed[spell.id] ?? spell.shards })),
+      hand,
+    };
+  };
+
+  it("starts with blank spells and a deck of cards, and loads a run saved before playstyles as a spellbook run", () => {
+    const state = startDeck();
+    expect(state.playstyle).toBe("deck");
+    expect(state.spells.map((spell) => [spell.name, spell.capacity, spell.shards])).toEqual([
+      ["Left", 2, []],
+      ["Right", 2, []],
+    ]);
+    expect(state.inventory).toEqual([]);
+    expect(state.deck).toEqual(["amplify", "amplify", "fork", "fork", "chill", "spark"]);
+
+    // A snapshot as it was saved before playstyles existed: the same run, without the two new keys.
+    const { playstyle: _playstyle, deck: _deck, ...saved } = start();
+    const loaded = ShardrunState.parse(saved);
+    expect(loaded.playstyle).toBe("spellbook");
+    expect(loaded.deck).toEqual([]);
+    expect(() => startShardrun(catalog({ config: { deck: undefined } }), { seed: "s", language: "python", difficulty: "normal", playstyle: "deck" })).toThrow(/no deck playstyle/);
+  });
+
+  it("deals a shuffled hand from the whole deck when a fight begins, the same hand for the same run", () => {
+    const state = inDeckFight();
+    const battle = battleOf(state);
+    expect(battle.hand).toHaveLength(3);
+    expect(battle.draw).toHaveLength(3);
+    expect(battle.discard).toEqual([]);
+    expect(battle.mana).toBe(3);
+    expect(cardsOf(state)).toEqual([...state.deck].sort());
+    expect(battleOf(inDeckFight()).hand).toEqual(battle.hand);
+    // A spellbook run has no piles at all.
+    expect(battleOf(inFight())).toMatchObject({ draw: [], hand: [], discard: [] });
+  });
+
+  it("plays cards from the hand into spells, in order, but never creates, destroys or overfills", () => {
+    const state = inDeckFight();
+    const [first, second, third] = battleOf(state).hand as [string, string, string];
+    const placed = play(state, [compose(state, { "spell-1": [second, first] })]);
+    expect(placed.spells[0]?.shards).toEqual([second, first]);
+    expect(battleOf(placed).hand).toEqual([third]);
+    expect(cardsOf(placed)).toEqual([...placed.deck].sort());
+    // And back again: a card can return to the hand.
+    const undone = play(placed, [{ type: "compose", spells: [{ id: "spell-1", shards: [first] }, { id: "spell-2", shards: [] }], hand: [third, second] }]);
+    expect(battleOf(undone).hand).toEqual([third, second]);
+
+    const refused = (command: ShardrunCommand, from: ShardrunState = state) => {
+      const result = stepShardrun(from, command, CATALOG);
+      return result.ok ? "accepted" : result.error.code;
+    };
+    expect(refused({ type: "compose", spells: [{ id: "spell-1", shards: ["dedupe"] }, { id: "spell-2", shards: [] }], hand: [first, second, third] })).toBe("cards-changed");
+    expect(refused({ type: "compose", spells: [{ id: "spell-1", shards: [first] }, { id: "spell-2", shards: [] }], hand: [first, second, third] })).toBe("cards-changed");
+    expect(refused({ type: "compose", spells: [{ id: "spell-1", shards: [first, second, third] }, { id: "spell-2", shards: [] }], hand: [] })).toBe("over-capacity");
+    expect(refused({ type: "compose", spells: [{ id: "spell-1", shards: [first] }], hand: [second, third] })).toBe("unknown-spell");
+    expect(refused({ type: "compose", spells: [], hand: [] }, inFight())).toBe("not-a-deck-run");
+    expect(refused({ type: "compose", spells: [], hand: [] }, startDeck())).toBe("not-in-battle");
+    expect(refused({ type: "arrange", spells: [], inventory: [] }, startDeck())).toBe("cannot-arrange");
+  });
+
+  it("spends a cast spell's cards onto the discard pile, and keeps that spell shut until the next turn", () => {
+    const state = inDeckFight();
+    const [first, second] = battleOf(state).hand as [string, string];
+    const placed = play(state, [compose(state, { "spell-1": [first] })]);
+    const cast1 = play(placed, [cast([bolt(1)], "spell-1", 1)]);
+    expect(cast1.spells[0]?.shards).toEqual([]);
+    expect(battleOf(cast1).discard).toEqual([first]);
+    expect(battleOf(cast1).mana).toBe(3 - 2);
+    expect(cardsOf(cast1)).toEqual([...cast1.deck].sort());
+    const reopened = stepShardrun(cast1, compose(cast1, { "spell-1": [second] }), CATALOG);
+    expect(reopened.ok ? "accepted" : reopened.error.code).toBe("already-cast");
+    // A blank spell still casts: one plain bolt, for the base cost.
+    const plain = play(cast1, [cast([bolt(4)], "spell-2")]);
+    expect(battleOf(plain).mana).toBe(0);
+  });
+
+  it("lets go of the hand and every uncast card when a turn ends, and shuffles the discard back when the pile runs out", () => {
+    const state = inDeckFight();
+    const [first] = battleOf(state).hand as [string];
+    const turn2 = play(state, [compose(state, { "spell-2": [first] }), { type: "end-turn" }]);
+    expect(turn2.spells.every((spell) => spell.shards.length === 0)).toBe(true);
+    expect(battleOf(turn2).discard).toHaveLength(3);
+    expect(battleOf(turn2).hand).toHaveLength(3);
+    expect(battleOf(turn2).draw).toHaveLength(0);
+    expect(battleOf(turn2).mana).toBe(3);
+    expect(cardsOf(turn2)).toEqual([...turn2.deck].sort());
+
+    const turn3 = play(turn2, [{ type: "end-turn" }]);
+    expect(battleOf(turn3).hand).toHaveLength(3);
+    expect(battleOf(turn3).draw).toHaveLength(3);
+    expect(battleOf(turn3).discard).toEqual([]);
+    expect(cardsOf(turn3)).toEqual([...turn3.deck].sort());
+  });
+
+  it("adds a won card to the deck, deals it in the next fight, and leaves the spells blank between fights", () => {
+    const won = play(inDeckFight(), [cast([bolt(20, "fire")], "spell-1")]);
+    expect(won.status).toBe("reward");
+    expect(won.spells.every((spell) => spell.shards.length === 0)).toBe(true);
+    const choice = won.reward?.shards?.[0];
+    if (choice === undefined) throw new Error("no shard offered");
+    const taken = play(won, [{ type: "take", shardId: choice }]);
+    expect(taken.deck).toHaveLength(7);
+    expect(taken.deck).toContain(choice);
+    expect(taken.inventory).toEqual([]);
+    const next = standingAt(taken, "fight");
+    expect(next.status).toBe("battle");
+    expect(cardsOf(next)).toEqual([...next.deck].sort());
+  });
+
+  it("melts a card down at a forge, never below the smallest deck, and upgrades a card in the deck", () => {
+    const forge = standingAt(startDeck(), "forge");
+    const melted = play(forge, [{ type: "purge", shardId: "spark" }]);
+    expect(melted.deck).toEqual(["amplify", "amplify", "fork", "fork", "chill"]);
+    expect(melted.status).toBe("map");
+
+    const tiny = standingAt({ ...startDeck(), deck: ["amplify", "fork", "chill", "spark"] }, "forge");
+    const refused = stepShardrun(tiny, { type: "purge", shardId: "spark" }, CATALOG);
+    expect(refused.ok ? "accepted" : refused.error.code).toBe("deck-too-small");
+    const notHeld = stepShardrun(forge, { type: "purge", shardId: "dedupe" }, CATALOG);
+    expect(notHeld.ok ? "accepted" : notHeld.error.code).toBe("not-owned");
+    const spellbook = stepShardrun(standingAt(start(), "forge"), { type: "purge", shardId: "amplify" }, CATALOG);
+    expect(spellbook.ok ? "accepted" : spellbook.error.code).toBe("not-a-deck-run");
+
+    const upgraded = play(forge, [{ type: "forge", shardId: "amplify" }]);
+    expect(upgraded.deck.filter((card) => card === "amplify-plus")).toHaveLength(1);
+  });
+
+  it("gives a deck run its own income, which still grows by layer", () => {
+    expect(manaPerTurn(startDeck(), CATALOG)).toBe(3);
+    expect(manaPerTurn({ ...startDeck(), layer: 1 }, CATALOG)).toBe(4);
+    expect(manaPerTurn(start(), CATALOG)).toBe(6);
+  });
+
+  it("grants a card into the deck and the hand in a sandbox fight, and removes one from both", () => {
+    const sandbox = startShardrun(CATALOG, { seed: "seed-1", language: "python", difficulty: "normal", playstyle: "deck", sandbox: true });
+    const fight = play(sandbox, [{ type: "dev-spawn", kind: "fight", foes: ["dummy"] }]);
+    expect(battleOf(fight).hand).toHaveLength(3);
+    const granted = play(fight, [{ type: "dev-grant-shard", shardId: "dedupe" }]);
+    expect(granted.deck).toContain("dedupe");
+    expect(battleOf(granted).hand).toContain("dedupe");
+    const removed = play(granted, [{ type: "dev-remove-shard", shardId: "dedupe" }]);
+    expect(removed.deck).not.toContain("dedupe");
+    expect(cardsOf(removed)).toEqual([...removed.deck].sort());
+  });
+});
+

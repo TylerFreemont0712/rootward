@@ -23,8 +23,10 @@ import {
   ShardrunCodexResponse,
   ShardrunCommandRequest,
   ShardrunDevRequest,
+  type ShardrunPlaystyleView,
   ShardrunPreviewsResponse,
   ShardrunResponse,
+  ShardrunRunQuery,
   ShardrunStatusResponse,
   StartEncounterRequest,
   StartExpeditionRequest,
@@ -207,9 +209,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         ShardrunCodexResponse.parse(shardrun.codex(request.query.language ?? "python")),
       );
 
+      // A character keeps one run in progress per playstyle (ADR-0020); `?playstyle=deck` picks the experimental one.
       app.get<{ Params: { profileId: string } }>("/api/profiles/:profileId/shardrun", async (request) =>
         ShardrunStatusResponse.parse({
-          run: await shardrun.latest(request.params.profileId),
+          run: await shardrun.latest(request.params.profileId, playstyleOf(request.query)),
+          playstyles: shardrun.playstyles(),
           languages: await shardrun.languages(),
           difficulties: shardrun.difficulties(),
           dev: shardrun.devEnabled(),
@@ -220,7 +224,13 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         ShardrunResponse.parse({
           run: await (async () => {
             const body = parseBody(StartShardrunRequest, request.body);
-            return shardrun.start(request.params.profileId, body.language, body.difficulty, body.sandbox ?? false);
+            return shardrun.start(
+              request.params.profileId,
+              body.language,
+              body.difficulty,
+              body.sandbox ?? false,
+              body.playstyle ?? "spellbook",
+            );
           })(),
         }),
       );
@@ -228,17 +238,27 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       // A command answers as soon as its rules are applied; the next spell previews run in the sandbox afterwards, and this
       // waits for them (ADR-0013), so a cast never waits on previews it does not need.
       app.get<{ Params: { profileId: string } }>("/api/profiles/:profileId/shardrun/previews", async (request) =>
-        ShardrunPreviewsResponse.parse(await shardrun.previews(request.params.profileId)),
+        ShardrunPreviewsResponse.parse(await shardrun.previews(request.params.profileId, playstyleOf(request.query))),
       );
 
       // Dev tools: refused unless the server runs with ROOTWARD_DEV and the run is a sandbox (ADR-0013).
       app.post<{ Params: { profileId: string } }>("/api/profiles/:profileId/shardrun/dev", async (request) =>
-        ShardrunResponse.parse({ run: await shardrun.dev(request.params.profileId, parseBody(ShardrunDevRequest, request.body)) }),
+        ShardrunResponse.parse({
+          run: await shardrun.dev(
+            request.params.profileId,
+            parseBody(ShardrunDevRequest, request.body),
+            playstyleOf(request.query),
+          ),
+        }),
       );
 
       app.post<{ Params: { profileId: string } }>("/api/profiles/:profileId/shardrun/command", async (request) =>
         ShardrunResponse.parse({
-          run: await shardrun.command(request.params.profileId, parseBody(ShardrunCommandRequest, request.body)),
+          run: await shardrun.command(
+            request.params.profileId,
+            parseBody(ShardrunCommandRequest, request.body),
+            playstyleOf(request.query),
+          ),
         }),
       );
     }
@@ -299,6 +319,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     );
   }
   return app;
+}
+
+/** Which of a character's Shardrun runs a request means (ADR-0020): the spellbook's, unless it asks for another. */
+function playstyleOf(query: unknown): ShardrunPlaystyleView {
+  return parseBody(ShardrunRunQuery, query ?? {}).playstyle ?? "spellbook";
 }
 
 function parseBody<T extends z.ZodType>(schema: T, body: unknown): z.output<T> {

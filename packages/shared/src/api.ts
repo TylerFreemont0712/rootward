@@ -787,6 +787,8 @@ export const ShardrunRulesView = z.strictObject({
   patternOffMultiplier: z.number(),
   restHealFraction: z.number(),
   layerHealFraction: z.number(),
+  /** The deck playstyle's own numbers (ADR-0020). */
+  deck: z.strictObject({ handSize: z.int(), manaPerTurn: z.int(), manaPerLayer: z.int(), minCards: z.int() }),
 });
 export type ShardrunRulesView = z.infer<typeof ShardrunRulesView>;
 
@@ -802,8 +804,20 @@ export type ShardrunModifierView = z.infer<typeof ShardrunModifierView>;
 export const ArenaAmbienceView = z.enum(["dust", "spores", "embers"]);
 export type ArenaAmbienceView = z.infer<typeof ArenaAmbienceView>;
 
+/**
+ * How a run plays (ADR-0020): `spellbook` (Shardrun) builds spells between fights; `deck` (Shardrun Experimental) draws
+ * its shards as cards into blank spells every turn. A character keeps one run in progress of each.
+ */
+export const ShardrunPlaystyleView = z.enum(["spellbook", "deck"]);
+export type ShardrunPlaystyleView = z.infer<typeof ShardrunPlaystyleView>;
+
+/** Which of a character's runs a Shardrun request is about; the spellbook run when it does not say. */
+export const ShardrunRunQuery = z.strictObject({ playstyle: ShardrunPlaystyleView.optional() });
+export type ShardrunRunQuery = z.infer<typeof ShardrunRunQuery>;
+
 export const ShardrunView = z.strictObject({
   id: z.string(),
+  playstyle: ShardrunPlaystyleView,
   status: z.enum(["map", "battle", "reward", "rest", "forge", "won", "lost", "abandoned"]),
   language: z.string(),
   difficulty: z.strictObject({
@@ -834,6 +848,8 @@ export const ShardrunView = z.strictObject({
   }),
   spells: z.array(SpellView),
   inventory: z.array(z.string()),
+  /** A deck run's cards (ADR-0020), by shard id; empty in a spellbook run. */
+  deck: z.array(z.string()),
   relics: z.array(z.string()),
   /** Every shard the run mentions (held, offered, or forged into), by id. */
   shards: z.record(z.string(), ShardView),
@@ -847,6 +863,10 @@ export const ShardrunView = z.strictObject({
       manaMax: z.int(),
       block: z.int(),
       foes: z.array(ShardrunFoeView),
+      /** A deck run's hand (ADR-0020), and how many cards wait in the draw and discard piles; empty otherwise. */
+      hand: z.array(z.string()),
+      drawPile: z.int(),
+      discardPile: z.int(),
     })
     .optional(),
   /** `pending` while spell previews are still running; fetch them from `.../shardrun/previews`. */
@@ -865,12 +885,17 @@ export const ShardrunView = z.strictObject({
       spells: z.array(z.string()),
       /** The new spell this forge could bind, when the run still has a name for one and room in the book. */
       bind: z.strictObject({ name: z.string(), capacity: z.int() }).optional(),
+      /** A deck run's cards that can be melted down (one of each), empty once the deck is as small as it may be. */
+      purge: z.array(z.string()).optional(),
     })
     .optional(),
   /** Integrity resting would restore, while resting. */
   restHeal: z.int().optional(),
-  /** In the response to a cast: that cast, step by step, with every value shown. */
-  replay: z.strictObject({ spellId: z.string(), run: SpellRunView }).optional(),
+  /**
+   * In the response to a cast: that cast, step by step, with every value shown, and the shards it ran (a deck run's
+   * spell is blank again by the time the response arrives).
+   */
+  replay: z.strictObject({ spellId: z.string(), shards: z.array(z.string()), run: SpellRunView }).optional(),
   /** A dev sandbox run: the same rules, plus the dev drawer. */
   sandbox: z.boolean(),
   /** What the last command did, in order. */
@@ -955,6 +980,8 @@ export type ShardrunResponse = z.infer<typeof ShardrunResponse>;
 /** The latest run (finished ones stay until a new run starts), and what a new run can be started with. */
 export const ShardrunStatusResponse = z.strictObject({
   run: ShardrunView.nullable(),
+  /** The playstyles the content offers: always the spellbook, and the deck when the pack defines one. */
+  playstyles: z.array(ShardrunPlaystyleView),
   languages: z.array(z.string()),
   difficulties: z.array(ShardrunDifficultyView),
   /** Whether this server allows sandbox runs (ROOTWARD_DEV). */
@@ -974,6 +1001,8 @@ export const StartShardrunRequest = z.strictObject({
   difficulty: z.string().min(1),
   /** Start a dev sandbox run; refused unless the server runs with ROOTWARD_DEV. */
   sandbox: z.boolean().optional(),
+  /** A spellbook run unless it says otherwise (ADR-0020). */
+  playstyle: ShardrunPlaystyleView.optional(),
 });
 export type StartShardrunRequest = z.infer<typeof StartShardrunRequest>;
 
@@ -1011,6 +1040,11 @@ export const ShardrunCommandRequest = z.discriminatedUnion("type", [
     inventory: z.array(z.string()),
   }),
   z.strictObject({ type: z.literal("cast"), spellId: z.string().min(1) }),
+  z.strictObject({
+    type: z.literal("compose"),
+    spells: z.array(z.strictObject({ id: z.string().min(1), shards: z.array(z.string()) })),
+    hand: z.array(z.string()),
+  }),
   z.strictObject({ type: z.literal("end-turn") }),
   z.strictObject({ type: z.literal("take"), shardId: z.string().nullable() }),
   z.strictObject({ type: z.literal("claim-relic"), relicId: z.string().min(1) }),
@@ -1020,6 +1054,7 @@ export const ShardrunCommandRequest = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("forge"), shardId: z.string().nullable() }),
   z.strictObject({ type: z.literal("widen"), spellId: z.string().min(1) }),
   z.strictObject({ type: z.literal("bind") }),
+  z.strictObject({ type: z.literal("purge"), shardId: z.string().min(1) }),
   z.strictObject({ type: z.literal("abandon") }),
 ]);
 export type ShardrunCommandRequest = z.infer<typeof ShardrunCommandRequest>;

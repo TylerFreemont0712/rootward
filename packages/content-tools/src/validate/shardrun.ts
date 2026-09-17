@@ -44,6 +44,7 @@ export function validateShardrun(index: ContentIndex, diagnostics: Diagnostics):
     for (const id of spell.shards) shardRef(id, `starting spell "${spell.name}"`);
   }
   for (const id of config.start.inventory) shardRef(id, "the starting inventory");
+  for (const id of config.deck?.cards ?? []) shardRef(id, "the deck playstyle's starting cards");
   for (const id of config.start.relics) {
     if (!index.shardrunRelics.has(id)) diagnostics.error("unknown-relic", `the starting relics name unknown relic "${id}"`, { file });
   }

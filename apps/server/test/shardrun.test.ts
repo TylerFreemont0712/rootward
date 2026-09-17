@@ -7,7 +7,12 @@ import { type GameContent, loadGameContent } from "../src/content.ts";
 import { MEMORY, openDatabase } from "../src/db/database.ts";
 import { ProfileService } from "../src/profiles/service.ts";
 import { Sandbox } from "../src/sandbox.ts";
+import { buildApp } from "../src/app.ts";
+import { RunServiceRegistry } from "../src/runs/registry.ts";
+import { RunService } from "../src/runs/service.ts";
+import { InMemoryEventStore } from "../src/runs/store.ts";
 import { ShardrunService } from "../src/shardrun/service.ts";
+import { WorldService } from "../src/world/service.ts";
 
 // Shardrun (ADR-0012, ADR-0013) against the real content pack, with spells run in the real JavaScript sandbox.
 const rootDir = path.resolve(fileURLToPath(import.meta.url), "../../../..");
@@ -346,6 +351,89 @@ describe("ShardrunService", () => {
     expect(wide?.cost).toBe(5);
     expect(wide?.cost).toBeLessThanOrEqual(fight.battle?.mana ?? 0);
     expect(wide?.affordable).toBe(true);
+  });
+
+  it("keeps a deck run beside a spellbook run, one of each per character (ADR-0020)", SLOW, async () => {
+    const { service, id } = await character();
+    expect(service.playstyles()).toEqual(["spellbook", "deck"]);
+    const spellbook = await service.start(id, "javascript", "beginner");
+    const deck = await service.start(id, "javascript", "beginner", false, "deck");
+    expect(spellbook.playstyle).toBe("spellbook");
+    expect(deck).toMatchObject({ playstyle: "deck", inventory: [] });
+    expect(deck.spells.map((spell) => [spell.name, spell.capacity, spell.shards.length])).toEqual([
+      ["Left Hand", 3, 0],
+      ["Right Hand", 3, 0],
+    ]);
+    expect(deck.deck).toHaveLength(12);
+    expect(deck.rules.deck).toEqual({ handSize: 5, manaPerTurn: 4, manaPerLayer: 1, minCards: 5 });
+    expect((await service.latest(id))?.id).toBe(spellbook.id);
+    expect((await service.latest(id, "deck"))?.id).toBe(deck.id);
+    await expect(service.start(id, "javascript", "beginner", false, "deck")).rejects.toThrow("already underway");
+    // A command reaches only the run of its own playstyle.
+    expect((await service.command(id, { type: "abandon" }, "deck")).status).toBe("abandoned");
+    expect((await service.latest(id))?.status).toBe("map");
+    await expect(service.command(id, { type: "arrange", spells: [], inventory: [] }, "deck")).rejects.toThrow("no run underway");
+  });
+
+  it("plays a deck turn: a hand of five, cards into a blank spell, a real cast, and the cards spent (ADR-0020)", SLOW, async () => {
+    const { service, id } = await character(content, true);
+    await service.start(id, "javascript", "beginner", true, "deck");
+    // A guardian with a thick hide survives the cast, so the turn can be followed to its end.
+    const fight = await service.dev(id, { type: "spawn", kind: "fight", foes: ["kiln-warden"] }, "deck");
+    const battle = fight.battle;
+    if (!battle) throw new Error("no fight");
+    expect(battle.hand).toHaveLength(5);
+    expect(battle.drawPile).toBe(7);
+    expect(battle.discardPile).toBe(0);
+    expect(battle.mana).toBe(4);
+    for (const card of battle.hand) expect(fight.shards[card]?.code).toContain("function");
+    const [first, second, ...rest] = battle.hand;
+    if (first === undefined || second === undefined) throw new Error("a short hand");
+
+    const composed = await service.command(
+      id,
+      { type: "compose", spells: [{ id: "spell-1", shards: [first, second] }, { id: "spell-2", shards: [] }], hand: rest },
+      "deck",
+    );
+    expect(composed.spells[0]?.shards).toEqual([first, second]);
+    expect(composed.battle?.hand).toEqual(rest);
+    const previews = await service.previews(id, "deck");
+    expect(previews.spells["spell-1"]?.steps.map((step) => step.shard)).toEqual([first, second]);
+    // A blank spell still casts, as one plain bolt for the base cost.
+    expect(previews.spells["spell-2"]).toMatchObject({ cost: 1, base: { bolts: [{ power: 4 }] }, steps: [] });
+
+    const cast = await service.command(id, { type: "cast", spellId: "spell-1" }, "deck");
+    expect(cast.status).toBe("battle");
+    expect(cast.replay).toMatchObject({ spellId: "spell-1", shards: [first, second], run: { steps: [{ shard: first }, { shard: second }] } });
+    expect(cast.spells[0]?.shards).toEqual([]);
+    expect(cast.battle?.discardPile).toBe(2);
+    const next = await service.command(id, { type: "end-turn" }, "deck");
+    expect(next.battle).toMatchObject({ turn: 2, mana: 4, drawPile: 2, discardPile: 5 });
+    expect(next.battle?.hand).toHaveLength(5);
+  });
+
+  it("chooses the run by `?playstyle=` over HTTP, and refuses a playstyle that does not exist", SLOW, async () => {
+    const db = openDatabase(MEMORY);
+    const shardrun = new ShardrunService({ db, content, sandbox });
+    const registry = new RunServiceRegistry({ content, sandbox, db });
+    const app = await buildApp({
+      service: new RunService({ content, sandbox, store: new InMemoryEventStore() }),
+      sandbox,
+      profiles: { profileService: new ProfileService({ db }), registry, world: new WorldService({ db, content, registry }), content, shardrun },
+    });
+    const profile = await new ProfileService({ db }).create("Ada", "artificer");
+    const url = (suffix: string) => `/api/profiles/${profile.id}/shardrun${suffix}`;
+    const started = await app.inject({ method: "POST", url: url("/start"), payload: { language: "javascript", difficulty: "beginner", playstyle: "deck" } });
+    expect(started.statusCode).toBe(200);
+    const deck = await app.inject({ method: "GET", url: url("?playstyle=deck") });
+    expect(deck.json<{ run: { playstyle: string }; playstyles: string[] }>()).toMatchObject({ run: { playstyle: "deck" }, playstyles: ["spellbook", "deck"] });
+    const spellbook = await app.inject({ method: "GET", url: url("") });
+    expect(spellbook.json<{ run: null }>().run).toBeNull();
+    const abandoned = await app.inject({ method: "POST", url: url("/command?playstyle=deck"), payload: { type: "abandon" } });
+    expect(abandoned.json<{ run: { status: string } }>().run.status).toBe("abandoned");
+    const wrong = await app.inject({ method: "GET", url: url("?playstyle=tarot") });
+    expect(wrong.statusCode).toBe(400);
+    await app.close();
   });
 
   it("closes a run saved under older rules instead of failing on it", async () => {

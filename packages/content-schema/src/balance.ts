@@ -138,6 +138,15 @@ export const Balance = z.strictObject({
     layer_heal_fraction: Ratio,
     /** Bolts per step kept in a spell's trace for the code view. */
     trace_bolts: PositiveInt,
+    /** The experimental deck playstyle (ADR-0020), where shards are cards drawn into blank spells every turn. */
+    deck: z.strictObject({
+      /** Cards drawn at the start of every turn. */
+      hand_size: PositiveInt,
+      /** A deck run's income: less than a spellbook's, so two full spells are not always both castable. */
+      mana_per_turn: z.strictObject({ base: PositiveInt, per_layer: NonNegativeInt }),
+      /** A forge will not melt down a card when the deck is this small. */
+      min_cards: PositiveInt,
+    }),
   }),
   sandbox_defaults: z.strictObject({
     wall_ms: PositiveInt,

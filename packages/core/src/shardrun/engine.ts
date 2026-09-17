@@ -16,7 +16,7 @@ import {
   type WorkCurve,
 } from "@rootward/content-schema";
 import type { DomainError } from "../result.ts";
-import { createRng, pickWeighted, randomFor } from "../rng.ts";
+import { createRng, pickWeighted, randomFor, shuffled } from "../rng.ts";
 import { generateLayerMap, nextRooms } from "./map.ts";
 import type {
   BattleKind,
@@ -25,6 +25,7 @@ import type {
   LogEntry,
   MapNode,
   RewardState,
+  ShardrunPlaystyle,
   ShardrunState,
   SpellState,
 } from "./types.ts";
@@ -62,6 +63,13 @@ export type ShardrunCommand =
       inventory: readonly string[];
     }
   | { type: "cast"; spellId: string; outcome: PipelineOutcome }
+  // A deck run (ADR-0020): propose where the hand's cards sit in the spells this turn. Like "arrange", it can move
+  // cards but never create or destroy one.
+  | {
+      type: "compose";
+      spells: readonly { id: string; shards: readonly string[] }[];
+      hand: readonly string[];
+    }
   | { type: "end-turn" }
   | { type: "take"; shardId: string | null }
   | { type: "claim-relic"; relicId: string }
@@ -71,6 +79,8 @@ export type ShardrunCommand =
   | { type: "forge"; shardId: string | null }
   | { type: "widen"; spellId: string }
   | { type: "bind" }
+  /** A deck run at a forge: melt one card down, out of the deck for good. */
+  | { type: "purge"; shardId: string }
   | { type: "abandon" }
   // Dev commands (ADR-0013). Every one refuses unless the run is a sandbox, so they cannot touch an ordinary run.
   | { type: "dev-grant-shard"; shardId: string }
@@ -114,12 +124,19 @@ export interface StartOptions {
   difficulty: string;
   /** A dev sandbox run: ordinary rules, plus the dev commands. */
   sandbox?: boolean;
+  /** How the run plays (ADR-0020); a spellbook run unless told otherwise. */
+  playstyle?: ShardrunPlaystyle;
 }
 
 export function startShardrun(catalog: ShardrunCatalog, options: StartOptions): ShardrunState {
   const { config, balance } = catalog;
   const firstLayer = config.layers[0];
   if (!firstLayer) throw new Error("a Shardrun config needs at least one layer");
+  const playstyle = options.playstyle ?? "spellbook";
+  const deck = config.deck;
+  if (playstyle === "deck" && !deck) throw new Error("this Shardrun config has no deck playstyle");
+  // A deck run's spells start blank, and its shards are the deck's cards; a spellbook run starts with filled spells.
+  const spells = playstyle === "deck" && deck ? deck.spells.map((spell) => ({ ...spell, shards: [] })) : config.start.spells;
   const state: ShardrunState = {
     version: 2,
     seed: options.seed,
@@ -132,13 +149,15 @@ export function startShardrun(catalog: ShardrunCatalog, options: StartOptions): 
     map: generateLayerMap(options.seed, 0, firstLayer),
     position: null,
     visited: [],
-    spells: config.start.spells.map((spell, index): SpellState => ({
+    playstyle,
+    spells: spells.map((spell, index): SpellState => ({
       id: `spell-${index + 1}`,
       name: spell.name,
       capacity: spell.capacity,
       shards: [...spell.shards],
     })),
-    inventory: [...config.start.inventory],
+    inventory: playstyle === "deck" ? [] : [...config.start.inventory],
+    deck: playstyle === "deck" && deck ? [...deck.cards] : [],
     relics: [],
     revision: 0,
     sandbox: options.sandbox ?? false,
@@ -196,6 +215,8 @@ export function stepShardrun(
     }
 
     case "arrange": {
+      if (next.playstyle === "deck")
+        return refuse("cannot-arrange", "A deck run fills its spells from the hand, during a fight.");
       if (!ARRANGEABLE.has(next.status))
         return refuse("cannot-arrange", "Spells can only be rearranged between fights.");
       const byId = new Map(next.spells.map((spell) => [spell.id, spell]));
@@ -231,7 +252,43 @@ export function stepShardrun(
       if (battle.cast.includes(spell.id))
         return refuse("already-cast", `${spell.name} is spent until your next turn.`);
       const refusal = castSpell(next, battle, spell, command.outcome, catalog);
-      return refusal ? { ok: false, error: refusal } : accept();
+      if (refusal) return { ok: false, error: refusal };
+      // A deck run's cast cards are spent: onto the discard pile, leaving the spell blank for the next turn.
+      if (next.playstyle === "deck" && next.battle) {
+        next.battle.discard.push(...spell.shards);
+        spell.shards = [];
+      }
+      return accept();
+    }
+
+    case "compose": {
+      const battle = next.battle;
+      if (next.playstyle !== "deck") return refuse("not-a-deck-run", "Only a deck run plays cards from a hand.");
+      if (next.status !== "battle" || !battle) return refuse("not-in-battle", "Cards are only played during a fight.");
+      const byId = new Map(next.spells.map((spell) => [spell.id, spell]));
+      if (
+        command.spells.length !== next.spells.length ||
+        command.spells.some((spell) => !byId.has(spell.id))
+      ) {
+        return refuse("unknown-spell", "Every spell must be listed exactly once.");
+      }
+      for (const change of command.spells) {
+        const spell = byId.get(change.id);
+        if (!spell) continue;
+        if (change.shards.length > spell.capacity)
+          return refuse("over-capacity", `${spell.name} holds at most ${spell.capacity} cards.`);
+        if (battle.cast.includes(spell.id) && !sameList(change.shards, spell.shards))
+          return refuse("already-cast", `${spell.name} is spent until your next turn.`);
+      }
+      const before = [...next.spells.flatMap((spell) => spell.shards), ...battle.hand];
+      const after = [...command.spells.flatMap((spell) => spell.shards), ...command.hand];
+      if (!sameMultiset(before, after)) return refuse("cards-changed", "Playing cards cannot create or destroy them.");
+      for (const change of command.spells) {
+        const spell = byId.get(change.id);
+        if (spell) spell.shards = [...change.shards];
+      }
+      battle.hand = [...command.hand];
+      return accept();
     }
 
     case "end-turn": {
@@ -253,12 +310,15 @@ export function stepShardrun(
       if (command.shardId !== null) {
         if (!reward.shards.includes(command.shardId))
           return refuse("not-offered", "That shard was not offered.");
-        next.inventory.push(command.shardId);
+        const name = catalog.shards.get(command.shardId)?.name ?? command.shardId;
         next.stats.shards += 1;
-        log(next, {
-          kind: "reward",
-          text: `You salvage ${catalog.shards.get(command.shardId)?.name ?? command.shardId}.`,
-        });
+        if (next.playstyle === "deck") {
+          next.deck.push(command.shardId);
+          log(next, { kind: "reward", text: `${name} joins your deck.` });
+        } else {
+          next.inventory.push(command.shardId);
+          log(next, { kind: "reward", text: `You salvage ${name}.` });
+        }
       }
       delete reward.shards;
       settleReward(next, catalog);
@@ -324,11 +384,17 @@ export function stepShardrun(
         const shard = catalog.shards.get(command.shardId);
         const into = shard?.forge?.into;
         if (!shard || into === undefined) return refuse("cannot-forge", "That shard cannot be reworked.");
-        const spell = next.spells.find((candidate) => candidate.shards.includes(shard.id));
-        const index = next.inventory.indexOf(shard.id);
-        if (spell) spell.shards[spell.shards.indexOf(shard.id)] = into;
-        else if (index >= 0) next.inventory[index] = into;
-        else return refuse("not-owned", "You do not carry that shard.");
+        if (next.playstyle === "deck") {
+          const card = next.deck.indexOf(shard.id);
+          if (card < 0) return refuse("not-owned", "That card is not in your deck.");
+          next.deck[card] = into;
+        } else {
+          const spell = next.spells.find((candidate) => candidate.shards.includes(shard.id));
+          const index = next.inventory.indexOf(shard.id);
+          if (spell) spell.shards[spell.shards.indexOf(shard.id)] = into;
+          else if (index >= 0) next.inventory[index] = into;
+          else return refuse("not-owned", "You do not carry that shard.");
+        }
         const verb = shard.forge?.verb === "repair" ? "repair" : "upgrade";
         log(next, {
           kind: "forge",
@@ -368,6 +434,23 @@ export function stepShardrun(
       return accept();
     }
 
+    case "purge": {
+      if (next.status !== "forge") return refuse("no-forge", "There is no forge here.");
+      if (next.playstyle !== "deck") return refuse("not-a-deck-run", "Only a deck run has cards to melt down.");
+      const index = next.deck.indexOf(command.shardId);
+      if (index < 0) return refuse("not-owned", "That card is not in your deck.");
+      const smallest = catalog.balance.deck.min_cards;
+      if (next.deck.length <= smallest)
+        return refuse("deck-too-small", `A deck cannot be pruned below ${smallest} cards.`);
+      next.deck.splice(index, 1);
+      log(next, {
+        kind: "forge",
+        text: `You melt ${catalog.shards.get(command.shardId)?.name ?? command.shardId} down. ${next.deck.length} cards remain.`,
+      });
+      afterRoom(next, catalog);
+      return accept();
+    }
+
     case "abandon": {
       next.status = "abandoned";
       log(next, { kind: "loss", text: "You climb back out of the Salvage. The shards stay behind." });
@@ -395,11 +478,29 @@ function devCommand(
     case "dev-grant-shard": {
       const shard = catalog.shards.get(command.shardId);
       if (!shard) return { code: "unknown-shard", message: "No such shard." };
-      state.inventory.push(shard.id);
+      if (state.playstyle === "deck") {
+        // Into the deck, and straight into the hand during a fight, so a granted card can be tried at once.
+        state.deck.push(shard.id);
+        state.battle?.hand.push(shard.id);
+      } else state.inventory.push(shard.id);
       note(`granted ${shard.name}`);
       return undefined;
     }
     case "dev-remove-shard": {
+      if (state.playstyle === "deck") {
+        const card = state.deck.indexOf(command.shardId);
+        if (card < 0) return { code: "not-owned", message: "That card is not in this deck." };
+        state.deck.splice(card, 1);
+        const battle = state.battle;
+        if (battle) {
+          // The copy leaves the fight too: from the hand first, then the piles, then a spell.
+          const holders = [battle.hand, battle.draw, battle.discard, ...state.spells.map((spell) => spell.shards)];
+          const holder = holders.find((cards) => cards.includes(command.shardId));
+          holder?.splice(holder.indexOf(command.shardId), 1);
+        }
+        note(`removed ${catalog.shards.get(command.shardId)?.name ?? command.shardId}`);
+        return undefined;
+      }
       const spare = state.inventory.indexOf(command.shardId);
       if (spare >= 0) state.inventory.splice(spare, 1);
       else {
@@ -454,10 +555,14 @@ function devCommand(
         foes,
         cast: [],
         casts: 0,
+        draw: [],
+        hand: [],
+        discard: [],
       };
       beginTurn(battle);
       state.battle = battle;
       state.status = "battle";
+      deal(state, battle, catalog);
       note(`spawned ${foes.map((foe) => foe.name).join(" and ")}`);
       // Logged exactly as a room's fight is, so a spawned guardian makes its entrance in the arena (ADR-0019).
       log(state, { kind: "enter", text: `${foes.map((foe) => foe.name).join(" and ")} ${foes.length === 1 ? "blocks" : "block"} the way.` });
@@ -485,6 +590,7 @@ function devCommand(
       state.visited = [];
       delete state.battle;
       delete state.reward;
+      clearSpells(state);
       state.status = "map";
       note(`jumped to ${layer.name}`);
       return undefined;
@@ -579,12 +685,16 @@ export function relicModifiers(
   return modifiers;
 }
 
-/** Mana a turn gives: the base, more for every layer descended, and whatever relics add (ADR-0015). */
+/**
+ * Mana a turn gives: the base, more for every layer descended, and whatever relics add (ADR-0015). A deck run has its
+ * own, smaller income (ADR-0020).
+ */
 export function manaPerTurn(
-  state: Pick<ShardrunState, "relics" | "layer">,
+  state: Pick<ShardrunState, "relics" | "layer"> & { playstyle?: ShardrunPlaystyle },
   catalog: ShardrunCatalog,
 ): number {
-  const { base, per_layer } = catalog.balance.mana_per_turn;
+  const { base, per_layer } =
+    state.playstyle === "deck" ? catalog.balance.deck.mana_per_turn : catalog.balance.mana_per_turn;
   return Math.max(1, base + per_layer * state.layer + relicModifiers(state, catalog).manaPerTurn);
 }
 
@@ -970,10 +1080,14 @@ function startBattleWith(
     foes,
     cast: [],
     casts: 0,
+    draw: [],
+    hand: [],
+    discard: [],
   };
   beginTurn(battle);
   state.battle = battle;
   state.status = "battle";
+  deal(state, battle, catalog);
   state.stats.fights += 1;
   log(state, {
     kind: "enter",
@@ -1272,6 +1386,13 @@ function newTurn(state: ShardrunState, battle: BattleState, catalog: ShardrunCat
   battle.mana = manaPerTurn(state, catalog);
   battle.block = relicModifiers(state, catalog).turnBlock;
   battle.cast = [];
+  if (state.playstyle === "deck") {
+    // What was not cast this turn is let go: the hand and anything still sitting in a spell.
+    battle.discard.push(...battle.hand, ...state.spells.flatMap((spell) => spell.shards));
+    battle.hand = [];
+    clearSpells(state);
+    draw(state, battle, catalog.balance.deck.hand_size);
+  }
   for (const foe of battle.foes) foe.intentIndex = (foe.intentIndex + 1) % foe.intents.length;
   beginTurn(battle);
   state.stats.turns += 1;
@@ -1296,8 +1417,48 @@ function elementAt(cycle: readonly Element[], turn: number): Element[] {
   return element ? [element] : [];
 }
 
+/**
+ * A deck run's fight begins (ADR-0020): every card of the deck, shuffled from the run's seed, becomes the draw pile, and
+ * the first hand is drawn. The spells start the fight blank.
+ */
+function deal(state: ShardrunState, battle: BattleState, catalog: ShardrunCatalog): void {
+  if (state.playstyle !== "deck") return;
+  clearSpells(state);
+  battle.draw = shuffled(state.deck, createRng(state.seed, `deck:${state.revision}`));
+  battle.hand = [];
+  battle.discard = [];
+  draw(state, battle, catalog.balance.deck.hand_size);
+}
+
+/**
+ * Draw `count` cards from the top of the pile. When it runs out, the discard pile is shuffled into a new one; a deck
+ * smaller than a hand simply draws what it has.
+ *
+ * LEARN: the draw pile is a queue (cards leave from the front) and the discard pile is a stack that becomes the next
+ * queue when it is shuffled. The shuffle's stream names the command and the card being drawn, so the same state always
+ * draws the same cards, which is what lets a test pin a hand and a replayed command reproduce it.
+ */
+function draw(state: ShardrunState, battle: BattleState, count: number): void {
+  for (let drawn = 0; drawn < count; drawn++) {
+    if (battle.draw.length === 0) {
+      if (battle.discard.length === 0) return;
+      battle.draw = shuffled(battle.discard, createRng(state.seed, `deck:${state.revision}:${battle.turn}:${drawn}`));
+      battle.discard = [];
+    }
+    const card = battle.draw.shift();
+    if (card !== undefined) battle.hand.push(card);
+  }
+}
+
+/** Empty a deck run's spells: between fights its cards are only the deck. A spellbook run's spells are left alone. */
+function clearSpells(state: ShardrunState): void {
+  if (state.playstyle !== "deck") return;
+  for (const spell of state.spells) spell.shards = [];
+}
+
 function win(state: ShardrunState, battle: BattleState, catalog: ShardrunCatalog): void {
   delete state.battle;
+  clearSpells(state);
   const { balance } = catalog;
   const heal = relicModifiers(state, catalog).healAfterFight;
   if (heal > 0) {
@@ -1340,6 +1501,7 @@ function win(state: ShardrunState, battle: BattleState, catalog: ShardrunCatalog
 }
 
 function lose(state: ShardrunState): void {
+  clearSpells(state);
   state.status = "lost";
   log(state, { kind: "loss", text: "Kernel panic. The Salvage keeps what you carried." });
 }
@@ -1415,6 +1577,10 @@ function clampMult(mult: number, balance: ShardrunBalance): number {
 
 function log(state: ShardrunState, entry: LogEntry): void {
   state.log.push(entry);
+}
+
+function sameList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((item, index) => item === b[index]);
 }
 
 function sameMultiset(a: readonly string[], b: readonly string[]): boolean {

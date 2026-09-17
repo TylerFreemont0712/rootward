@@ -93,6 +93,11 @@ shardrun:                                    # the roguelite mode (ADR-0012)
   max_spell_capacity: 6
   layer_heal_fraction: 0.5
   trace_bolts: 16
+  # The experimental deck playstyle (ADR-0020): shards are cards, drawn every turn into blank spells.
+  deck:
+    hand_size: 5
+    mana_per_turn: { base: 4, per_layer: 1 }   # less than a spellbook's, so two full spells cannot always both be cast
+    min_cards: 5
 
 sandbox_defaults:
   wall_ms: 10000
