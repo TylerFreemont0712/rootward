@@ -1,19 +1,21 @@
-import type { ShardrunView, SpellRunView, SpellView } from "@rootward/shared";
+import type { BoltOutcomeView, ShardrunView, SpellRunView, SpellView } from "@rootward/shared";
 import { useEffect, useMemo, useState } from "react";
-import { type CodeSpeed, CODE_SPEEDS, composeSpell, playbackFrames, playbackLength } from "./source.ts";
+import { type CodeSpeed, CODE_SPEEDS, composeSpell, playbackFrames, playbackLength, type SpellSource } from "./source.ts";
 
 /**
  * A spell as one function, running line by line (ADR-0013). The cursor walks the code at the chosen speed; the damage
  * and block counters change only where the server measured the bolts: the start, after each shard, and the end. In
  * `cast` mode it plays once and hands over to the hits, then, `finished`, folds down to its final score, which stays
- * up while the hits land (ADR-0019); in `explore` mode it can be replayed and closed.
+ * up while the hits land (ADR-0019); in `explore` mode it can be replayed and closed. In `build` mode (a deck run's spell
+ * being put together, ADR-0020) nothing plays: every measured step is shown at once, and the lines a card just brought
+ * in light up, so the function is seen growing card by card.
  */
 export function CodeView(props: {
   run: ShardrunView;
   spell: SpellView;
   spellRun: SpellRunView | undefined;
   speed: CodeSpeed;
-  mode: "cast" | "explore";
+  mode: "cast" | "explore" | "build";
   /** The code has run: show only the final score. */
   finished?: boolean;
   /** The score is leaving. */
@@ -22,6 +24,7 @@ export function CodeView(props: {
 }) {
   const { run, spell, spellRun, speed, mode, onDone } = props;
   const finished = props.finished === true;
+  const building = mode === "build";
   const playSpeed = speed === "off" ? "fast" : speed;
   const source = useMemo(
     () => composeSpell(run.language, spell.name, spell.shards, run.shards, run.rules.baseBoltPower),
@@ -29,8 +32,10 @@ export function CodeView(props: {
   );
   // A hidden prediction has no measured steps, so there is nothing to play: the code is shown still.
   const playable =
+    !building &&
     spellRun !== undefined &&
     (spellRun.steps.length > 0 || spellRun.result !== undefined || spellRun.misfire !== undefined);
+  const added = useAddedLines(source, spell.shards, spell.id, building);
   const frames = useMemo(
     () => (spellRun !== undefined && playable ? playbackFrames(source, spellRun, playSpeed) : []),
     [playable, spellRun, source, playSpeed],
@@ -63,13 +68,22 @@ export function CodeView(props: {
   const shown = frames.slice(0, index + 1);
   const current = frames[index];
   // Once finished, the score is the cast's result, however far the cursor got (a skip, or no playback at all).
-  const outcome = (finished ? spellRun?.result : undefined) ?? [...shown].reverse().find((frame) => frame.outcome)?.outcome;
-  const bolts = [...shown].reverse().find((frame) => frame.bolts)?.bolts ?? [];
-  const reached = new Map(
-    shown
-      .filter((frame) => frame.mark === "step" && frame.step !== undefined)
-      .map((frame) => [frame.line, frame]),
+  const outcome = building
+    ? spellRun?.result
+    : ((finished ? spellRun?.result : undefined) ?? [...shown].reverse().find((frame) => frame.outcome)?.outcome);
+  const bolts = building
+    ? (spellRun?.steps.at(-1)?.bolts ?? spellRun?.base.bolts ?? [])
+    : ([...shown].reverse().find((frame) => frame.bolts)?.bolts ?? []);
+  // Which call lines have a measured result to show beside them: the ones the cursor has passed, or while building, all.
+  const reached = new Map<number, { step?: number | undefined; outcome?: BoltOutcomeView | undefined }>(
+    building
+      ? source.calls.flatMap((call, index) => {
+          const step = spellRun?.steps[index];
+          return step ? [[call.line, { step: index, outcome: step.outcome }] as const] : [];
+        })
+      : shown.filter((frame) => frame.mark === "step" && frame.step !== undefined).map((frame) => [frame.line, frame] as const),
   );
+  const scored = playable || (building && outcome !== undefined);
   const errored = current?.mark === "error";
   const activeShard = current ? source.lines[current.line - 1]?.shard : undefined;
 
@@ -80,8 +94,9 @@ export function CodeView(props: {
     >
       <header>
         <h3>{spell.name}</h3>
+        {building && <span className="shr-building">building</span>}
         <span className="meta">
-          {run.language} · {spell.shards.length} {spell.shards.length === 1 ? "shard" : "shards"}
+          {run.language} · {spell.shards.length} {building ? (spell.shards.length === 1 ? "card" : "cards") : spell.shards.length === 1 ? "shard" : "shards"}
           {spellRun && ` · ${spellRun.cost} mana`}
           {work > 0 && ` · ${work} work`}
         </span>
@@ -98,13 +113,18 @@ export function CodeView(props: {
               Run it
             </button>
           )}
-          <button type="button" className="btn" onClick={onDone}>
-            {mode === "cast" ? "Skip" : "Close"}
+          <button
+            type="button"
+            className="btn"
+            onClick={onDone}
+            title={building ? "Hide the code while building (Options turns it back on)" : undefined}
+          >
+            {mode === "cast" ? "Skip" : building ? "Hide" : "Close"}
           </button>
         </span>
       </header>
 
-      {playable ? (
+      {scored ? (
         <div className="shr-scoreboard" aria-live="polite">
           <div className="shr-score bolts">
             <span>bolts</span>
@@ -128,7 +148,9 @@ export function CodeView(props: {
       ) : (
         <p className="meta shr-code-hint">
           {run.difficulty.showPredictions
-            ? "Reading the shards…"
+            ? building
+              ? "Running the cards…"
+              : "Reading the shards…"
             : "No predictions on this difficulty: read the code, then cast it to watch it run."}
         </p>
       )}
@@ -157,6 +179,7 @@ export function CodeView(props: {
             `kind-${line.kind}`,
             current?.line === line.number ? (errored ? "error" : "current") : "",
             activeShard !== undefined && line.shard === activeShard ? "active-fn" : "",
+            added.has(line.number) ? "added" : "",
           ];
           return (
             <li
@@ -185,6 +208,44 @@ export function CodeView(props: {
       {spellRun && spellRun.console !== "" && <pre className="shr-console">{spellRun.console}</pre>}
     </section>
   );
+}
+
+/**
+ * The lines a card just played brought into a spell's code: its call and, for a card the spell did not hold yet, its
+ * function. They light up for a moment, and the first of them is scrolled into view.
+ */
+function useAddedLines(source: SpellSource, shards: readonly string[], spellId: string, active: boolean): ReadonlySet<number> {
+  const key = shards.join("|");
+  const [seen, setSeen] = useState({ key, shards });
+  const [lines, setLines] = useState<ReadonlySet<number>>(() => new Set());
+  // LEARN: state that follows a changing prop is adjusted while rendering, not in an effect: React renders again at once
+  // with the new state, and nothing on screen ever shows the stale value in between.
+  if (seen.key !== key) {
+    const previous = seen.shards;
+    setSeen({ key, shards });
+    if (active) {
+      const fresh = new Set<number>();
+      for (const [index, id] of shards.entries()) {
+        if (previous[index] === id) continue;
+        const call = source.calls[index];
+        if (call) fresh.add(call.line);
+        const fn = source.functions.get(id);
+        if (fn && !previous.includes(id)) for (const line of [fn.defLine, ...fn.body]) fresh.add(line);
+      }
+      setLines(fresh);
+    }
+  }
+  useEffect(() => {
+    if (lines.size === 0) return;
+    document.getElementById(`shr-line-${spellId}-${Math.min(...lines)}`)?.scrollIntoView({ block: "nearest" });
+    const timer = window.setTimeout(() => {
+      setLines(new Set());
+    }, 1600);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [lines, spellId]);
+  return lines;
 }
 
 /** The speeds offered in options, with how long a line takes at each. */

@@ -3,6 +3,22 @@
 Friction found while playing, newest first. Each entry: date, commit, what happened, severity (blocker / annoying /
 polish), and the follow-up (a ROADMAP item or the commit that fixed it).
 
+## 2026-09-17 — the deck table after the player's first look (ADR-0020 amendment)
+
+What the player asked for, all built: dragging cards, the code on screen while a spell is built, deck relics, holding
+cards, a card-like look, and the deck beside Stats. Checked with screenshots of a drag in flight, a held card, the build
+view, the Deck drawer, a second turn, and the forge, and by the smoke test (a click, a real mouse drag, a hold, a cast,
+and a 6-card second hand). Found on the way:
+
+- **The hand fell below the fold** at 1440x1000 once cards were card-sized. Annoying; a deck run's stage is shorter
+  and its spells compact (prediction and buttons in one row), so stage, spells and hand fit together.
+- **The dragged card did not fade in the hand** (the style targeted the button, the hand's wrapper carries the class).
+  Polish; fixed.
+- **The build view squeezed its bolt chips** and covered the foes' intents. Polish; the rows keep their height and the
+  view sits left of center.
+- **Still open, for playing it**: whether holding one card is enough (a relic makes it two), and whether the deck
+  relics are priced right against the spellbook's.
+
 ## 2026-09-17 — Shardrun (Experimental), from screenshots of a deck run (ADR-0020)
 
 Checked by driving a sandbox deck run in headless Chromium through the menu, the map and deck panel, a fight (two cards

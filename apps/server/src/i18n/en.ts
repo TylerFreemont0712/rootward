@@ -53,6 +53,8 @@ export const en = {
   "modifier.healAfterFight": "Integrity healed after a fight",
   "modifier.maxIntegrity": "Maximum Integrity",
   "modifier.spellCapacity": "Slots added to every spell",
+  "modifier.handSize": "Cards drawn each turn",
+  "modifier.hold": "Cards held into the next turn",
   "modifier.from.layer": "layer {layer}",
 } as const;
 

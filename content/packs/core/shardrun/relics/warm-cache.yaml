@@ -1,0 +1,10 @@
+id: warm-cache
+name: Warm Cache
+rarity: common
+icon: warm-cache
+summary: "Draw 2 more cards on the first turn of every fight."
+flavor: "The first read is always the slow one. Not any more."
+# Shardrun (Experimental) only (ADR-0020): it works on the hand and the deck, which a spellbook run does not have.
+playstyles: [deck]
+effects:
+  - { kind: opening-draw, add: 2 }

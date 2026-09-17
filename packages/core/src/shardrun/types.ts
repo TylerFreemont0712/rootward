@@ -1,5 +1,8 @@
-import { BoltTarget, Element, FoeIntent, FoeTrait, ShardrunNodeKind } from "@rootward/content-schema";
+import { BoltTarget, Element, FoeIntent, FoeTrait, ShardrunNodeKind, ShardrunPlaystyle } from "@rootward/content-schema";
 import { z } from "zod";
+
+// The playstyles live in content-schema, since a relic names the ones it belongs to; the run's state re-exports them.
+export { SHARDRUN_PLAYSTYLES, ShardrunPlaystyle } from "@rootward/content-schema";
 
 // Shardrun state (ADR-0012, ADR-0013). A run is saved as one validated snapshot after every command rather than as an
 // event log: the mode is young and its rules will change, and a snapshot keeps an old run readable where replaying old
@@ -28,14 +31,6 @@ export const FoeState = z.strictObject({
 });
 export type FoeState = z.infer<typeof FoeState>;
 
-/**
- * How a run plays (ADR-0020). A `spellbook` run builds its spells between fights and casts them every turn; a `deck` run
- * (Shardrun Experimental) carries its shards as cards, and every turn plays a hand of them into blank spells.
- */
-export const SHARDRUN_PLAYSTYLES = ["spellbook", "deck"] as const;
-export const ShardrunPlaystyle = z.enum(SHARDRUN_PLAYSTYLES);
-export type ShardrunPlaystyle = z.infer<typeof ShardrunPlaystyle>;
-
 export const BattleKind = z.enum(["fight", "elite", "boss"]);
 export type BattleKind = z.infer<typeof BattleKind>;
 
@@ -57,6 +52,8 @@ export const BattleState = z.strictObject({
   hand: z.array(z.string()).default([]),
   /** Cards cast or let go; shuffled back into the draw pile when it runs out. */
   discard: z.array(z.string()).default([]),
+  /** Cards set aside to be kept: at the end of the turn they go back into the hand instead of the discard pile. */
+  held: z.array(z.string()).default([]),
 });
 export type BattleState = z.infer<typeof BattleState>;
 

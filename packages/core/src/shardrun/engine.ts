@@ -69,6 +69,8 @@ export type ShardrunCommand =
       type: "compose";
       spells: readonly { id: string; shards: readonly string[] }[];
       hand: readonly string[];
+      /** Cards set aside to keep into the next turn, up to the hold limit. */
+      held: readonly string[];
     }
   | { type: "end-turn" }
   | { type: "take"; shardId: string | null }
@@ -113,6 +115,19 @@ export interface RelicModifiers {
   boltCap: number;
   /** The cheapest curve any relic bills work on, starting from the one balance.yaml sets. */
   workCurve: WorkCurve;
+  // A deck run's (ADR-0020); nothing reads these in a spellbook run.
+  /** Cards drawn every turn beyond the balance's hand. */
+  handSize: number;
+  /** Cards that can be held beyond the balance's hold. */
+  hold: number;
+  /** Cards drawn on top of the first hand of every fight. */
+  openingDraw: number;
+  /** A cast of at least `minCards` cards draws `draw` more. */
+  drawOnCast: { minCards: number; draw: number }[];
+  /** Block gained when the discard pile becomes a new draw pile. */
+  reshuffleBlock: number;
+  /** Power for every card the deck holds fewer than `below`. */
+  smallDeckPower: { below: number; perCard: number }[];
 }
 
 const ARRANGEABLE = new Set<ShardrunState["status"]>(["map", "reward", "rest", "forge"]);
@@ -253,10 +268,17 @@ export function stepShardrun(
         return refuse("already-cast", `${spell.name} is spent until your next turn.`);
       const refusal = castSpell(next, battle, spell, command.outcome, catalog);
       if (refusal) return { ok: false, error: refusal };
-      // A deck run's cast cards are spent: onto the discard pile, leaving the spell blank for the next turn.
-      if (next.playstyle === "deck" && next.battle) {
+      // A deck run's cast cards are spent: onto the discard pile, leaving the spell blank for the next turn. A cast that
+      // won the fight took the battle with it; one whose curse lost the run leaves nothing to draw for.
+      if (next.playstyle === "deck" && next.battle && next.integrity > 0) {
+        const played = spell.shards.length;
         next.battle.discard.push(...spell.shards);
         spell.shards = [];
+        for (const effect of relicModifiers(next, catalog).drawOnCast) {
+          if (played < effect.minCards) continue;
+          draw(next, next.battle, effect.draw, catalog);
+          log(next, { kind: "note", amount: effect.draw, text: `A ${played}-card cast draws ${effect.draw} more.` });
+        }
       }
       return accept();
     }
@@ -280,14 +302,18 @@ export function stepShardrun(
         if (battle.cast.includes(spell.id) && !sameList(change.shards, spell.shards))
           return refuse("already-cast", `${spell.name} is spent until your next turn.`);
       }
-      const before = [...next.spells.flatMap((spell) => spell.shards), ...battle.hand];
-      const after = [...command.spells.flatMap((spell) => spell.shards), ...command.hand];
+      const limit = holdLimit(next, catalog);
+      if (command.held.length > limit)
+        return refuse("hold-full", `You can hold ${limit} ${limit === 1 ? "card" : "cards"} into the next turn.`);
+      const before = [...next.spells.flatMap((spell) => spell.shards), ...battle.hand, ...battle.held];
+      const after = [...command.spells.flatMap((spell) => spell.shards), ...command.hand, ...command.held];
       if (!sameMultiset(before, after)) return refuse("cards-changed", "Playing cards cannot create or destroy them.");
       for (const change of command.spells) {
         const spell = byId.get(change.id);
         if (spell) spell.shards = [...change.shards];
       }
       battle.hand = [...command.hand];
+      battle.held = [...command.held];
       return accept();
     }
 
@@ -494,7 +520,7 @@ function devCommand(
         const battle = state.battle;
         if (battle) {
           // The copy leaves the fight too: from the hand first, then the piles, then a spell.
-          const holders = [battle.hand, battle.draw, battle.discard, ...state.spells.map((spell) => spell.shards)];
+          const holders = [battle.hand, battle.held, battle.draw, battle.discard, ...state.spells.map((spell) => spell.shards)];
           const holder = holders.find((cards) => cards.includes(command.shardId));
           holder?.splice(holder.indexOf(command.shardId), 1);
         }
@@ -558,6 +584,7 @@ function devCommand(
         draw: [],
         hand: [],
         discard: [],
+        held: [],
       };
       beginTurn(battle);
       state.battle = battle;
@@ -632,6 +659,12 @@ export function relicModifiers(
     healAfterFight: 0,
     boltCap: 0,
     workCurve: catalog.balance.work_billing.curve,
+    handSize: 0,
+    hold: 0,
+    openingDraw: 0,
+    drawOnCast: [],
+    reshuffleBlock: 0,
+    smallDeckPower: [],
   };
   for (const relicId of state.relics) {
     for (const effect of catalog.relics.get(relicId)?.effects ?? []) {
@@ -674,9 +707,28 @@ export function relicModifiers(
           if (WORK_CURVES.indexOf(effect.curve) < WORK_CURVES.indexOf(modifiers.workCurve))
             modifiers.workCurve = effect.curve;
           break;
+        case "hand-size":
+          modifiers.handSize += effect.add;
+          break;
+        case "hold":
+          modifiers.hold += effect.add;
+          break;
+        case "opening-draw":
+          modifiers.openingDraw += effect.add;
+          break;
+        case "draw-on-cast":
+          modifiers.drawOnCast.push({ minCards: effect.min_cards, draw: effect.draw });
+          break;
+        case "reshuffle-block":
+          modifiers.reshuffleBlock += effect.amount;
+          break;
+        case "small-deck-power":
+          modifiers.smallDeckPower.push({ below: effect.below, perCard: effect.per_card });
+          break;
         case "spell-capacity":
         case "max-integrity":
         case "spell-slot":
+        case "add-cards":
           // One-time effects, applied when the relic is claimed.
           break;
       }
@@ -696,6 +748,29 @@ export function manaPerTurn(
   const { base, per_layer } =
     state.playstyle === "deck" ? catalog.balance.deck.mana_per_turn : catalog.balance.mana_per_turn;
   return Math.max(1, base + per_layer * state.layer + relicModifiers(state, catalog).manaPerTurn);
+}
+
+/** Cards a deck run draws every turn (ADR-0020): the balance's hand, and whatever relics add. */
+export function handSize(state: Pick<ShardrunState, "relics">, catalog: ShardrunCatalog): number {
+  return catalog.balance.deck.hand_size + relicModifiers(state, catalog).handSize;
+}
+
+/** Cards a deck run can hold from one turn into the next (ADR-0020). */
+export function holdLimit(state: Pick<ShardrunState, "relics">, catalog: ShardrunCatalog): number {
+  return catalog.balance.deck.hold + relicModifiers(state, catalog).hold;
+}
+
+/**
+ * Power relics add to every bolt: flat bonuses, and in a deck run a bonus for every card the deck is short of a relic's
+ * size. A thin deck is a build (ADR-0020), so its reward is a number the Stats panel can show like any other.
+ */
+export function boltPowerBonus(state: Pick<ShardrunState, "relics" | "deck"> & { playstyle?: ShardrunPlaystyle }, catalog: ShardrunCatalog): number {
+  const modifiers = relicModifiers(state, catalog);
+  const thin =
+    state.playstyle === "deck"
+      ? modifiers.smallDeckPower.reduce((sum, effect) => sum + effect.perCard * Math.max(0, effect.below - state.deck.length), 0)
+      : 0;
+  return modifiers.boltPower + thin;
 }
 
 /**
@@ -1009,6 +1084,14 @@ function gainRelic(state: ShardrunState, relic: Relic, catalog: ShardrunCatalog)
       state.integrity += effect.add;
     } else if (effect.kind === "spell-slot") {
       for (let added = 0; added < effect.add; added++) bindSpell(state, catalog);
+    } else if (effect.kind === "add-cards") {
+      for (const card of effect.cards.filter((id) => catalog.shards.has(id))) {
+        if (state.playstyle === "deck") {
+          state.deck.push(card);
+          // During a fight every card of the deck sits in a pile; a new one starts on the discard pile.
+          state.battle?.discard.push(card);
+        } else state.inventory.push(card);
+      }
     }
   }
   log(state, { kind: "relic", text: `You claim ${relic.name}: ${relic.summary}` });
@@ -1083,6 +1166,7 @@ function startBattleWith(
     draw: [],
     hand: [],
     discard: [],
+    held: [],
   };
   beginTurn(battle);
   state.battle = battle;
@@ -1176,7 +1260,8 @@ function castSpell(
  * which is what makes it the tier above adding (ADR-0016).
  */
 function empower(bolts: readonly Bolt[], state: ShardrunState, catalog: ShardrunCatalog): Bolt[] {
-  const { boltPower: add, boltMult, boltMultFactor, multPerCast } = relicModifiers(state, catalog);
+  const { boltMult, boltMultFactor, multPerCast } = relicModifiers(state, catalog);
+  const add = boltPowerBonus(state, catalog);
   const multAdd = boltMult + multPerCast * (state.battle?.casts ?? 0);
   if (add === 0 && multAdd === 0 && boltMultFactor === 1) return [...bolts];
   return bolts.map((bolt) => ({
@@ -1387,11 +1472,13 @@ function newTurn(state: ShardrunState, battle: BattleState, catalog: ShardrunCat
   battle.block = relicModifiers(state, catalog).turnBlock;
   battle.cast = [];
   if (state.playstyle === "deck") {
-    // What was not cast this turn is let go: the hand and anything still sitting in a spell.
+    // What was not cast this turn is let go, the hand and anything still sitting in a spell, except what was held:
+    // that starts the new hand, and a full hand is drawn on top of it.
     battle.discard.push(...battle.hand, ...state.spells.flatMap((spell) => spell.shards));
-    battle.hand = [];
+    battle.hand = [...battle.held];
+    battle.held = [];
     clearSpells(state);
-    draw(state, battle, catalog.balance.deck.hand_size);
+    draw(state, battle, handSize(state, catalog), catalog);
   }
   for (const foe of battle.foes) foe.intentIndex = (foe.intentIndex + 1) % foe.intents.length;
   beginTurn(battle);
@@ -1427,7 +1514,8 @@ function deal(state: ShardrunState, battle: BattleState, catalog: ShardrunCatalo
   battle.draw = shuffled(state.deck, createRng(state.seed, `deck:${state.revision}`));
   battle.hand = [];
   battle.discard = [];
-  draw(state, battle, catalog.balance.deck.hand_size);
+  battle.held = [];
+  draw(state, battle, handSize(state, catalog) + relicModifiers(state, catalog).openingDraw, catalog);
 }
 
 /**
@@ -1438,12 +1526,17 @@ function deal(state: ShardrunState, battle: BattleState, catalog: ShardrunCatalo
  * queue when it is shuffled. The shuffle's stream names the command and the card being drawn, so the same state always
  * draws the same cards, which is what lets a test pin a hand and a replayed command reproduce it.
  */
-function draw(state: ShardrunState, battle: BattleState, count: number): void {
+function draw(state: ShardrunState, battle: BattleState, count: number, catalog: ShardrunCatalog): void {
   for (let drawn = 0; drawn < count; drawn++) {
     if (battle.draw.length === 0) {
       if (battle.discard.length === 0) return;
       battle.draw = shuffled(battle.discard, createRng(state.seed, `deck:${state.revision}:${battle.turn}:${drawn}`));
       battle.discard = [];
+      const block = relicModifiers(state, catalog).reshuffleBlock;
+      if (block > 0) {
+        battle.block += block;
+        log(state, { kind: "note", amount: block, text: `The discard pile is compacted into a new draw pile: ${block} block.` });
+      }
     }
     const card = battle.draw.shift();
     if (card !== undefined) battle.hand.push(card);
@@ -1536,7 +1629,7 @@ function draftRelics(
   const weights = catalog.config.rewards.relics[where];
   const rng = createRng(state.seed, `relic:${where}:${state.layer}:${state.visited.length}`);
   const pool = [...catalog.relics.values()]
-    .filter((relic) => !state.relics.includes(relic.id))
+    .filter((relic) => !state.relics.includes(relic.id) && (relic.playstyles?.includes(state.playstyle) ?? true))
     .sort((a, b) => a.id.localeCompare(b.id));
   const choices: string[] = [];
   for (let attempt = 0; choices.length < count && attempt < 60; attempt++) {

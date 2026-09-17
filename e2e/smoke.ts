@@ -210,22 +210,33 @@ async function main(): Promise<void> {
     await page.getByRole("button", { name: "Abandon this run" }).click();
     await page.getByRole("heading", { name: "You climbed back out" }).waitFor();
 
-    // Shardrun (Experimental), the deck playstyle (ADR-0020): its own door and its own run. Play two cards from the hand
-    // into the first blank spell (on Beginner no two first-layer cards can finish a first-layer foe), cast it, end the
-    // turn and draw a fresh hand, then abandon. The end screen has a Main menu button of its own beside the top bar's.
+    // Shardrun (Experimental), the deck playstyle (ADR-0020): its own door and its own run. Click one card into the first
+    // blank spell (its code is on screen, growing as it is built), drag a second into a slot, hold a third, cast (on
+    // Beginner no two first-layer cards can finish a first-layer foe), and end the turn: the held card starts the new hand.
     await page.getByRole("button", { name: "Main menu", exact: true }).click();
     await page.locator(".menu-mode-name", { hasText: "Shardrun (Experimental)" }).click();
     await page.getByRole("button", { name: "Descend in javascript" }).click();
     await page.locator(".shr-map-node.state-open").first().click();
-    const hand = page.locator(".shr-hand-card");
+    const hand = page.locator(".shr-hand-card .shr-card-button");
     const leftHand = page.locator(".shr-spell").first();
+    const played = leftHand.locator(".shr-slots-row .shr-card-button");
     await hand.first().waitFor();
     if ((await hand.count()) !== 5) throw new Error(`expected a hand of 5 cards, found ${await hand.count()}`);
     await hand.first().click();
-    await leftHand.locator(".shr-flow-shard.card").first().waitFor();
-    await hand.first().click();
-    await leftHand.locator(".shr-flow-shard.card").nth(1).waitFor();
-    if ((await hand.count()) !== 3) throw new Error(`two cards played should leave 3 in hand, found ${await hand.count()}`);
+    await played.first().waitFor();
+    await page.locator(".shr-code-view.mode-build").getByText("function castLeftHand(battle) {").waitFor();
+    const card = await hand.first().boundingBox();
+    const slot = await leftHand.locator(".shr-slot-card").first().boundingBox();
+    if (!card || !slot) throw new Error("no card in hand, or no open slot to drag it to");
+    await page.mouse.move(card.x + card.width / 2, card.y + card.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(slot.x + slot.width / 2, slot.y + slot.height / 2, { steps: 12 });
+    await page.mouse.up();
+    await played.nth(1).waitFor();
+    await page.locator(".shr-hand-card").first().hover();
+    await page.locator(".shr-hand-card").first().locator(".shr-hold-pin").click();
+    await page.locator(".shr-hold .shr-card-button").waitFor();
+    if ((await hand.count()) !== 2) throw new Error(`two played and one held should leave 2 in hand, found ${await hand.count()}`);
     await leftHand.getByRole("button", { name: "Cast" }).waitFor();
     await page.keyboard.press("1");
     await leftHand.getByRole("button", { name: "Spent this turn" }).waitFor();
@@ -233,7 +244,7 @@ async function main(): Promise<void> {
     await page.screenshot({ path: path.join(resultsDir, "shardrun-experimental.png") });
     await page.getByRole("button", { name: /End turn/ }).click();
     await page.locator(".shr-self > .meta").getByText(/^Turn 2/).waitFor();
-    if ((await hand.count()) !== 5) throw new Error(`a new turn should deal 5 cards, found ${await hand.count()}`);
+    if ((await hand.count()) !== 6) throw new Error(`a new turn should deal 5 cards on top of the held one, found ${await hand.count()}`);
     await page.getByRole("button", { name: "Abandon", exact: true }).click();
     await page.getByRole("button", { name: "Abandon this run" }).click();
     await page.getByRole("heading", { name: "You climbed back out" }).waitFor();

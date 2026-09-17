@@ -94,3 +94,38 @@ with counts and the code of the card looked at; the reward, rest and forge panel
   (draw more, keep a card between turns, a card that draws another) are the obvious next content.
 - It is not balanced by play yet. Whether a deck keeps up with the tower's compounding foe HP (×1, ×2.6, ×6.8) is an
   open question for playtests and for headless balance runs.
+
+## Amendment (2026-09-17): dragging, the code as it is built, holding, deck relics, and cards that look like cards
+
+After the player's first look ("I like the idea it's pretty nice"), they asked for click and drag for the cards, the
+code on screen by default while a spell is built, relics made for this mode, a way to hold 1–2 cards, a more card-like
+look, and the deck shown next to Stats. What changed:
+
+- **Dragging uses pointer events, not HTML drag and drop.** A pressed card that moves past a few pixels lifts off the
+  table: a copy follows the pointer, the place under it lights up, and letting go there proposes the move. Pointer
+  capture lets the card own the whole gesture; `document.elementFromPoint` and a `data-drop` attribute on every place
+  a card can land tell where it is; a click is simply a press that never moved. It works the same with a mouse, a pen,
+  or a finger, which native drag and drop does not, and the ghost can be a real card rather than the browser's faded
+  snapshot. The moves themselves are one pure function (`moveCard` in `apps/client/src/shardrun/table.ts`), unit-tested
+  like the workbench's. A move shows on the table the moment it is made and the server's answer replaces it.
+- **The code is on screen while a spell is built.** The code view has a third mode, `build`: the targeted spell's whole
+  function, every measured step beside its call, and the lines a card just brought in light up for a moment, so the
+  function is seen growing card by card. It is on by default; *Hide* on the panel and a switch in Options turn it off
+  (`rootward:shardrun:build-code`). It sits left of center, so the foes' intents stay in view.
+- **Holding.** A fight has a fourth place for cards, `battle.held`. Cards set there (a *hold* button on a card, or a
+  drag into the hold tray) stay when the turn ends and start the next hand, with a full hand drawn on top of them. How
+  many is `shardrun.deck.hold` in balance (1) plus relics; `compose` refuses more, and the conservation check counts the
+  hold like any other place.
+- **Relics for decks.** A relic can name the `playstyles` whose runs can find it, and seven deck relics do, on seven new
+  effect kinds: *Clipboard* (hold +1), *Warm Cache* (2 more cards on a fight's first turn), *Dependency Bundle* (adds
+  Pierce, Seeker and Focus Lens), *Read-Ahead Buffer* (draw +1), *Compacting Collector* (6 block whenever the discard
+  is shuffled in), *Generator* (a cast of 3+ cards draws a card), and *Tree Shaker* (+1 power per card the deck is under
+  12, which the Stats panel counts in with other bolt power). They have Japanese text and generated icons like any
+  relic.
+- **Cards look like cards.** One card face (`Card.tsx`) in three sizes: in the hand (cost gem, complexity, art, name, and
+  what it does, or on Programmer which function it is), in a spell's slots and the hold, and in the deck views. The
+  battle's stage is shorter in a deck run and its spells more compact, so the hand stays in view on an ordinary screen.
+- **The deck, next to Stats.** A *Deck* button in the run header opens a drawer of the deck as cards with their counts,
+  and during a fight the draw pile (sorted, so its order stays hidden), the discard pile, and what is held. The view
+  carries the piles' cards for it (`battle.drawPile`, `battle.discardPile`), not only their sizes.
+

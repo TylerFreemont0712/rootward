@@ -45,6 +45,14 @@ export function validateShardrun(index: ContentIndex, diagnostics: Diagnostics):
   }
   for (const id of config.start.inventory) shardRef(id, "the starting inventory");
   for (const id of config.deck?.cards ?? []) shardRef(id, "the deck playstyle's starting cards");
+  for (const { value: relic, file: relicFile } of index.shardrunRelics.values()) {
+    for (const effect of relic.effects) {
+      if (effect.kind !== "add-cards") continue;
+      for (const card of effect.cards) {
+        if (!index.shards.has(card)) diagnostics.error("unknown-shard", `relic "${relic.id}" adds unknown shard "${card}"`, { file: relicFile });
+      }
+    }
+  }
   for (const id of config.start.relics) {
     if (!index.shardrunRelics.has(id)) diagnostics.error("unknown-relic", `the starting relics name unknown relic "${id}"`, { file });
   }

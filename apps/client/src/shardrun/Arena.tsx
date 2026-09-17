@@ -7,7 +7,7 @@ import { useGame } from "../state/store.ts";
 import { CodeView } from "./CodeView.tsx";
 import { shownIntegrity } from "./fx/pending.ts";
 import { planTimeline } from "./fx/timeline.ts";
-import { Hand, useComposer } from "./Hand.tsx";
+import { DragGhost, Hand, useTable } from "./Hand.tsx";
 import { HeroPanel } from "./HeroPanel.tsx";
 import { SpellCard } from "./SpellCard.tsx";
 import { Stage } from "./Stage.tsx";
@@ -32,6 +32,8 @@ export function Arena({ run, battle: current, frozen }: { run: ShardrunView; bat
   const phase = useShardrun((s) => s.phase);
   const pending = useShardrun((s) => s.pending);
   const codeSpeed = useShardrun((s) => s.codeSpeed);
+  const buildCode = useShardrun((s) => s.buildCode);
+  const setBuildCode = useShardrun((s) => s.setBuildCode);
   const finishReplay = useShardrun((s) => s.finishReplay);
   const markShown = useShardrun((s) => s.markShown);
   const profile = useGame((s) => s.activeProfile);
@@ -44,12 +46,16 @@ export function Arena({ run, battle: current, frozen }: { run: ShardrunView; bat
   // While a cast's code plays, the stage still shows the battle before it: the result arrives with the hits.
   const battle = playingCode && staged ? staged : current;
   const disabled = frozen || busy || playingCode;
-  // A deck run (ADR-0020) plays cards from a hand into its spells; the hand is always the live battle's.
+  // A deck run (ADR-0020) plays cards from a hand into its spells; the hand is always the live battle's. Cards keep
+  // moving while an answer is on its way (the table shows each move at once); only a fight's end or a cast's code stops them.
   const deck = run.playstyle === "deck";
-  const composer = useComposer(run, current, disabled);
+  const table = useTable(run, current, frozen || playingCode);
   const closeExplore = useCallback(() => {
     setExploring(undefined);
   }, []);
+  const hideBuild = useCallback(() => {
+    setBuildCode(false);
+  }, [setBuildCode]);
 
   // Each response's log plays once. A beat already shown (coming back to this screen) is not played again.
   const timeline = useMemo(() => {
@@ -90,6 +96,13 @@ export function Arena({ run, battle: current, frozen }: { run: ShardrunView; bat
   const exploreSpell = exploring === undefined ? undefined : run.spells.find((spell) => spell.id === exploring);
   // The cast's code while it plays, then its lingering score; a spell opened to read replaces the score.
   const castView = replay !== undefined && castSpell !== undefined && (playingCode || exploreSpell === undefined) ? { replay, spell: castSpell } : undefined;
+  // While a deck run's spell is being built, its code is on screen and grows with every card (an option turns it off).
+  const building = deck ? run.spells.find((spell) => spell.id === table.target) : undefined;
+  const builtShards = table.table.spells.find((spell) => spell.id === building?.id)?.shards;
+  const buildView =
+    building && builtShards && buildCode && !frozen && castView === undefined && exploreSpell === undefined
+      ? { spell: { ...building, shards: builtShards }, measured: builtShards.join() === building.shards.join() }
+      : undefined;
   const className = classes.find((candidate) => candidate.id === classId)?.name;
 
   return (
@@ -116,6 +129,17 @@ export function Arena({ run, battle: current, frozen }: { run: ShardrunView; bat
             finished={!playingCode}
             fading={replayFading}
             onDone={finishReplay}
+          />
+        )}
+        {buildView && (
+          <CodeView
+            key={`build-${buildView.spell.id}`}
+            run={run}
+            spell={buildView.spell}
+            spellRun={buildView.measured ? buildView.spell.preview : undefined}
+            speed={codeSpeed}
+            mode="build"
+            onDone={hideBuild}
           />
         )}
         {!playingCode && exploreSpell && (
@@ -173,11 +197,12 @@ export function Arena({ run, battle: current, frozen }: { run: ShardrunView; bat
                   setExploring((open) => (open === spell.id ? undefined : spell.id));
                 }}
                 onReady={setReady}
-                slots={deck ? composer.slotsFor(spell) : undefined}
+                table={deck ? table : undefined}
               />
             ))}
           </div>
-          {deck && <Hand run={run} battle={current} composer={composer} disabled={disabled} />}
+          {deck && <Hand run={run} battle={current} controls={table} disabled={table.locked} />}
+          {deck && <DragGhost run={run} card={table.dragging} />}
         </div>
       </div>
     </div>

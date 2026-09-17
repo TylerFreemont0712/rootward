@@ -47,5 +47,7 @@ export const ja: Partial<Record<MessageKey, string>> = {
   "modifier.healAfterFight": "戦闘後に回復する整合性",
   "modifier.maxIntegrity": "整合性の上限",
   "modifier.spellCapacity": "すべての呪文への枠追加",
+  "modifier.handSize": "毎ターン引くカード",
+  "modifier.hold": "次のターンへ持ち越せるカード",
   "modifier.from.layer": "第 {layer} 層",
 };

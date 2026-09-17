@@ -462,4 +462,16 @@ language feature took more than a minute to understand.
 - **Do not test a mechanism through a gap in the data.** The locale test proved English fallback with whichever key
   Japanese happened not to translate; translating the last one broke it. It now builds a deliberately partial catalog
   with `makeTranslate` (`apps/client/test/i18n.test.ts`).
+- **Drag with pointer events, not HTML drag and drop.** `setPointerCapture` sends every later move and the release to
+  the pressed element, so one element owns the whole gesture; `document.elementFromPoint(x, y).closest("[data-drop]")`
+  says where it is over (the ghost has `pointer-events: none`); and a press that never moved past a few pixels is a
+  click. It behaves the same for mouse, pen and touch, and the ghost is a real element (`apps/client/src/shardrun/Hand.tsx`).
+- **Keep 60-a-second state out of the component tree.** The pointer's position during a drag lives in a tiny zustand
+  store that only the ghost subscribes to, so the battle does not render again for every pixel the pointer moves.
+- **Adjust state while rendering when it follows a prop.** The code view's "lines a card just added" compares the
+  spell's cards with the ones it saw last and sets state during the render; React renders again at once, and no effect
+  is needed (`useAddedLines` in `CodeView.tsx`). An effect that only sets state is the pattern the React lint flags.
+- **Optimistic UI without a second source of truth.** A card move is shown from a local copy of the table only while its
+  command is in flight, and the copy is dropped when the command's promise settles; the server's view is always what
+  remains (`useTable`).
 

@@ -9,6 +9,15 @@ import { Id, NonEmptyString, Tag } from "./primitives.ts";
 
 const PositiveInt = z.int().positive();
 
+/**
+ * How a run plays (ADR-0020). A `spellbook` run builds its spells between fights and casts them every turn; a `deck` run
+ * (Shardrun Experimental) carries its shards as cards, and every turn plays a hand of them into blank spells. Content
+ * can name the playstyles a relic belongs to.
+ */
+export const SHARDRUN_PLAYSTYLES = ["spellbook", "deck"] as const;
+export const ShardrunPlaystyle = z.enum(SHARDRUN_PLAYSTYLES);
+export type ShardrunPlaystyle = z.infer<typeof ShardrunPlaystyle>;
+
 export const ELEMENTS = ["none", "fire", "frost", "spark"] as const;
 export const Element = z.enum(ELEMENTS);
 export type Element = z.infer<typeof Element>;
@@ -190,6 +199,22 @@ export const RelicEffect = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("max-integrity"), add: PositiveInt }),
   /** Binds this many new, empty spells at once, from the run's pool of spell names. */
   z.strictObject({ kind: z.literal("spell-slot"), add: PositiveInt }),
+  // The deck playstyle's own effects (ADR-0020). In a spellbook run there is no hand, so they do nothing there, and the
+  // relics that carry them say `playstyles: [deck]`.
+  /** Cards drawn every turn. */
+  z.strictObject({ kind: z.literal("hand-size"), add: PositiveInt }),
+  /** Cards that can be held from one turn into the next. */
+  z.strictObject({ kind: z.literal("hold"), add: PositiveInt }),
+  /** Cards drawn on top of the hand on the first turn of every fight. */
+  z.strictObject({ kind: z.literal("opening-draw"), add: PositiveInt }),
+  /** Casting a spell of at least `min_cards` cards draws `draw` more. */
+  z.strictObject({ kind: z.literal("draw-on-cast"), min_cards: PositiveInt, draw: PositiveInt }),
+  /** Block gained whenever the discard pile is shuffled into a new draw pile. */
+  z.strictObject({ kind: z.literal("reshuffle-block"), amount: PositiveInt }),
+  /** Every bolt gains `per_card` power for each card the deck holds fewer than `below`. */
+  z.strictObject({ kind: z.literal("small-deck-power"), below: PositiveInt, per_card: PositiveInt }),
+  /** Adds these cards (shard ids) to the deck when claimed; in a spellbook run, to the spare shards. */
+  z.strictObject({ kind: z.literal("add-cards"), cards: z.array(Id).min(1) }),
 ]);
 export type RelicEffect = z.infer<typeof RelicEffect>;
 
@@ -203,6 +228,8 @@ export const Relic = z.strictObject({
   summary: NonEmptyString,
   flavor: NonEmptyString,
   effects: z.array(RelicEffect).min(1),
+  /** The playstyles whose runs can find it (ADR-0020); every playstyle when absent. */
+  playstyles: z.array(ShardrunPlaystyle).min(1).optional(),
 });
 export type Relic = z.infer<typeof Relic>;
 

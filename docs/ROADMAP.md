@@ -174,8 +174,12 @@ Task breakdown:
       stage. A character keeps one run in progress per playstyle (migration 0005); the main menu's **Shardrun
       (Experimental)** card replaces **Shardrun (DEV)** (sandbox runs start from either card's start screen). The
       spellbook playstyle is unchanged; the version before this is tagged `checkpoint-before-card-mode`.
-      Still open: deck relics (draw more, keep a card between turns, a card that draws another), keyboard shortcuts
-      for cards, a sorted view of the draw pile, card art, and a balance pass by play and by headless runs
+      After the player's first look (same day): cards are dragged with the pointer (a real card follows it), the spell's
+      code is on screen while it is built and grows with every card (Options can hide it), up to 1 card can be held into
+      the next turn, seven relics only deck runs find (hold, draw, a first-turn draw, a card on big casts, block on a
+      reshuffle, power for a thin deck, three extra cards), cards are drawn as cards, and a Deck drawer beside Stats shows
+      the deck and the piles (ADR-0020 amendment).
+      Still open: keyboard shortcuts for cards, card art of their own, and a balance pass by play and by headless runs
 - [x] **Shardrun** (ADR-0012), a separate roguelite mode at the player's request (2026-09-15: "find pieces of code and
       plug and play them into powerful attacks and spells", turn-based, same art): 23 shards that are real Python and
       JavaScript functions, 6 foes with rule-bending traits, a seven-floor run with fights, elites, rests, forges, and a

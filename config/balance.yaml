@@ -96,6 +96,7 @@ shardrun:                                    # the roguelite mode (ADR-0012)
   # The experimental deck playstyle (ADR-0020): shards are cards, drawn every turn into blank spells.
   deck:
     hand_size: 5
+    hold: 1                                     # cards kept in hand into the next turn (relics raise it)
     mana_per_turn: { base: 4, per_layer: 1 }   # less than a spellbook's, so two full spells cannot always both be cast
     min_cards: 5
 

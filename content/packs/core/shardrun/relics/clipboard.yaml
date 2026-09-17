@@ -1,0 +1,10 @@
+id: clipboard
+name: Clipboard
+rarity: common
+icon: clipboard
+summary: "Hold 1 more card into the next turn."
+flavor: "Copy it now; paste it when it fits."
+# Shardrun (Experimental) only (ADR-0020): it works on the hand and the deck, which a spellbook run does not have.
+playstyles: [deck]
+effects:
+  - { kind: hold, add: 1 }

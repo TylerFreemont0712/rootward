@@ -370,3 +370,47 @@
   to: プログラマー
 - en: "Shards show only their code, and spells predict nothing: read the function, or cast it and watch. Foes at full strength."
   to: "欠片はコードだけを見せ、呪文は何も予測しません。関数を読むか、唱えて確かめるかです。敵は本来の強さです。"
+
+# --- Relics for Shardrun (Experimental), the deck playstyle (ADR-0020) ---------------------------------------------
+- en: Clipboard
+  to: クリップボード
+- en: "Hold 1 more card into the next turn."
+  to: 次のターンへ持ち越せるカードが 1 枚増えます。
+- en: "Copy it now; paste it when it fits."
+  to: 今コピーして、合うときに貼りつける。
+- en: Warm Cache
+  to: 温かいキャッシュ
+- en: "Draw 2 more cards on the first turn of every fight."
+  to: 戦いの最初のターンに、カードを 2 枚多く引きます。
+- en: "The first read is always the slow one. Not any more."
+  to: 最初の読み込みはいつも遅い。もう、そうではありません。
+- en: Dependency Bundle
+  to: 依存パッケージ
+- en: "Adds Pierce, Seeker and Focus Lens to your deck."
+  to: 山札に貫通・追尾・集束レンズを加えます。
+- en: "You asked for one package. Three more came with it, and all of them turn out to be useful."
+  to: 頼んだのは一つのパッケージ。三つおまけがついてきて、どれも役に立ちました。
+- en: Read-Ahead Buffer
+  to: 先読みバッファ
+- en: "Draw 1 more card every turn."
+  to: 毎ターン、カードを 1 枚多く引きます。
+- en: "It reads the next card before you ask for it."
+  to: 頼む前に、次のカードを読んでおいてくれます。
+- en: Compacting Collector
+  to: 圧縮コレクタ
+- en: "Whenever your discard pile is shuffled into a new draw pile, gain 6 block."
+  to: 捨て札が新しい山札に切り直されるたびに、防御を 6 得ます。
+- en: "Every sweep of the heap leaves something solid behind."
+  to: ヒープを掃くたびに、固いものが残ります。
+- en: Generator
+  to: ジェネレータ
+- en: "Casting a spell of 3 or more cards draws a card."
+  to: 3 枚以上のカードの呪文を唱えると、カードを 1 枚引きます。
+- en: "yield, and the next one is already waiting."
+  to: yield すれば、次のひとつがもう待っています。
+- en: Tree Shaker
+  to: ツリーシェイカー
+- en: "Every bolt gains 1 power for each card your deck has fewer than 12."
+  to: 山札が 12 枚より 1 枚少ないごとに、すべての矢の威力が 1 上がります。
+- en: "Whatever is never called gets shaken out, and what is left runs lighter."
+  to: 呼ばれないものは振り落とされ、残ったものは軽く走ります。

@@ -316,7 +316,7 @@ export function Stage({ run, battle, timeline, onStart, pending, classId, pose, 
   const frameIndex = BATTLE_POSES.indexOf(pose);
 
   return (
-    <div className={`shr-stage${bosses.length > 0 ? " boss-fight" : ""}`}>
+    <div className={`shr-stage${bosses.length > 0 ? " boss-fight" : ""}${run.playstyle === "deck" ? " deck-run" : ""}`}>
       <div ref={worldRef} className="shr-world">
         <div ref={backdropRef} className="shr-arena" style={backdrop !== undefined ? { backgroundImage: backdrop } : undefined} aria-hidden="true" />
         <div className="shr-stage-shade" aria-hidden="true" />

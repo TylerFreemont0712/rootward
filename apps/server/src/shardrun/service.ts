@@ -18,8 +18,11 @@ import {
   bindableSpell,
   boltCap,
   difficultyOf,
+  boltPowerBonus,
   encounterFor,
   type FoeState,
+  handSize,
+  holdLimit,
   layerOf,
   manaPerTurn,
   nextRooms,
@@ -535,8 +538,11 @@ export class ShardrunService {
               block: battle.block,
               foes: battle.foes.map((foe) => foeView(foe, catalog, say)),
               hand: [...battle.hand],
-              drawPile: battle.draw.length,
-              discardPile: battle.discard.length,
+              held: [...battle.held],
+              holdLimit: state.playstyle === "deck" ? holdLimit(state, catalog) : 0,
+              handSize: state.playstyle === "deck" ? handSize(state, catalog) : 0,
+              drawPile: [...battle.draw].sort(),
+              discardPile: [...battle.discard],
             },
           }
         : {}),
@@ -979,8 +985,8 @@ function modifierViews(state: ShardrunState, catalog: ShardrunCatalog, say: Tran
     {
       label: say("modifier.boltPower"),
       base: "0",
-      now: `${round(mods.boltPower)}`,
-      from: from("bolt-power"),
+      now: `${round(boltPowerBonus(state, catalog))}`,
+      from: [...from("bolt-power"), ...from("small-deck-power")],
     },
     {
       label: say("modifier.boltMult"),
@@ -1026,6 +1032,18 @@ function modifierViews(state: ShardrunState, catalog: ShardrunCatalog, say: Tran
       from: from("max-integrity"),
     },
     { label: say("modifier.spellCapacity"), base: "0", now: `${capacityAdded}`, from: from("spell-capacity") },
+    // A deck run's own numbers (ADR-0020).
+    ...(state.playstyle === "deck"
+      ? [
+          {
+            label: say("modifier.handSize"),
+            base: `${balance.deck.hand_size}`,
+            now: `${handSize(state, catalog)}`,
+            from: from("hand-size"),
+          },
+          { label: say("modifier.hold"), base: `${balance.deck.hold}`, now: `${holdLimit(state, catalog)}`, from: from("hold") },
+        ]
+      : []),
   ];
 }
 
@@ -1054,6 +1072,7 @@ function rulesView(catalog: ShardrunCatalog): ShardrunRulesView {
     layerHealFraction: balance.layer_heal_fraction,
     deck: {
       handSize: balance.deck.hand_size,
+      hold: balance.deck.hold,
       manaPerTurn: balance.deck.mana_per_turn.base,
       manaPerLayer: balance.deck.mana_per_turn.per_layer,
       minCards: balance.deck.min_cards,
@@ -1069,6 +1088,7 @@ function relicView(relic: Relic): RelicView {
     icon: relic.icon,
     summary: relic.summary,
     flavor: relic.flavor,
+    ...(relic.playstyles ? { playstyles: [...relic.playstyles] } : {}),
   };
 }
 

@@ -142,6 +142,8 @@ export const Balance = z.strictObject({
     deck: z.strictObject({
       /** Cards drawn at the start of every turn. */
       hand_size: PositiveInt,
+      /** Cards that can be held in hand from one turn into the next, before relics. */
+      hold: NonNegativeInt,
       /** A deck run's income: less than a spellbook's, so two full spells are not always both castable. */
       mana_per_turn: z.strictObject({ base: PositiveInt, per_layer: NonNegativeInt }),
       /** A forge will not melt down a card when the deck is this small. */

@@ -1,0 +1,10 @@
+id: read-ahead-buffer
+name: Read-Ahead Buffer
+rarity: uncommon
+icon: read-ahead-buffer
+summary: "Draw 1 more card every turn."
+flavor: "It reads the next card before you ask for it."
+# Shardrun (Experimental) only (ADR-0020): it works on the hand and the deck, which a spellbook run does not have.
+playstyles: [deck]
+effects:
+  - { kind: hand-size, add: 1 }

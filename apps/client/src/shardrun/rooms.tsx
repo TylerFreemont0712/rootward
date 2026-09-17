@@ -1,7 +1,8 @@
 import type { ShardrunView } from "@rootward/shared";
 import { assetUrl } from "../assets/AssetRegistry.ts";
 import { useShardrun } from "../state/shardrun.ts";
-import { RelicCard, ShardCard, ShardIcon } from "./parts.tsx";
+import { CardFace } from "./Card.tsx";
+import { RelicCard, ShardCard } from "./parts.tsx";
 
 // The rooms that are not battles: rewards (shards, relics, a new spell), rests, and forges.
 
@@ -172,25 +173,24 @@ export function ForgePanel({ run }: { run: ShardrunView }) {
               ? `One copy leaves the deck for good (${run.deck.length} cards now). The fewer the cards, the more often the ones you keep come up.`
               : `Your deck is as small as it can be (${run.rules.deck.minCards} cards).`}
           </p>
-          <div className="shr-deck-cards">
+          <div className="shr-card-grid">
             {forge.purge.map((shardId) => {
               const shard = run.shards[shardId];
               const copies = run.deck.filter((card) => card === shardId).length;
               return (
-                <button
-                  key={shardId}
-                  type="button"
-                  className={`shr-chip rarity-${shard?.rarity ?? "common"}`}
-                  disabled={busy}
-                  title={shard?.summary}
-                  onClick={() => {
-                    void command({ type: "purge", shardId });
-                  }}
-                >
-                  <ShardIcon shardId={shardId} size={24} />
-                  <span>Melt {shard?.name ?? shardId}</span>
-                  <b className="shr-deck-count">×{copies}</b>
-                </button>
+                <div key={shardId} className="shr-melt">
+                  <CardFace run={run} shardId={shardId} size="deck" count={copies} />
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={busy}
+                    onClick={() => {
+                      void command({ type: "purge", shardId });
+                    }}
+                  >
+                    Melt {shard?.name ?? shardId}
+                  </button>
+                </div>
               );
             })}
           </div>

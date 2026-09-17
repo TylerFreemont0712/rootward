@@ -603,6 +603,13 @@ export type ResolveMarkerRequest = z.infer<typeof ResolveMarkerRequest>;
 
 // ---- Shardrun (ADR-0012, ADR-0013): the roguelite mode, where spells are pipelines of found code ----
 
+/**
+ * How a run plays (ADR-0020): `spellbook` (Shardrun) builds spells between fights; `deck` (Shardrun Experimental) draws
+ * its shards as cards into blank spells every turn. A character keeps one run in progress of each.
+ */
+export const ShardrunPlaystyleView = z.enum(["spellbook", "deck"]);
+export type ShardrunPlaystyleView = z.infer<typeof ShardrunPlaystyleView>;
+
 export const ElementView = z.enum(["none", "fire", "frost", "spark"]);
 export type ElementView = z.infer<typeof ElementView>;
 
@@ -646,6 +653,8 @@ export const RelicView = z.strictObject({
   icon: z.string(),
   summary: z.string(),
   flavor: z.string(),
+  /** Only runs of these playstyles can find it; absent, any run can. */
+  playstyles: z.array(ShardrunPlaystyleView).optional(),
 });
 export type RelicView = z.infer<typeof RelicView>;
 
@@ -788,7 +797,7 @@ export const ShardrunRulesView = z.strictObject({
   restHealFraction: z.number(),
   layerHealFraction: z.number(),
   /** The deck playstyle's own numbers (ADR-0020). */
-  deck: z.strictObject({ handSize: z.int(), manaPerTurn: z.int(), manaPerLayer: z.int(), minCards: z.int() }),
+  deck: z.strictObject({ handSize: z.int(), hold: z.int(), manaPerTurn: z.int(), manaPerLayer: z.int(), minCards: z.int() }),
 });
 export type ShardrunRulesView = z.infer<typeof ShardrunRulesView>;
 
@@ -803,13 +812,6 @@ export type ShardrunModifierView = z.infer<typeof ShardrunModifierView>;
 
 export const ArenaAmbienceView = z.enum(["dust", "spores", "embers"]);
 export type ArenaAmbienceView = z.infer<typeof ArenaAmbienceView>;
-
-/**
- * How a run plays (ADR-0020): `spellbook` (Shardrun) builds spells between fights; `deck` (Shardrun Experimental) draws
- * its shards as cards into blank spells every turn. A character keeps one run in progress of each.
- */
-export const ShardrunPlaystyleView = z.enum(["spellbook", "deck"]);
-export type ShardrunPlaystyleView = z.infer<typeof ShardrunPlaystyleView>;
 
 /** Which of a character's runs a Shardrun request is about; the spellbook run when it does not say. */
 export const ShardrunRunQuery = z.strictObject({ playstyle: ShardrunPlaystyleView.optional() });
@@ -863,10 +865,17 @@ export const ShardrunView = z.strictObject({
       manaMax: z.int(),
       block: z.int(),
       foes: z.array(ShardrunFoeView),
-      /** A deck run's hand (ADR-0020), and how many cards wait in the draw and discard piles; empty otherwise. */
+      // A deck run's cards (ADR-0020); all empty, and both limits 0, in a spellbook run.
+      /** The hand, in the order it was drawn. */
       hand: z.array(z.string()),
-      drawPile: z.int(),
-      discardPile: z.int(),
+      /** Cards set aside to be kept into the next turn, and how many may be. */
+      held: z.array(z.string()),
+      holdLimit: z.int(),
+      /** Cards drawn at the start of every turn. */
+      handSize: z.int(),
+      /** The draw pile, sorted: which card comes next stays hidden. */
+      drawPile: z.array(z.string()),
+      discardPile: z.array(z.string()),
     })
     .optional(),
   /** `pending` while spell previews are still running; fetch them from `.../shardrun/previews`. */
@@ -1044,6 +1053,7 @@ export const ShardrunCommandRequest = z.discriminatedUnion("type", [
     type: z.literal("compose"),
     spells: z.array(z.strictObject({ id: z.string().min(1), shards: z.array(z.string()) })),
     hand: z.array(z.string()),
+    held: z.array(z.string()),
   }),
   z.strictObject({ type: z.literal("end-turn") }),
   z.strictObject({ type: z.literal("take"), shardId: z.string().nullable() }),

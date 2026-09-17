@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { assetUrl } from "../assets/AssetRegistry.ts";
 import { useT } from "../i18n/index.ts";
 import { Arena } from "../shardrun/Arena.tsx";
-import { DeckPanel } from "../shardrun/DeckPanel.tsx";
+import { DeckDrawer, DeckPanel } from "../shardrun/DeckPanel.tsx";
 import { DevDrawer } from "../shardrun/DevDrawer.tsx";
 import { SPEED_CHOICES } from "../shardrun/CodeView.tsx";
 import { LayerMap } from "../shardrun/LayerMap.tsx";
@@ -96,8 +96,8 @@ function RunHeader({ run }: { run: ShardrunView }) {
   const integrity = useShardrun((s) => shownIntegrity(s.pending, run.integrity, run.integrityMax));
   const [confirming, setConfirming] = useState(false);
   // One drawer at a time: opening one closes the others.
-  const [drawer, setDrawer] = useState<"none" | "stats" | "options" | "dev">("none");
-  const toggle = (which: "stats" | "options" | "dev") => {
+  const [drawer, setDrawer] = useState<"none" | "deck" | "stats" | "options" | "dev">("none");
+  const toggle = (which: "deck" | "stats" | "options" | "dev") => {
     setDrawer((open) => (open === which ? "none" : which));
   };
   return (
@@ -118,6 +118,18 @@ function RunHeader({ run }: { run: ShardrunView }) {
       </span>
       <RelicBar relics={run.relics} info={run.relicInfo} />
       <span className="shr-header-end">
+        {run.playstyle === "deck" && (
+          <button
+            type="button"
+            className="btn"
+            aria-expanded={drawer === "deck"}
+            onClick={() => {
+              toggle("deck");
+            }}
+          >
+            Deck <span className="shr-deck-size">{run.deck.length}</span>
+          </button>
+        )}
         <button
           type="button"
           className="btn"
@@ -187,6 +199,7 @@ function RunHeader({ run }: { run: ShardrunView }) {
         )}
       </span>
       {drawer === "options" && <OptionsPanel />}
+      {drawer === "deck" && <DeckDrawer run={run} />}
       {drawer === "stats" && <StatsPanel run={run} />}
       {drawer === "dev" && <DevDrawer run={run} />}
     </header>
@@ -199,8 +212,31 @@ function OptionsPanel() {
   const setCodeSpeed = useShardrun((s) => s.setCodeSpeed);
   const shake = useShardrun((s) => s.shake);
   const setShake = useShardrun((s) => s.setShake);
+  const deck = useShardrun((s) => s.playstyle === "deck");
+  const buildCode = useShardrun((s) => s.buildCode);
+  const setBuildCode = useShardrun((s) => s.setBuildCode);
   return (
     <div className="shr-options" role="group" aria-label="Options">
+      {deck && (
+        <div className="shr-option">
+          <span>Show a spell's code while you build it</span>
+          <div className="actions">
+            {([true, false] as const).map((on) => (
+              <button
+                key={String(on)}
+                type="button"
+                className={buildCode === on ? "btn primary" : "btn"}
+                aria-pressed={buildCode === on}
+                onClick={() => {
+                  setBuildCode(on);
+                }}
+              >
+                {t(on ? "options.on" : "options.off")}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="shr-option">
         <span>Show each cast running as code</span>
         <div className="actions">

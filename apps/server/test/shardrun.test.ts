@@ -365,7 +365,7 @@ describe("ShardrunService", () => {
       ["Right Hand", 3, 0],
     ]);
     expect(deck.deck).toHaveLength(12);
-    expect(deck.rules.deck).toEqual({ handSize: 5, manaPerTurn: 4, manaPerLayer: 1, minCards: 5 });
+    expect(deck.rules.deck).toEqual({ handSize: 5, hold: 1, manaPerTurn: 4, manaPerLayer: 1, minCards: 5 });
     expect((await service.latest(id))?.id).toBe(spellbook.id);
     expect((await service.latest(id, "deck"))?.id).toBe(deck.id);
     await expect(service.start(id, "javascript", "beginner", false, "deck")).rejects.toThrow("already underway");
@@ -383,20 +383,23 @@ describe("ShardrunService", () => {
     const battle = fight.battle;
     if (!battle) throw new Error("no fight");
     expect(battle.hand).toHaveLength(5);
-    expect(battle.drawPile).toBe(7);
-    expect(battle.discardPile).toBe(0);
-    expect(battle.mana).toBe(4);
+    expect(battle.drawPile).toHaveLength(7);
+    expect(battle.discardPile).toEqual([]);
+    expect(battle).toMatchObject({ mana: 4, held: [], holdLimit: 1, handSize: 5 });
+    // The draw pile is shown sorted, so its order gives nothing away.
+    expect(battle.drawPile).toEqual([...battle.drawPile].sort());
     for (const card of battle.hand) expect(fight.shards[card]?.code).toContain("function");
-    const [first, second, ...rest] = battle.hand;
-    if (first === undefined || second === undefined) throw new Error("a short hand");
+    const [first, second, kept, ...rest] = battle.hand;
+    if (first === undefined || second === undefined || kept === undefined) throw new Error("a short hand");
 
     const composed = await service.command(
       id,
-      { type: "compose", spells: [{ id: "spell-1", shards: [first, second] }, { id: "spell-2", shards: [] }], hand: rest },
+      { type: "compose", spells: [{ id: "spell-1", shards: [first, second] }, { id: "spell-2", shards: [] }], hand: rest, held: [kept] },
       "deck",
     );
     expect(composed.spells[0]?.shards).toEqual([first, second]);
     expect(composed.battle?.hand).toEqual(rest);
+    expect(composed.battle?.held).toEqual([kept]);
     const previews = await service.previews(id, "deck");
     expect(previews.spells["spell-1"]?.steps.map((step) => step.shard)).toEqual([first, second]);
     // A blank spell still casts, as one plain bolt for the base cost.
@@ -406,10 +409,14 @@ describe("ShardrunService", () => {
     expect(cast.status).toBe("battle");
     expect(cast.replay).toMatchObject({ spellId: "spell-1", shards: [first, second], run: { steps: [{ shard: first }, { shard: second }] } });
     expect(cast.spells[0]?.shards).toEqual([]);
-    expect(cast.battle?.discardPile).toBe(2);
+    expect(cast.battle?.discardPile).toEqual([first, second]);
     const next = await service.command(id, { type: "end-turn" }, "deck");
-    expect(next.battle).toMatchObject({ turn: 2, mana: 4, drawPile: 2, discardPile: 5 });
-    expect(next.battle?.hand).toHaveLength(5);
+    // The held card starts the new hand, and five are drawn on top of it; the other two in hand were let go.
+    expect(next.battle).toMatchObject({ turn: 2, mana: 4, held: [] });
+    expect(next.battle?.hand).toHaveLength(6);
+    expect(next.battle?.hand[0]).toBe(kept);
+    expect(next.battle?.drawPile).toHaveLength(2);
+    expect(next.battle?.discardPile).toHaveLength(4);
   });
 
   it("chooses the run by `?playstyle=` over HTTP, and refuses a playstyle that does not exist", SLOW, async () => {
