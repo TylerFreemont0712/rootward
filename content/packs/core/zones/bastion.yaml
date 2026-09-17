@@ -5,6 +5,7 @@ name: The Bastion
 kind: town
 start: true
 ambience: leaves
+music: music-bastion
 arrival: "The Guild's town. Bread, bells, and the far-off hum of the Machine."
 legend:
   "#": stone-wall

@@ -164,8 +164,21 @@ Task breakdown:
       layout sketches (img2img) and picked with the foes standing in them, one per layer plus each guardian's own room,
       with per-layer air (dust, spores, embers), fog over the floor, spell light that lands on the room, a pool of light
       for every fighter, and parallax on a shake (ADR-0019 amendment).
-      Still open: sound (the cues are ready for it), battle strips and portraits for the planned classes, and a hand
-      playtest of the pacing
+      Still open: battle strips and portraits for the planned classes, and a hand playtest of the pacing (sound
+      landed in ADR-0023)
+- [x] **Sound and music** (ADR-0023, 2026-09-17, the player: "bgm soundtracks, along with an options menu to adjust the
+      volume [...] distinguished from the game sounds vs the bgm music", "memorable but not too electronic or bubbly",
+      "thematic and extensive"):
+      - A Sound menu on every screen, and in Shardrun's Options, with a volume and a mute for everything, for the
+        music, and for game sounds.
+      - Nine orchestral pieces of about two and a half minutes from ACE-Step 1.5 in ComfyUI (`scripts/audio/`), one
+        per place: the main theme, the Bastion, the Foundry, a quiet theme for fights in code, the Salvage, the Heap,
+        the Kernel, battle, and guardian. Each plays its introduction once and then loops its body seamlessly.
+      - Zones and layers name their music in content.
+      - Game sounds from CC0 recordings, driven by the battle stage's cues and the player's choices, plus a victory
+        fanfare, a lament, and a treasure flourish.
+      **Your Turn (easy):** give the Foundry's zone a different piece, or a layer its own battle theme, by editing
+      `music` in its YAML and adding a manifest entry.
 - [x] **The damage that lands, one code view, predictions as an option** (ADR-0022, 2026-09-17, the player: two code
       views in two places, the middle one covering foes; the bolt chips cut off; "the final damage ... isn't what is
       always displayed"): the code view's headline, line notes and spell cards show the damage that lands, with the

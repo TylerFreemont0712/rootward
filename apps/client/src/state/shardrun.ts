@@ -9,6 +9,7 @@ import type {
 } from "@rootward/shared";
 import { create } from "zustand";
 import { api, ApiError } from "../api/client.ts";
+import { playSounds, soundsForCommand } from "../audio/cues.ts";
 import { NOTHING_PENDING, type Pending, pendingOf, settled } from "../shardrun/fx/pending.ts";
 import { type Cue, playbackMs } from "../shardrun/fx/timeline.ts";
 import type { CodeSpeed } from "../shardrun/source.ts";
@@ -275,7 +276,12 @@ export const useShardrun = create<ShardrunStore>()((set, get) => {
           (await api.startShardrun(profileId, { language, difficulty: get().difficulty, sandbox, playstyle })).run,
         true,
       ),
-    command: (request) => send(async (profileId, playstyle) => (await api.shardrunCommand(profileId, playstyle, request)).run),
+    command: async (request) => {
+      const before = get().run?.revision;
+      await send(async (profileId, playstyle) => (await api.shardrunCommand(profileId, playstyle, request)).run);
+      // A command the server accepted moves the run on; a refused one changes nothing and makes no sound.
+      if (get().run?.revision !== before && get().error === undefined) playSounds(soundsForCommand(request));
+    },
     devCommand: (request) => send(async (profileId, playstyle) => (await api.shardrunDev(profileId, playstyle, request)).run),
 
     finishReplay: () => {

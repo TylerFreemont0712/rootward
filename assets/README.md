@@ -61,7 +61,9 @@ the code editor and terminal, **Press Start 2P** only for the title. Always prov
 | `vendor/kenney-rpg-audio` | ~50 RPG sounds: chests, coins, doors, footsteps, hits, drinks, book flips. | Loot, Cycles, room transitions, Tome pickup, Coffee artifact. |
 | `vendor/kenney-impact-sounds` | ~100 impact sounds (wood, metal, glass, soft). | Damage to enemy per passing test; Kernel Panic. |
 
-Audio must be opt-in (settings toggle, default off) and never block anything.
+Audio is optional and never blocks anything. It is on by default with its own Sound menu (a volume and mute for
+music and for game sounds), since the player asked for a soundtrack (ADR-0023, which replaces an earlier "default off"
+note here).
 
 ### AI-generated (ComfyUI)
 Wired into the client via `apps/client/src/assets/AssetRegistry.ts` (`assetUrl(category, id)` and
@@ -165,6 +167,36 @@ that asset. The cache key is a hash of everything that shapes a render (`GENERAT
 new kind of input (pose guidance, layout sketches), its keys are also listed in `LATER_GENERATION_KEYS`: a render
 cached before they existed still counts for an asset that does not use them, instead of the whole manifest looking
 stale and rendering again.
+
+#### Music and sound, made with `scripts/audio/generate.py`
+
+Started 2026-09-17, at the player's request for background music and gameplay sounds, and **wired into the game**
+(ADR-0023): `generated/audio/music-*.ogg` for places, `cue-*.ogg` for a fight's end and a treasure room, and
+`sfx-*.ogg` for the battle and the player's choices, with loop points in `generated/audio/music.json`. Ids are listed
+in `apps/client/src/audio/catalog.ts`.
+
+- **Model:** ACE-Step 1.5 turbo in ComfyUI (`audio_ace_step_1_5_split` template). It is MIT-licensed, and Comfy-Org's
+  repackage is Apache-2.0, so what it makes can ship.
+  - The files live in ComfyUI's models folder, about 10 GB: `diffusion_models/acestep_v1.5_turbo`,
+    `vae/ace_1.5_vae`, `text_encoders/qwen_0.6b_ace15`, and `text_encoders/qwen_1.7b_ace15`, the language model
+    that plans the piece first.
+  - On this laptop's 8 GB GPU, with llama.cpp holding 3.5 GB of it, an 8-second render takes about 35 seconds.
+- **The pipeline** mirrors the art one: `scripts/audio/manifest.json` holds prompts in styles (`bgm`, `cue`, `sfx`),
+  and raw renders are cached in `assets/.audio-cache` (git-ignored).
+  - Post-processing needs ffmpeg with libopus. A background track (`loop`) is cut to whole bars from its first beat,
+    with the audio just past the cut crossfaded into its start. A cue is trimmed from its first sound, faded out, and
+    kept short.
+  - Both get one fixed gain to a target loudness (never a riding one, which would break a loop's seam) and are encoded
+    as Opus in Ogg.
+  - `--sheet` writes `assets/.audio-cache/listen.html`, which plays every candidate in the browser, loops looped.
+  - Picks are written to `generated/audio/`.
+- **What it is for:** music and musical cues (fanfares, laments, flourishes). It is a music model, so non-musical
+  sound effects (hits, whooshes, clicks) come from the CC0 packs above (`kenney-impact-sounds`,
+  `kenney-interface-sounds`, `kenney-rpg-audio`). The manifest names the recording as a `source`, and the pipeline
+  trims, levels and encodes it like everything else, so the committed files do not need the packs.
+- **The soundtrack:** orchestral and acoustic, one piece per place, 150 to 180 seconds each: the main theme, the
+  Bastion (folk), the Foundry, a quiet study theme for fights in code, the Salvage, the Heap, the Kernel (organ and
+  choir), battle, and guardian. Each plays its introduction once and loops a body of whole phrases.
 
 #### The first pass (expeditions and HUD)
 

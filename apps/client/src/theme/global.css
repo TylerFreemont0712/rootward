@@ -339,6 +339,27 @@ main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .ind.offer { color: var(--amber); }
 .ind.turn-in { color: var(--teal); }
 .topnav { display: flex; gap: 6px; }
+
+/* Sound (ADR-0023): a button on every screen that opens the volume panel over the page. */
+/* Pushed to the right end of the bar; after the status summary (which pushes itself right) it simply follows it. */
+.topbar-tools { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.hud-mini + .topbar-tools { margin-left: 0; }
+.sound-control { position: relative; }
+.sound-button span { font-size: 13px; line-height: 1; }
+.sound-panel {
+  position: absolute; z-index: 60; top: calc(100% + 6px); right: 0; width: min(380px, 92vw); padding: 12px 14px;
+  border: 1px solid var(--line); background: var(--panel); box-shadow: 0 10px 30px rgb(0 0 0 / 60%); text-align: left;
+}
+.title-foot .sound-panel, .menu-extra .sound-panel { top: auto; bottom: calc(100% + 6px); }
+.sound-panel h3 { margin: 0 0 8px; font-family: var(--font-crt); font-weight: 400; font-size: 22px; color: var(--amber); }
+.sound-settings { display: flex; flex-direction: column; gap: 8px; }
+.sound-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 58px auto; align-items: center; gap: 8px; font-size: 12px; }
+.sound-row label { color: var(--text); }
+.sound-row input[type="range"] { width: 100%; accent-color: var(--amber); }
+.sound-row.muted input[type="range"] { opacity: 0.45; }
+.sound-value { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.sound-row .btn { padding: 4px 8px; font-size: 11px; }
+.sound-hint { margin: 2px 0 0; font-size: 11px; }
 .topnav .btn[aria-current="page"] { border-color: var(--amber); color: var(--amber); }
 
 /* The title screen: a full-bleed backdrop, the emblem and name, and two panels. Every image on it is optional. */

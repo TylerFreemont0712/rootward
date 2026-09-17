@@ -165,9 +165,19 @@ async function main(): Promise<void> {
     await page.getByRole("button", { name: "Back to the Guild Board →" }).click();
     await page.getByText(/1 fights finished/).waitFor();
 
+    // Sound (ADR-0023): the main menu's Sound button opens separate volumes for music and game sounds, and a mute
+    // sticks. Whether sound plays is up to the browser and the files; the controls are always there.
+    await page.getByRole("button", { name: /Main menu/ }).click();
+    await page.locator(".menu-extra .sound-button").click();
+    const musicMute = page.locator(".sound-row", { hasText: "Music" }).getByRole("button", { name: "Mute" });
+    await musicMute.click();
+    if ((await musicMute.getAttribute("aria-pressed")) !== "true") throw new Error("muting the music did not stick");
+    await musicMute.click();
+    await page.keyboard.press("Escape");
+    await page.locator(".sound-panel").waitFor({ state: "detached" });
+
     // Shardrun (ADR-0012, ADR-0013) from the main menu: pick Beginner, climb into the first room of the map, cast a spell
     // whose shards run in the real sandbox (it plays as code first), end the turn, then abandon the run.
-    await page.getByRole("button", { name: /Main menu/ }).click();
     await page.getByRole("button", { name: /Roguelite/ }).click();
     await page.getByRole("radio", { name: /Beginner/ }).click();
     await page.getByRole("button", { name: "Descend in javascript" }).click();

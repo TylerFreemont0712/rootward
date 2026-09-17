@@ -16,6 +16,8 @@
   scripts/art/generate.py --only '<ids>'` renders into `assets/.art-cache`; `--no-write` renders without writing, and
   `--reprocess` rewrites outputs from cached renders without the GPU (changing `pick` or `post` needs no new render).
   The client build copies `assets/generated` into `apps/client/dist`, so rebuild after writing art.
+- Music and sound, the same way: `scripts/audio/generate.py` (ACE-Step 1.5 turbo in ComfyUI, ffmpeg with libopus on
+  PATH) renders into `assets/.audio-cache`; `--sheet` writes `listen.html` there to hear every candidate.
 
 # Code conventions specific to this repo
 
@@ -45,7 +47,7 @@
 - React lint (the React Compiler rules) forbids setState in effects and reading refs during render. Adjust derived
   state while rendering, and read refs in handlers.
 - Leave `// LEARN:` comments where a decision or a language feature is non-obvious, and add an entry to
-  `docs/LEARNING_LOG.md`. The next ADR is ADR-0023.
+  `docs/LEARNING_LOG.md`. The next ADR is ADR-0024.
 
 # Working here
 

@@ -262,6 +262,13 @@ export const ShardrunLayer = z.strictObject({
   ambience: ArenaAmbience.default("dust"),
   /** The guardian's room's air, when it differs from the layer's. */
   boss_ambience: ArenaAmbience.optional(),
+  /**
+   * Music ids (`audio/<id>`) for the layer's map and rooms, its fights, and its guardian's fight. Presentation only,
+   * played by the client, and silent when the file is missing (ADR-0023).
+   */
+  music: Id.optional(),
+  battle_music: Id.optional(),
+  boss_music: Id.optional(),
   /** Rows of rooms below the boss. */
   rows: z.int().min(3).max(15),
   columns: z.int().min(2).max(7),

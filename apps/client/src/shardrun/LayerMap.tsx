@@ -1,6 +1,7 @@
 import type { ArenaAmbienceView, ShardrunMapNodeView, ShardrunView } from "@rootward/shared";
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { assetUrl, foeSpriteUrl, walkStripUrl } from "../assets/AssetRegistry.ts";
+import { sound } from "../audio/engine.ts";
 import { useShardrun } from "../state/shardrun.ts";
 import { useGame } from "../state/store.ts";
 
@@ -144,7 +145,10 @@ export function LayerMap({ run }: { run: ShardrunView }) {
       void command({ type: "enter", nodeId: node.id });
       return;
     }
-    // Walk the tunnel first; the room opens when the Maintainer gets there.
+    // Walk the tunnel first; the room opens when the Maintainer gets there. Footsteps on the way, and a treasure room
+    // announces itself as the door opens.
+    for (const [step, delay] of [0.05, 0.33, 0.61].entries()) sound.play("sfx-step", { delay, volume: 0.7, rate: step % 2 === 0 ? 1 : 0.9 });
+    if (node.kind === "treasure") sound.play("cue-treasure", { delay: WALK_MS / 1000 });
     const to = standing(node);
     const path = along(walker, to, 24);
     const timing = { duration: WALK_MS, easing: "ease-in-out" };

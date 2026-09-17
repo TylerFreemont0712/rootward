@@ -382,6 +382,7 @@ export class WorldService {
       ...(zone.realm !== undefined ? { realmId: zone.realm } : {}),
       ...(zone.sight !== undefined ? { sight: zone.sight } : {}),
       ambience: zone.ambience,
+      ...(zone.music !== undefined ? { music: zone.music } : {}),
       arrival: zone.arrival,
       width: rows[0]?.length ?? 0,
       height: rows.length,

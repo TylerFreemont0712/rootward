@@ -17,8 +17,10 @@ test-results/
 # Optional downloaded art/audio packs (about 19 MB) stay out of git; re-fetch with scripts/fetch-assets.sh.
 # assets/fonts/ (1.2 MB, OFL) is committed. Nothing in the code requires either folder.
 assets/vendor/
-# Raw ComfyUI renders cached by scripts/art/generate.py so post-processing can be re-run without the GPU.
+# Raw ComfyUI renders cached by scripts/art/generate.py and scripts/audio/generate.py, so post-processing can be re-run
+# without the GPU.
 assets/.art-cache/
+assets/.audio-cache/
 
 # Python bytecode from importing scripts/art/generate.py.
 __pycache__/

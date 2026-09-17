@@ -174,6 +174,23 @@ every rule number is under `shardrun` in `config/balance.yaml`. Routes are under
    curve (Web Animations keyframes sampled from the same Bézier) before `enter` is sent. Which rooms are open still
    comes only from the server.
 
+## Sound
+
+Music and game sounds (ADR-0023) live in `apps/client/src/audio/`, all presentation, and all optional.
+
+- **The engine** (`engine.ts`) is one Web Audio graph with a music bus and an effects bus that meet only at the
+  speakers, so each has its own volume and mute under a master (`settings.ts`, a per-browser preference). It starts
+  on the first click or key press, the browser's rule, and rests while the tab is hidden.
+- **Music follows the place.** `MusicDirector` reads the screen, the World zone's `music`, and the Shardrun layer's
+  `music`, `battle_music` and `boss_music` (content, carried by the views like `backdrop`). `musicFor` (`music.ts`)
+  picks a track, falling back to themes for screens that are not places, and the engine crossfades to it. A track
+  plays its introduction once and then loops between the loop points in `generated/audio/music.json`, and a track
+  left behind is picked up where it stopped when the player returns within four minutes.
+- **Game sounds answer what already happens.** `cues.ts` maps the battle stage's cues (ADR-0019) and accepted
+  Shardrun commands and World fight results to sounds, so a hit sounds on the frame it lands.
+- **Files** are `generated/audio/<id>.ogg`, made by `scripts/audio/generate.py` (ACE-Step 1.5 in ComfyUI for music
+  and cues, CC0 recordings for effects), listed in `catalog.ts`, and silent when missing.
+
 ## Language
 
 English is the project's source language; a locale is an overlay on it, never a fork (ADR-0017). UI chrome lives in

@@ -3,6 +3,27 @@
 Friction found while playing, newest first. Each entry: date, commit, what happened, severity (blocker / annoying /
 polish), and the follow-up (a ROADMAP item or the commit that fixed it).
 
+## 2026-09-17 — sound and music (ADR-0023)
+
+Checked in headless Chromium: no sound before a gesture; the main theme decoded and playing after the first click;
+volumes and mutes surviving a reload; the Sound menu on the title screen, the main menu, the top bar, and in Shardrun's
+Options. Measured the renders instead of listening, since this session cannot hear them: tempo held to the bpm asked
+for, where each piece starts and ends, and no clipped samples.
+
+- **ComfyUI stopped mid-render** after its terminal went away. It had been started in the foreground of a terminal.
+  Blocking for long renders; restarted detached (`setsid nohup`), which also skips the browser tab the start script
+  opens.
+- **The first loops were cut straight through an ending.** The model writes whole pieces with an outro and then
+  silence, even when asked for a loop. Blocking for music; loops now come from each piece's body, on bar lines.
+- **A render with a ten-second dropout in the middle.** The main theme went silent for ten seconds at 1:50, then came
+  back for two short sections, and its first loop spanned the silence. Blocking for that track; the pipeline now splits
+  a render wherever it drops out (a second or more under -55 dB, which leaves soft passages alone) and loops inside the
+  longest stretch of music.
+- **A missing sound decoded as garbage.** The server answers a path it has no file for with the app's page, as a 200.
+  Annoying (a console warning per file); the engine now decodes only audio responses.
+- **The first sample set was chiptune.** The player then asked for music "not too electronic or bubbly", and the
+  soundtrack was prompted again as orchestral and folk.
+
 ## 2026-09-17 — the code view between the fighters, cards that fit, and code on hover (ADR-0022, ADR-0020)
 
 From the player's next look, checked with screenshots and measurements in headless Chromium:

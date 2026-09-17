@@ -11,6 +11,7 @@ import {
   foeSpriteUrl,
   walkStripUrl,
 } from "../assets/AssetRegistry.ts";
+import { playSounds, soundsForCue } from "../audio/cues.ts";
 import { useT } from "../i18n/index.ts";
 import { useShardrun } from "../state/shardrun.ts";
 import { type Pending, shownFallen, shownHp } from "./fx/pending.ts";
@@ -239,6 +240,8 @@ export function Stage({ run, battle, timeline, onStart, pending, classId, pose, 
   const onCue = useCallback(
     (cue: Cue) => {
       settle(cue);
+      // The sound lands on the same frame as the picture: both answer this cue (ADR-0023).
+      playSounds(soundsForCue(cue, run.playstyle === "deck"));
       const hero = placements.hero;
       switch (cue.kind) {
         case "enter": {
@@ -316,7 +319,7 @@ export function Stage({ run, battle, timeline, onStart, pending, classId, pose, 
           return;
       }
     },
-    [bosses, float, holdPose, impact, later, placements, react, run.layer.name, settle, t],
+    [bosses, float, holdPose, impact, later, placements, react, run.layer.name, run.playstyle, settle, t],
   );
 
   const onDone = useCallback(() => {

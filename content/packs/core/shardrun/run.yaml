@@ -47,6 +47,9 @@ layers:
     boss_backdrop: arena-kiln
     ambience: dust
     boss_ambience: embers
+    music: music-salvage
+    battle_music: music-battle
+    boss_music: music-guardian
     rows: 8
     columns: 5
     paths: 5
@@ -75,6 +78,9 @@ layers:
     boss_backdrop: arena-vault
     ambience: spores
     boss_ambience: dust
+    music: music-heap
+    battle_music: music-battle
+    boss_music: music-guardian
     rows: 9
     columns: 5
     paths: 5
@@ -101,6 +107,9 @@ layers:
     backdrop: arena-kernel
     boss_backdrop: arena-throne
     ambience: embers
+    music: music-kernel
+    battle_music: music-battle
+    boss_music: music-guardian
     rows: 9
     columns: 5
     paths: 6

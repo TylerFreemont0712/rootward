@@ -492,6 +492,8 @@ export const ZoneView = z.strictObject({
   /** Tiles lit around the Maintainer; absent means the whole zone is visible. */
   sight: z.int().optional(),
   ambience: z.string(),
+  /** Music while walking the zone (ADR-0023); absent when the content names none. */
+  music: z.string().optional(),
   arrival: z.string(),
   width: z.int(),
   height: z.int(),
@@ -843,6 +845,10 @@ export const ShardrunView = z.strictObject({
     bossBackdrop: z.string(),
     ambience: ArenaAmbienceView,
     bossAmbience: ArenaAmbienceView,
+    /** Music for the map and rooms, the fights, and the guardian's fight (ADR-0023); absent when the content names none. */
+    music: z.string().optional(),
+    battleMusic: z.string().optional(),
+    bossMusic: z.string().optional(),
   }),
   map: z.strictObject({
     nodes: z.array(ShardrunMapNodeView),

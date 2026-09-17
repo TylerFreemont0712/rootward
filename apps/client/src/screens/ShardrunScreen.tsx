@@ -2,6 +2,8 @@ import "../theme/shardrun.css";
 import type { ShardrunView } from "@rootward/shared";
 import { useEffect, useMemo, useState } from "react";
 import { assetUrl } from "../assets/AssetRegistry.ts";
+import { sound } from "../audio/engine.ts";
+import { SoundSettings } from "../audio/SoundControls.tsx";
 import { useT } from "../i18n/index.ts";
 import { Arena } from "../shardrun/Arena.tsx";
 import { DeckDrawer, DeckPanel } from "../shardrun/DeckPanel.tsx";
@@ -106,6 +108,7 @@ function RunHeader({ run }: { run: ShardrunView }) {
   // One drawer at a time: opening one closes the others.
   const [drawer, setDrawer] = useState<"none" | "deck" | "stats" | "options" | "dev">("none");
   const toggle = (which: "deck" | "stats" | "options" | "dev") => {
+    if (drawer !== which) sound.play("sfx-open", { volume: 0.6 });
     setDrawer((open) => (open === which ? "none" : which));
   };
   return (
@@ -227,6 +230,10 @@ function OptionsPanel() {
   const setPredictions = useShardrun((s) => s.setPredictions);
   return (
     <div className="shr-options" role="group" aria-label="Options">
+      <div className="shr-option">
+        <span>{t("sound.title")}</span>
+        <SoundSettings />
+      </div>
       <div className="shr-option">
         <span>Show what a spell will do before you cast it</span>
         <div className="actions">

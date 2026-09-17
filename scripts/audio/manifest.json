@@ -1,0 +1,73 @@
+{
+  "comfy_url": "http://127.0.0.1:8188",
+  "defaults": {
+    "unet": "acestep_v1.5_turbo.safetensors",
+    "clip": "qwen_0.6b_ace15.safetensors",
+    "lm": "qwen_1.7b_ace15.safetensors",
+    "vae": "ace_1.5_vae.safetensors",
+    "steps": 8,
+    "cfg": 1,
+    "sampler": "euler",
+    "scheduler": "simple",
+    "shift": 3,
+    "audio_codes": true,
+    "lm_cfg": 2.0,
+    "temperature": 0.85,
+    "top_p": 0.9,
+    "top_k": 0,
+    "min_p": 0,
+    "language": "en",
+    "timesignature": "4",
+    "lyrics": "[instrumental]",
+    "headroom_db": 3
+  },
+  "styles": {
+    "music": {
+      "candidates": 1,
+      "seconds": 150,
+      "lyrics": "[instrumental]\n\n[intro]\n\n[verse]\n\n[chorus]\n\n[verse]\n\n[chorus]\n\n[bridge]\n\n[chorus]\n\n[outro]",
+      "post": { "kind": "bgm", "intro_bars": 4, "tail_bars": 4, "crossfade_ms": 150, "lufs": -20, "peak": -1.5, "bitrate": 112 }
+    },
+    "cue": {
+      "candidates": 1,
+      "seconds": 8,
+      "post": { "kind": "cue", "max_seconds": 4, "fade_ms": 400, "lufs": -17, "peak": -1.0, "bitrate": 96 }
+    },
+    "recorded": {
+      "candidates": 1,
+      "post": { "kind": "cue", "max_seconds": 1.5, "fade_ms": 60, "threshold_db": -45, "lufs": -16, "peak": -3.5, "bitrate": 64 }
+    }
+  },
+  "assets": [
+    {"id": "music-title", "out": "audio/music-title", "style": "music", "seed": 8101, "bpm": 76, "keyscale": "D major", "tags": "Orchestral fantasy main theme: a warm, memorable adventure theme for a hand-crafted fantasy game. A solo French horn states a simple, hopeful melody over rolling piano arpeggios and soft strings, the flute answers it, then the full orchestra carries the melody with timpani and cymbal swells before settling into a quiet, wistful piano reprise. Acoustic orchestra only: strings, piano, harp, woodwinds, French horns, timpani. Hopeful, nostalgic, heroic, cinematic, instrumental."},
+    {"id": "music-bastion", "out": "audio/music-bastion", "style": "music", "seed": 8201, "bpm": 104, "keyscale": "G major", "tags": "Folk fantasy town theme: a cozy, bustling medieval town where travelers gather. A fiddle and a tin whistle trade a catchy, memorable dance melody over strummed acoustic guitar, a plucked lute, accordion chords, upright bass, and a light frame drum and tambourine. Acoustic folk instruments only. Warm, friendly, lively, rustic, instrumental."},
+    {"id": "music-battle", "out": "audio/music-battle", "style": "music", "seed": 8301, "bpm": 138, "keyscale": "E minor", "tags": "Orchestral fantasy battle theme: a relentless, heroic fight. Driving staccato strings, pounding taiko and timpani, snare rolls, and bold French horns and trumpets carry a strong, memorable battle melody, with soaring violins answering between phrases. Acoustic orchestra and percussion only, no synthesizers. Urgent, heroic, fierce, cinematic, instrumental."},
+    {"id": "music-salvage", "out": "audio/music-salvage", "style": "music", "seed": 8401, "bpm": 80, "keyscale": "A minor", "tags": "Mysterious orchestral exploration theme: descending through ancient ruins full of broken machines. A solo cello sings a haunting, memorable melody over harp arpeggios and a glassy celesta, with a distant wordless choir, soft timpani rolls, and low string drones. Acoustic orchestra only. Curious, melancholy, ancient, wondrous, instrumental."},
+    {"id": "music-focus", "out": "audio/music-focus", "style": "music", "seed": 8501, "bpm": 70, "keyscale": "F major", "seconds": 180, "lyrics": "[instrumental]\n\n[intro]\n\n[verse]\n\n[verse]\n\n[bridge]\n\n[verse]\n\n[outro]", "tags": "Calm orchestral study theme for solving puzzles: a gentle, thoughtful piano melody over soft sustained strings and a slow harp, with a clarinet and a cello answering now and then. Steady, unhurried, and uncluttered, leaving room to think. Acoustic chamber ensemble only: piano, strings, harp, clarinet, cello. Contemplative, warm, focused, instrumental."},
+    {"id": "music-foundry", "out": "audio/music-foundry", "style": "music", "seed": 8601, "bpm": 92, "keyscale": "D minor", "tags": "Orchestral adventure theme for a forge in the wilds: steady, industrious, and determined. Low cellos and basses play a driving ostinato, hammered anvils and taiko drums keep time like a forge at work, horns and trombones carry a bold, memorable melody, and bright string runs sweep between phrases. Acoustic orchestra and percussion only, no synthesizers. Resolute, rugged, hard-working, epic, instrumental."},
+    {"id": "music-heap", "out": "audio/music-heap", "style": "music", "seed": 8701, "bpm": 84, "keyscale": "E minor", "tags": "Eerie orchestral cavern theme: damp tunnels where strange creatures live in the dark. Pizzicato strings creep beneath a bassoon and bass clarinet melody, marimba drips and wood blocks echo, a bowed vibraphone and low brass swell in the distance, and a solo violin cries the memorable main theme. Acoustic orchestra only. Uneasy, strange, darkly playful, mysterious, instrumental."},
+    {"id": "music-kernel", "out": "audio/music-kernel", "style": "music", "seed": 8801, "bpm": 66, "keyscale": "C minor", "tags": "Sacred orchestral theme for the heart of a vast ancient machine, a cathedral of black stone and gold. A pipe organ and a wordless choir intone a slow, solemn, memorable melody, tubular bells toll, and strings and horns rise in grand, awe-filled swells. Acoustic orchestra, pipe organ and choir only. Solemn, majestic, ominous, reverent, epic, instrumental."},
+    {"id": "music-guardian", "out": "audio/music-guardian", "style": "music", "seed": 8901, "bpm": 126, "keyscale": "C minor", "tags": "Epic orchestral boss battle theme: facing an ancient, colossal guardian. A thundering wordless choir, pipe organ, heavy low brass, and massive taiko and bass drums build a dark, menacing, memorable theme, with frantic string runs and trumpet calls driving to a climax. Acoustic orchestra, choir and organ only, no synthesizers. Ominous, powerful, desperate, epic, instrumental."},
+
+    {"id": "cue-victory", "out": "audio/cue-victory", "style": "cue", "seed": 9101, "bpm": 120, "keyscale": "C major", "post": {"max_seconds": 5}, "tags": "Orchestral victory fanfare: a short, triumphant fanfare where French horns and trumpets rise to a bright held major chord with a timpani roll and a cymbal crash, then silence. Acoustic orchestra only. Celebratory, heroic, very short, instrumental."},
+    {"id": "cue-defeat", "out": "audio/cue-defeat", "style": "cue", "seed": 9201, "bpm": 66, "keyscale": "A minor", "post": {"max_seconds": 6}, "tags": "Orchestral defeat lament: a short, sorrowful phrase where a solo piano and soft strings play a descending minor melody that fades to a low, unresolved chord, then silence. Acoustic instruments only. Sad, gentle, very short, instrumental."},
+    {"id": "cue-treasure", "out": "audio/cue-treasure", "style": "cue", "seed": 9301, "bpm": 120, "keyscale": "G major", "seconds": 6, "post": {"max_seconds": 3}, "tags": "Harp and celesta flourish: a very short, magical treasure reveal, a quick ascending harp glissando and a celesta chime landing on a bright, shimmering major chord, then silence. Acoustic instruments only. Wondrous, happy, tiny, instrumental."},
+
+    {"id": "sfx-cast", "out": "audio/sfx-cast", "style": "recorded", "source": "vendor/kenney-interface-sounds/Audio/maximize_006.ogg"},
+    {"id": "sfx-hit", "out": "audio/sfx-hit", "style": "recorded", "source": "vendor/kenney-impact-sounds/Audio/impactPunch_medium_000.ogg"},
+    {"id": "sfx-hit-heavy", "out": "audio/sfx-hit-heavy", "style": "recorded", "source": "vendor/kenney-impact-sounds/Audio/impactPunch_heavy_000.ogg"},
+    {"id": "sfx-ward", "out": "audio/sfx-ward", "style": "recorded", "source": "vendor/kenney-impact-sounds/Audio/impactPlate_light_001.ogg"},
+    {"id": "sfx-glance", "out": "audio/sfx-glance", "style": "recorded", "source": "vendor/kenney-impact-sounds/Audio/impactMetal_light_002.ogg", "post": {"lufs": -19}},
+    {"id": "sfx-shatter", "out": "audio/sfx-shatter", "style": "recorded", "source": "vendor/kenney-impact-sounds/Audio/impactGlass_heavy_000.ogg"},
+    {"id": "sfx-hurt", "out": "audio/sfx-hurt", "style": "recorded", "source": "vendor/kenney-impact-sounds/Audio/impactSoft_heavy_001.ogg"},
+    {"id": "sfx-card", "out": "audio/sfx-card", "style": "recorded", "source": "vendor/kenney-rpg-audio/Audio/bookPlace1.ogg", "post": {"lufs": -20}},
+    {"id": "sfx-draw", "out": "audio/sfx-draw", "style": "recorded", "source": "vendor/kenney-rpg-audio/Audio/bookFlip2.ogg", "post": {"lufs": -20}},
+    {"id": "sfx-step", "out": "audio/sfx-step", "style": "recorded", "source": "vendor/kenney-impact-sounds/Audio/footstep_concrete_000.ogg", "post": {"lufs": -22}},
+    {"id": "sfx-coins", "out": "audio/sfx-coins", "style": "recorded", "source": "vendor/kenney-rpg-audio/Audio/handleCoins.ogg", "post": {"lufs": -19}},
+    {"id": "sfx-chime", "out": "audio/sfx-chime", "style": "recorded", "source": "vendor/kenney-interface-sounds/Audio/glass_002.ogg", "post": {"lufs": -19}},
+    {"id": "sfx-turn", "out": "audio/sfx-turn", "style": "recorded", "source": "vendor/kenney-interface-sounds/Audio/switch_003.ogg", "post": {"lufs": -20}},
+    {"id": "sfx-pass", "out": "audio/sfx-pass", "style": "recorded", "source": "vendor/kenney-interface-sounds/Audio/confirmation_002.ogg", "post": {"lufs": -18}},
+    {"id": "sfx-fail", "out": "audio/sfx-fail", "style": "recorded", "source": "vendor/kenney-interface-sounds/Audio/error_006.ogg", "post": {"lufs": -18}},
+    {"id": "sfx-open", "out": "audio/sfx-open", "style": "recorded", "source": "vendor/kenney-interface-sounds/Audio/open_001.ogg", "post": {"lufs": -22}}
+  ]
+}

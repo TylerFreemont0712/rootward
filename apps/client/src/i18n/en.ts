@@ -96,6 +96,15 @@ export const en = {
   "options.shake": "Shake the stage on heavy hits",
   "options.on": "On",
   "options.off": "Off",
+
+  "sound.button": "Sound",
+  "sound.title": "Sound",
+  "sound.master": "All sound",
+  "sound.music": "Music",
+  "sound.effects": "Game sounds",
+  "sound.mute": "Mute",
+  "sound.muted": "Muted",
+  "sound.hint": "Music and game sounds have their own volume. Sound starts after your first click or key press.",
 } as const;
 
 /** Every key the game can ask for. Other locales are typed against it, so a stale key cannot go unnoticed. */

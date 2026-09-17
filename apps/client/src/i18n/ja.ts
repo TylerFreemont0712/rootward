@@ -102,4 +102,13 @@ export const ja: Partial<Record<MessageKey, string>> = {
   "options.shake": "強い攻撃で画面を揺らす",
   "options.on": "オン",
   "options.off": "オフ",
+
+  "sound.button": "サウンド",
+  "sound.title": "サウンド",
+  "sound.master": "全体の音量",
+  "sound.music": "音楽",
+  "sound.effects": "効果音",
+  "sound.mute": "ミュート",
+  "sound.muted": "ミュート中",
+  "sound.hint": "音楽と効果音は別々に音量を変えられます。最初にクリックかキーを押すと音が鳴ります。",
 };

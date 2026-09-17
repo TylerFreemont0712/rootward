@@ -6,6 +6,7 @@ kind: wild
 realm: foundry
 sight: 7
 ambience: embers
+music: music-foundry
 arrival: "Molten glyphs drip from the ceiling. Somewhere, something is miscounting."
 legend:
   "#": rock

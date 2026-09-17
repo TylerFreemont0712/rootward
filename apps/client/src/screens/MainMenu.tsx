@@ -3,6 +3,7 @@ import type { ShardrunPlaystyleView, ShardrunView } from "@rootward/shared";
 import { useEffect, useState } from "react";
 import { api } from "../api/client.ts";
 import { assetUrl } from "../assets/AssetRegistry.ts";
+import { SoundButton } from "../audio/SoundControls.tsx";
 import { useT } from "../i18n/index.ts";
 import { LanguagePicker } from "../i18n/LanguagePicker.tsx";
 import { useShardrun } from "../state/shardrun.ts";
@@ -146,6 +147,7 @@ export function MainMenu() {
             {t("menu.codex")}
           </button>
           <LanguagePicker />
+          <SoundButton />
         </div>
       </div>
     </div>

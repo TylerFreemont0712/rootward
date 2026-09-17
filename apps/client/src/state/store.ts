@@ -17,6 +17,7 @@ import {
 } from "@rootward/shared";
 import { create } from "zustand";
 import { api, ApiError } from "../api/client.ts";
+import { playSounds, soundsForEncounter } from "../audio/cues.ts";
 
 // One store for the client. Game rules never run here: every change of game state comes back from the server as a
 // fresh RunView or WorldView. The store holds what the player is typing, which screen is up, and which request is in
@@ -172,6 +173,7 @@ export const useGame = create<GameStore>()((set, get) => {
       if (!run || !activeProfile) return;
       const response = await api.act(activeProfile.id, run.runId, action);
       set({ run: response.run, notice: response.refused?.message });
+      if (!response.refused) playSounds(soundsForEncounter(action.type, response.run.encounter));
     });
 
   const toast = (texts: readonly string[]) => {

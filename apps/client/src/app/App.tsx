@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import { MusicDirector } from "../audio/MusicDirector.tsx";
+import { SoundButton } from "../audio/SoundControls.tsx";
 import { DebriefScreen } from "../screens/DebriefScreen.tsx";
 import { EncounterScreen } from "../screens/EncounterScreen.tsx";
 import { ExpeditionScreen } from "../screens/ExpeditionScreen.tsx";
@@ -45,6 +47,7 @@ export function App() {
     return (
       <>
         <div className="crt" aria-hidden="true" />
+        <MusicDirector />
         <main>
           {banner}
           <TitleScreen />
@@ -58,6 +61,7 @@ export function App() {
     return (
       <>
         <div className="crt" aria-hidden="true" />
+        <MusicDirector />
         <main>
           {banner}
           <MainMenu />
@@ -81,6 +85,7 @@ export function App() {
   return (
     <>
       <div className="crt" aria-hidden="true" />
+      <MusicDirector />
       <header className="topbar">
         <div className="brand">
           ROOTWARD<small>{inShardrun || inCodex ? "Shardrun" : "The World · the Bastion"}</small>
@@ -131,6 +136,9 @@ export function App() {
             <span>{run.player.className}</span>
           </div>
         )}
+        <div className="topbar-tools">
+          <SoundButton />
+        </div>
       </header>
       <main>
         {banner}

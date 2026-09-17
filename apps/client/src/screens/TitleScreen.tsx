@@ -2,6 +2,7 @@ import "../theme/menu.css";
 import type { ProfileSummaryView, ProfileView } from "@rootward/shared";
 import { useState } from "react";
 import { assetUrl, slugify } from "../assets/AssetRegistry.ts";
+import { SoundButton } from "../audio/SoundControls.tsx";
 import { useT } from "../i18n/index.ts";
 import { LanguagePicker } from "../i18n/LanguagePicker.tsx";
 import { useGame } from "../state/store.ts";
@@ -151,6 +152,7 @@ export function TitleScreen() {
         <footer className="title-foot">
           <span>{t("title.foot")}</span>
           <LanguagePicker />
+          <SoundButton />
         </footer>
       </div>
     </div>

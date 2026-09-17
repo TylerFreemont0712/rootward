@@ -513,3 +513,27 @@ language feature took more than a minute to understand.
   (`CardTipLayer` in `Card.tsx`). The card element itself is kept in the store, so the effect can measure it again on
   scroll. Hiding on scroll failed: a scroll event arrives a frame after the scroll, which can be after the pointer has
   already arrived on a card.
+- **A loop that has no seam.** A background track is cut to a whole number of bars, so the beat lands where the loop
+  starts again, and the audio just past the cut is crossfaded into the start. The crossfade is equal-power (sine
+  and cosine gains), which keeps the loudness steady through the overlap; a linear one dips in the middle
+  (`post_loop` in `scripts/audio/generate.py`).
+- **Normalize a loop with one gain.** Loudness normalizers ride the level up and down through a clip, so a loop's end
+  would no longer meet its start at the same level. The pipeline measures the integrated loudness and true peak
+  (EBU R128, through ffmpeg) and applies one fixed gain: toward the target loudness, capped by the peak
+  (`level` in `scripts/audio/generate.py`).
+- **Sound waits for a gesture.** Browsers let a page make sound only after the person interacts with it, so the audio
+  context is created (or resumed) inside a click or key handler, and whatever music was asked for before then starts
+  at that moment (`install` and `unlock` in `apps/client/src/audio/engine.ts`).
+- **Intro once, then a loop.** An `AudioBufferSourceNode` with `loop`, `loopStart` and `loopEnd` plays from the start,
+  and on reaching `loopEnd` jumps back to `loopStart`, so one file holds an introduction and a looping body. The
+  pipeline puts the loop points on bar lines and blends the moments before the end into the audio before the start,
+  so the jump is not heard (`post_bgm` in `scripts/audio/generate.py`).
+- **Tell a dropout from a quiet passage.** A generated piece can go silent for seconds mid-way, and a loop across that
+  gap would repeat the silence forever. The pipeline measures level in quarter-second windows: a second or more under
+  -55 dB is a dropout that splits the piece, while a soft passage (around -45 dB) is still music (`sections` in
+  `scripts/audio/generate.py`).
+- **Two buses, one graph.** Music and game sounds are separate gain nodes that meet only at the destination, so a
+  volume or a mute on one never touches the other, and the master is applied to both (`channelGain` in `settings.ts`).
+- **A 200 is not always the file.** The server answers unknown paths with the app's page, so a missing `.ogg` arrives
+  as `200 text/html`. The engine checks the content type before decoding.
+
