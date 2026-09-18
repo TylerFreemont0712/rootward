@@ -52,32 +52,37 @@
     {"id": "music-kernel", "out": "audio/music-kernel", "style": "music", "seed": 8801, "bpm": 66, "keyscale": "C minor", "tags": "Sacred orchestral theme for the heart of a vast ancient machine, a cathedral of black stone and gold. A pipe organ and a wordless choir intone a slow, solemn, memorable melody, tubular bells toll, and strings and horns rise in grand, awe-filled swells. Acoustic orchestra, pipe organ and choir only. Solemn, majestic, ominous, reverent, epic, instrumental."},
     {"id": "music-guardian", "out": "audio/music-guardian", "style": "music", "seed": 8901, "bpm": 126, "keyscale": "C minor", "tags": "Epic orchestral boss battle theme: facing an ancient, colossal guardian. A thundering wordless choir, pipe organ, heavy low brass, and massive taiko and bass drums build a dark, menacing, memorable theme, with frantic string runs and trumpet calls driving to a climax. Acoustic orchestra, choir and organ only, no synthesizers. Ominous, powerful, desperate, epic, instrumental."},
 
-    {"id": "cue-victory", "out": "audio/cue-victory", "style": "cue", "seed": 9101, "bpm": 120, "keyscale": "C major", "post": {"max_seconds": 5}, "tags": "Orchestral victory fanfare: a short, triumphant fanfare where French horns and trumpets rise to a bright held major chord with a timpani roll and a cymbal crash, then silence. Acoustic orchestra only. Celebratory, heroic, very short, instrumental."},
+    {"id": "cue-victory", "out": "audio/cue-victory", "style": "cue", "seed": 9111, "candidates": 3, "pick": 0, "seconds": 8, "bpm": 132, "keyscale": "D major", "post": {"max_seconds": 3.6, "fade_ms": 180}, "tags": "Immediate compact orchestral victory sting for a fantasy game, beginning on the first beat: one bold French-horn call answered by bright trumpets, then two decisive rising major chords with a tight timpani hit and one cymbal crash. A clear two-to-three-second ending, no intro, no wandering melody, no long tail. Acoustic orchestra only, heroic, earned, triumphant, instrumental."},
     {"id": "cue-defeat", "out": "audio/cue-defeat", "style": "cue", "seed": 9201, "bpm": 66, "keyscale": "A minor", "post": {"max_seconds": 6, "peak": -1.5}, "tags": "Orchestral defeat lament: a short, sorrowful phrase where a solo piano and soft strings play a descending minor melody that fades to a low, unresolved chord, then silence. Acoustic instruments only. Sad, gentle, very short, instrumental."},
-    {"id": "cue-treasure", "out": "audio/cue-treasure", "style": "cue", "seed": 9301, "bpm": 120, "keyscale": "G major", "seconds": 6, "post": {"max_seconds": 3}, "tags": "Harp and celesta flourish: a very short, magical treasure reveal, a quick ascending harp glissando and a celesta chime landing on a bright, shimmering major chord, then silence. Acoustic instruments only. Wondrous, happy, tiny, instrumental."},
+    {"id": "cue-treasure", "out": "audio/cue-treasure", "style": "recorded", "layers": [
+      {"source": "vendor/kenney-impact-sounds/Audio/impactBell_heavy_002.ogg", "gain_db": -2, "rate": 1.18},
+      {"source": "vendor/kenney-interface-sounds/Audio/confirmation_004.ogg", "gain_db": -6, "delay_ms": 75, "rate": 1.08},
+      {"source": "vendor/kenney-rpg-audio/Audio/handleCoins2.ogg", "gain_db": -9, "delay_ms": 245, "rate": 1.12}
+    ], "post": {"max_seconds": 1.15, "fade_ms": 90, "lufs": -13, "peak": -2.5}},
 
     {"id": "sfx-charge", "out": "audio/sfx-charge", "style": "recorded", "layers": [
-      {"source": "vendor/kenney-interface-sounds/Audio/maximize_005.ogg", "gain_db": -2, "rate": 0.9},
-      {"source": "vendor/kenney-interface-sounds/Audio/bong_001.ogg", "gain_db": -10, "delay_ms": 150, "rate": 0.8}
-    ], "post": {"lufs": -20}},
+      {"source": "vendor/kenney-impact-sounds/Audio/impactBell_heavy_001.ogg", "gain_db": -9, "rate": 1.75, "reverse": true},
+      {"source": "vendor/kenney-interface-sounds/Audio/pluck_002.ogg", "gain_db": -5, "delay_ms": 500, "rate": 0.9}
+    ], "post": {"max_seconds": 0.85, "fade_ms": 45, "lufs": -20}},
     {"id": "sfx-cast", "out": "audio/sfx-cast", "style": "recorded", "layers": [
-      {"source": "vendor/kenney-interface-sounds/Audio/maximize_006.ogg", "gain_db": -1},
-      {"source": "vendor/kenney-interface-sounds/Audio/glass_002.ogg", "gain_db": -11, "delay_ms": 75, "rate": 0.9}
-    ]},
+      {"source": "vendor/kenney-rpg-audio/Audio/knifeSlice2.ogg", "gain_db": -2, "rate": 1.18},
+      {"source": "vendor/kenney-impact-sounds/Audio/impactBell_heavy_004.ogg", "gain_db": -9, "delay_ms": 42, "rate": 1.35}
+    ], "post": {"max_seconds": 0.55, "fade_ms": 45, "lufs": -18}},
     {"id": "sfx-cast-fire", "out": "audio/sfx-cast-fire", "style": "recorded", "layers": [
-      {"source": "vendor/kenney-interface-sounds/Audio/maximize_006.ogg", "gain_db": -2, "rate": 0.82},
-      {"source": "vendor/kenney-impact-sounds/Audio/impactPunch_medium_003.ogg", "gain_db": -8, "delay_ms": 95, "rate": 0.84}
-    ]},
+      {"source": "vendor/kenney-rpg-audio/Audio/knifeSlice.ogg", "gain_db": -2, "rate": 0.9},
+      {"source": "vendor/kenney-interface-sounds/Audio/scratch_004.ogg", "gain_db": -5, "delay_ms": 35, "rate": 0.82},
+      {"source": "vendor/kenney-impact-sounds/Audio/impactSoft_medium_002.ogg", "gain_db": -9, "delay_ms": 120, "rate": 1.18}
+    ], "post": {"max_seconds": 0.72, "fade_ms": 55, "lufs": -17}},
     {"id": "sfx-cast-frost", "out": "audio/sfx-cast-frost", "style": "recorded", "layers": [
-      {"source": "vendor/kenney-interface-sounds/Audio/maximize_009.ogg", "gain_db": -2, "rate": 1.08},
-      {"source": "vendor/kenney-impact-sounds/Audio/impactGlass_light_003.ogg", "gain_db": -5, "delay_ms": 70, "rate": 1.18},
-      {"source": "vendor/kenney-interface-sounds/Audio/glass_005.ogg", "gain_db": -9, "delay_ms": 155, "rate": 0.86}
-    ]},
+      {"source": "vendor/kenney-rpg-audio/Audio/knifeSlice2.ogg", "gain_db": -7, "rate": 1.32},
+      {"source": "vendor/kenney-impact-sounds/Audio/impactGlass_light_001.ogg", "gain_db": -2, "delay_ms": 48, "rate": 1.16},
+      {"source": "vendor/kenney-interface-sounds/Audio/glass_004.ogg", "gain_db": -9, "delay_ms": 110, "rate": 1.08}
+    ], "post": {"max_seconds": 0.76, "fade_ms": 70, "lufs": -18}},
     {"id": "sfx-cast-spark", "out": "audio/sfx-cast-spark", "style": "recorded", "layers": [
-      {"source": "vendor/kenney-interface-sounds/Audio/glitch_003.ogg", "gain_db": -1},
-      {"source": "vendor/kenney-interface-sounds/Audio/maximize_007.ogg", "gain_db": -5, "delay_ms": 18, "rate": 1.32},
-      {"source": "vendor/kenney-impact-sounds/Audio/impactMetal_light_003.ogg", "gain_db": -7, "delay_ms": 75, "rate": 1.25}
-    ]},
+      {"source": "vendor/kenney-impact-sounds/Audio/impactGeneric_light_002.ogg", "gain_db": -2, "rate": 1.35},
+      {"source": "vendor/kenney-interface-sounds/Audio/glitch_001.ogg", "gain_db": -1, "delay_ms": 18, "rate": 1.2},
+      {"source": "vendor/kenney-impact-sounds/Audio/impactMetal_light_004.ogg", "gain_db": -8, "delay_ms": 58, "rate": 1.5}
+    ], "post": {"max_seconds": 0.42, "fade_ms": 45, "lufs": -17}},
     {"id": "sfx-hit", "out": "audio/sfx-hit", "style": "recorded", "layers": [
       {"source": "vendor/kenney-impact-sounds/Audio/impactPunch_medium_000.ogg"},
       {"source": "vendor/kenney-impact-sounds/Audio/impactMetal_light_002.ogg", "gain_db": -10, "delay_ms": 24, "rate": 0.92}
@@ -101,9 +106,10 @@
       {"source": "vendor/kenney-interface-sounds/Audio/glass_005.ogg", "gain_db": -11, "delay_ms": 180, "rate": 0.76}
     ]},
     {"id": "sfx-hurt", "out": "audio/sfx-hurt", "style": "recorded", "layers": [
-      {"source": "vendor/kenney-impact-sounds/Audio/impactSoft_heavy_001.ogg"},
-      {"source": "vendor/kenney-impact-sounds/Audio/impactPunch_medium_000.ogg", "gain_db": -11, "delay_ms": 32, "rate": 0.74}
-    ], "post": {"lufs": -16, "peak": -2.5}},
+      {"source": "vendor/kenney-impact-sounds/Audio/impactPunch_heavy_003.ogg", "rate": 1.05},
+      {"source": "vendor/kenney-impact-sounds/Audio/impactSoft_medium_002.ogg", "gain_db": -7, "delay_ms": 18, "rate": 0.82},
+      {"source": "vendor/kenney-impact-sounds/Audio/impactWood_medium_001.ogg", "gain_db": -11, "delay_ms": 38, "rate": 1.25}
+    ], "post": {"max_seconds": 0.5, "fade_ms": 55, "lufs": -15, "peak": -2.5}},
     {"id": "sfx-heal", "out": "audio/sfx-heal", "style": "recorded", "layers": [
       {"source": "vendor/kenney-interface-sounds/Audio/confirmation_001.ogg", "gain_db": -3, "rate": 0.88},
       {"source": "vendor/kenney-interface-sounds/Audio/glass_002.ogg", "gain_db": -8, "delay_ms": 95, "rate": 0.82},

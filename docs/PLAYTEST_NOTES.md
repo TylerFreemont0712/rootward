@@ -3,6 +3,24 @@
 Friction found while playing, newest first. Each entry: date, commit, what happened, severity (blocker / annoying /
 polish), and the follow-up (a ROADMAP item or the commit that fixed it).
 
+## 2026-09-18 — sticky build code and the focused SFX retry
+
+From the player's next pass: BGM is fine; victory, treasure, spell effects and taking damage were not enticing enough,
+and filling a deck spell replaced its code with the next spell automatically.
+
+- **A convenience target moved the thing being read.** Annoying; the card target advances to a spell with room, while
+  a separate inspected-spell selection now stays on the spell last clicked or actually given a card. Checked in the
+  full browser smoke test by filling Left Hand: Right Hand became *playing here*, Left Hand's code stayed up, and a
+  click on either heading switched the code. The amber inspected mark and purple target were checked in the screenshot.
+- **The weak sounds shared an electronic/UI character or lasted too long.** Polish; BGM was preserved. Victory has
+  three new compact orchestral candidates (candidate 0 ships), treasure is a bell-and-coins reveal, spell launches use
+  physical whooshes and elemental accents, and the damage sound has a sharper attack. Treasure discovery and relic
+  pickup no longer repeat the same cue.
+
+Measured rather than listened: the selected victory is 3.61 seconds and the rebuilt SFX are 0.20–0.75 seconds; their
+decoded peaks are -1.7 to -5.1 dB, with no clipping. Focused listening pages are
+`assets/.audio-cache/victory-redesign-listen.html` and `sfx-redesign-listen.html`.
+
 ## 2026-09-18 — sound-design pass (ADR-0023 amendment)
 
 Completed the Kernel and guardian themes and the victory, defeat and treasure cues, then added one battle piece per

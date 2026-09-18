@@ -188,7 +188,7 @@ describe("what makes a sound (ADR-0023)", () => {
     expect(soundsForCommand({ type: "take", shardId: "fork" })[0]?.id).toBe("sfx-coins");
     expect(soundsForCommand({ type: "take", shardId: null })).toEqual([]);
     expect(soundsForCommand({ type: "claim-relic", relicId: "clipboard" })).toEqual([
-      { id: "cue-treasure", duck: 3 },
+      { id: "sfx-relic" },
     ]);
     expect(soundsForCommand({ type: "widen", spellId: "spell-1" })[0]?.id).toBe("sfx-forge");
     expect(soundsForCommand({ type: "end-turn" })).toEqual([]);

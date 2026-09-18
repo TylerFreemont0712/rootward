@@ -179,6 +179,9 @@ Task breakdown:
       - Twenty-four game effects mixed from CC0 recordings, driven by the battle stage's cues and the player's choices:
         distinct elemental launches, charge, hits, shields, healing, curses, rewards and forge work, plus a victory
         fanfare, a lament, and a treasure flourish.
+      - After the player's listening pass, BGM stayed unchanged while victory became a shorter three-take sting,
+        treasure a crisp bell-and-coins reveal, the spell family more physical, and taking damage sharper. Finding a
+        cache and claiming its relic no longer repeat the same sound (ADR-0023 second amendment).
       - All pieces, cues and effects are rendered. **Next:** the player's listening pass through
         `assets/.audio-cache/all-listen.html`, re-seeding any music take or retuning any effect that misses.
       **Your Turn (easy):** give the Foundry's zone a different piece, or a layer its own battle theme, by editing
@@ -212,6 +215,8 @@ Task breakdown:
       the next turn, seven relics only deck runs find (hold, draw, a first-turn draw, a card on big casts, block on a
       reshuffle, power for a thin deck, three extra cards), cards are drawn as cards, and a Deck drawer beside Stats shows
       the deck and the piles (ADR-0020 amendment).
+      After the next look: the code view has a sticky inspected spell separate from the automatic card target. Filling
+      a spell leaves its completed function on screen; clicking a spell or moving a card into one selects its code.
       Still open: keyboard shortcuts for cards, card art of their own, and a balance pass by play and by headless runs
 - [x] **Shardrun** (ADR-0012), a separate roguelite mode at the player's request (2026-09-15: "find pieces of code and
       plug and play them into powerful attacks and spells", turn-based, same art): 23 shards that are real Python and
@@ -376,8 +381,9 @@ and the main menu opens a mode:
   - Beginner and Programmer difficulties;
   - a battle stage in painted arenas;
   - a code view whose numbers are exactly what a cast lands.
-- **Shardrun (Experimental)** (ADR-0020): the same climb as a deckbuilder, with a hand, holding, and deck relics.
-- **Sound** (ADR-0023): twelve pieces that follow the place and fight, three musical cues, and twenty-four designed
+- **Shardrun (Experimental)** (ADR-0020): the same climb as a deckbuilder, with a hand, holding, deck relics, and a
+  sticky code selection independent of the automatic card target.
+- **Sound** (ADR-0023): twelve pieces that follow the place and fight, three cues, and twenty-four designed
   game effects, with a volume and a mute for music and effects in a Sound menu on every screen.
 
 Art comes from `scripts/art/generate.py` and music from `scripts/audio/generate.py` (ComfyUI on this machine).
@@ -386,9 +392,9 @@ Suggested order:
    focus. Its top section is the current progress and next steps, and its section 0 ends with questions for the
    player: whether the layer map should read downward, a middle difficulty that hides only damage, and a per-foe
    damage preview.
-1. Listen through `assets/.audio-cache/all-listen.html`: the complete soundtrack, the three musical cues, and the
-   layered game effects. Re-seed any music take or retune any effect that misses; this session measured levels, loop
-   points and clipping but cannot judge the sound by ear.
+1. Listen through `assets/.audio-cache/all-listen.html`; the focused revisions are also in
+   `victory-redesign-listen.html` and `sfx-redesign-listen.html`. Pick victory take 0, 1 or 2 and call out any layer
+   that still misses; this session measured levels and clipping but cannot judge the sound by ear.
 2. Shardrun balance, by play and by headless runs (WIP section 3): both playstyles against the compounding foe HP, and
    whether the deck playstyle's hand, slots and mana are the right squeeze.
 3. The named milestones below, which come from the player: scaling's Phase 2 (higher-order shards, after a sandbox

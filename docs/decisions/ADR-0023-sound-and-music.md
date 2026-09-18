@@ -116,3 +116,20 @@ samples rather than this game's world. The player asked to make both the music a
   Heap, and organ, choir and martial low strings for the Kernel. Guardians still share the guardian theme.
 - Sound remains presentation-only and optional. A missing designed effect is silence, and a missing layer battle
   piece falls back to `music-battle` through the existing preference list.
+
+## Amendment: shorter, more physical feedback after listening (2026-09-18)
+
+The player's listening pass found the BGM sound right but called out victory, finding treasure, spell effects and
+taking damage as the weak sounds. The music stays unchanged; those feedback sounds get a focused third pass.
+
+- Victory is a new three-take ACE-Step render prompted as an immediate two-chord orchestral sting, cut to 3.6 seconds
+  instead of the previous five-second miniature fanfare. Candidate 0 is the shipped default; all three are kept in
+  `assets/.audio-cache/victory-redesign-listen.html` for the player's final pick.
+- Finding treasure is no longer generated music. It is a 0.6-second bell, confirmation and coin reveal, loud enough
+  to clear the BGM. Claiming the relic afterwards plays the shorter relic-pickup effect instead of repeating the room
+  reveal.
+- Spell charge is a reversed bell swell with a plucked release. The launch family trades the common electronic UI
+  rise for a physical whoosh plus a restrained identity: body and scratch for fire, glass for frost, and a very short
+  hard transient for spark.
+- Taking damage is a sharp punch with a quieter body and wooden/gear crack, rather than two soft low impacts. Larger
+  blows play it lower and louder.

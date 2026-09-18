@@ -30,7 +30,7 @@ function boltRate(bolt: number): number {
 export function soundsForCue(cue: Cue, deck: boolean): SoundCall[] {
   switch (cue.kind) {
     case "launch":
-      return [{ id: ELEMENT_CAST[cue.element], options: { volume: 0.62, rate: boltRate(cue.bolt) } }];
+      return [{ id: ELEMENT_CAST[cue.element], options: { volume: 0.68, rate: boltRate(cue.bolt) } }];
     case "impact":
       if (cue.outcome === "absorb") return [{ id: "sfx-glance", options: { volume: 0.7, rate: 0.75 } }];
       if (cue.outcome === "glance") return [{ id: "sfx-glance", options: { volume: 0.8 } }];
@@ -45,7 +45,7 @@ export function soundsForCue(cue: Cue, deck: boolean): SoundCall[] {
       return [{ id: "sfx-ward", options: { volume: 0.7 } }];
     case "blow":
       return cue.amount > 0
-        ? [{ id: "sfx-hurt", options: { volume: 0.85 } }]
+        ? [{ id: "sfx-hurt", options: { volume: Math.min(1, 0.78 + cue.amount / 50), rate: cue.amount >= 12 ? 0.9 : 1 } }]
         : [{ id: "sfx-ward", options: { volume: 0.6 } }];
     case "shield":
       return [{ id: "sfx-ward", options: { volume: 0.5, rate: 0.9 } }];
@@ -69,7 +69,7 @@ export function soundsForCue(cue: Cue, deck: boolean): SoundCall[] {
     case "loss":
       return [{ id: "cue-defeat", duck: 6 }];
     case "charge":
-      return [{ id: "sfx-charge", options: { volume: 0.38, rate: ELEMENT_RATE[cue.element] } }];
+      return [{ id: "sfx-charge", options: { volume: 0.48, rate: ELEMENT_RATE[cue.element] } }];
     case "stoke":
       return [{ id: "sfx-charge", options: { volume: 0.32, rate: 0.72 } }];
     case "enter":
@@ -84,7 +84,8 @@ export function soundsForCommand(request: ShardrunCommandRequest): SoundCall[] {
     case "take":
       return request.shardId === null ? [] : [{ id: "sfx-coins", options: { volume: 0.8 } }];
     case "claim-relic":
-      return [{ id: "cue-treasure", duck: 3 }];
+      // Finding the cache already played its reveal; claiming the object gets a shorter pickup sound of its own.
+      return [{ id: "sfx-relic" }];
     case "claim-spell":
       return [{ id: "sfx-relic" }];
     case "rest":
