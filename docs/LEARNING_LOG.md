@@ -521,6 +521,10 @@ language feature took more than a minute to understand.
   would no longer meet its start at the same level. The pipeline measures the integrated loudness and true peak
   (EBU R128, through ffmpeg) and applies one fixed gain: toward the target loudness, capped by the peak
   (`level` in `scripts/audio/generate.py`).
+- **A designed sound can still be data.** A punch alone reads like a sample pack; a punch with a quieter metal
+  transient and a delayed low body reads like this game's machinery. `layers` in `scripts/audio/manifest.json` keeps
+  those source, delay, gain and playback-rate choices as a reproducible recipe, and `mix_recorded` renders one small
+  file for the browser. The client still plays one effect and knows nothing about the mix.
 - **Sound waits for a gesture.** Browsers let a page make sound only after the person interacts with it, so the audio
   context is created (or resumed) inside a click or key handler, and whatever music was asked for before then starts
   at that moment (`install` and `unlock` in `apps/client/src/audio/engine.ts`).
@@ -544,4 +548,3 @@ language feature took more than a minute to understand.
   intent (`switchTo` in `apps/client/src/audio/engine.ts`).
 - **A 200 is not always the file.** The server answers unknown paths with the app's page, so a missing `.ogg` arrives
   as `200 text/html`. The engine checks the content type before decoding.
-

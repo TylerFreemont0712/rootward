@@ -48,7 +48,7 @@ layers:
     ambience: dust
     boss_ambience: embers
     music: music-salvage
-    battle_music: music-battle
+    battle_music: music-battle-salvage
     boss_music: music-guardian
     rows: 8
     columns: 5
@@ -79,7 +79,7 @@ layers:
     ambience: spores
     boss_ambience: dust
     music: music-heap
-    battle_music: music-battle
+    battle_music: music-battle-heap
     boss_music: music-guardian
     rows: 9
     columns: 5
@@ -108,7 +108,7 @@ layers:
     boss_backdrop: arena-throne
     ambience: embers
     music: music-kernel
-    battle_music: music-battle
+    battle_music: music-battle-kernel
     boss_music: music-guardian
     rows: 9
     columns: 5

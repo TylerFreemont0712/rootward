@@ -6,7 +6,8 @@ the game is the post-processing (ADR-0023):
   - a piece of music (`bgm`) is kept whole, with loop points on bar lines inside its longest stretch of music, written
     to assets/generated/audio/music.json, and the moments before the loop's end crossfaded with those before its start;
   - a cue is trimmed from its first sound and faded out;
-  - a `source` recording (a CC0 pack under assets/vendor) is processed like a cue, without the GPU;
+  - a `source` recording, or several `layers` of recordings (CC0 packs under assets/vendor), is processed like a cue,
+    without the GPU;
   - everything gets one fixed gain to a target loudness and is encoded as Opus.
 Raw renders are cached under assets/.audio-cache (git-ignored), so changing only post-processing never touches the GPU.
 
@@ -180,16 +181,29 @@ def render(comfy: str, job: dict, seed: int) -> bytes:
         return response.read()
 
 
+def recorded_layers(job: dict) -> list[dict]:
+    """A recorded effect's source layers; a single `source` is the compact form for one unmodified layer."""
+    if job.get("layers"):
+        return job["layers"]
+    if job.get("source"):
+        return [{"source": job["source"]}]
+    return []
+
+
 def ensure_raws(comfy: str, job: dict, force: bool, reprocess_only: bool) -> list[Path] | None:
     """One raw FLAC per candidate, each with its own seed (seed, seed + 1, ...), rendering only what is missing or stale.
     A candidate is its own render rather than a batch, so candidates differ in their plan as well as their details."""
-    if job.get("source"):
-        # A recorded sound (a CC0 pack under assets/): nothing to render, only to trim, level and encode like the rest.
-        source = ROOT / "assets" / job["source"]
-        if not source.exists():
-            print(f"  skip {job['id']}: {job['source']} is not on disk (scripts/fetch-assets.sh fetches the packs)")
+    layers = recorded_layers(job)
+    if layers:
+        # Recorded sounds need no GPU; every layer is mixed, trimmed, levelled and encoded below.
+        sources = [ROOT / "assets" / layer["source"] for layer in layers]
+        missing = [source for source in sources if not source.exists()]
+        if missing:
+            names = ", ".join(str(source.relative_to(ROOT / "assets")) for source in missing)
+            print(f"  skip {job['id']}: {names} is not on disk (scripts/fetch-assets.sh fetches the packs)")
             return None
-        return [source]
+        # One sentinel means one deterministic candidate; process() reads and mixes every layer from the manifest.
+        return [sources[0]]
     folder = CACHE_DIR / job["id"]
     folder.mkdir(parents=True, exist_ok=True)
     raws = []
@@ -232,6 +246,41 @@ def decode(path: Path) -> np.ndarray:
         check=True,
     ).stdout
     return np.frombuffer(out, dtype=np.float32).reshape(-1, 2).copy()
+
+
+def retime(audio: np.ndarray, rate: float) -> np.ndarray:
+    """Resample a short effect as a browser playback rate would: faster is shorter and higher-pitched."""
+    if rate <= 0:
+        sys.exit(f"recorded layer rate must be positive, got {rate}")
+    if rate == 1 or len(audio) < 2:
+        return audio
+    frames = max(1, round(len(audio) / rate))
+    positions = np.minimum(np.arange(frames, dtype=np.float64) * rate, len(audio) - 1)
+    original = np.arange(len(audio), dtype=np.float64)
+    channels = [np.interp(positions, original, audio[:, channel]) for channel in range(2)]
+    return np.column_stack(channels).astype(np.float32)
+
+
+def mix_recorded(job: dict) -> np.ndarray:
+    """Build one designed effect from timed, pitched and levelled CC0 recordings.
+
+    LEARN: keeping the recipe in the manifest makes the mix reproducible and lets a sound gain weight or sparkle
+    without adding opaque edited source files to the repository.
+    """
+    prepared: list[tuple[int, np.ndarray]] = []
+    for layer in recorded_layers(job):
+        audio = decode(ROOT / "assets" / layer["source"])
+        if layer.get("reverse", False):
+            audio = audio[::-1].copy()
+        audio = retime(audio, float(layer.get("rate", 1)))
+        audio *= np.float32(10 ** (float(layer.get("gain_db", 0)) / 20))
+        delay = max(0, round(float(layer.get("delay_ms", 0)) / 1000 * SAMPLE_RATE))
+        prepared.append((delay, audio))
+    frames = max(delay + len(audio) for delay, audio in prepared)
+    mixed = np.zeros((frames, 2), dtype=np.float32)
+    for delay, audio in prepared:
+        mixed[delay : delay + len(audio)] += audio
+    return mixed
 
 
 def onset(audio: np.ndarray, threshold_db: float) -> int:
@@ -402,14 +451,18 @@ def post_cue(audio: np.ndarray, job: dict) -> tuple[np.ndarray, str]:
 
 
 def process(job: dict, raw: Path) -> tuple[np.ndarray, str, dict | None]:
-    audio = decode(raw)
+    layers = recorded_layers(job)
+    audio = mix_recorded(job) if layers else decode(raw)
     kind = job["post"]["kind"]
     if kind == "bgm":
         return post_bgm(audio, job)
     if kind == "loop":
         return (*post_loop(audio, job), None)
     if kind == "cue":
-        return (*post_cue(audio, job), None)
+        processed, note = post_cue(audio, job)
+        if len(layers) > 1:
+            note += f", {len(layers)} layers"
+        return processed, note, None
     sys.exit(f"{job['id']}: unknown post kind {kind!r}")
 
 
@@ -435,7 +488,14 @@ def listening_page(entries: list[dict], path: Path) -> None:
         sections.append(
             f"<section><h2>{html.escape(job['id'])}</h2>"
             f"<p class=\"meta\">{job['post']['kind']} · "
-            + (f"recorded: {html.escape(job['source'])}" if job.get("source") else f"{job['bpm']} bpm · {html.escape(job['keyscale'])} · {job['timesignature']}/4 · rendered {job['seconds']}s")
+            + (
+                "recorded: " + html.escape(", ".join(layer["source"] for layer in recorded_layers(job)))
+                if recorded_layers(job)
+                else (
+                    f"{job['bpm']} bpm · {html.escape(job['keyscale'])} · {job['timesignature']}/4 · "
+                    f"rendered {job['seconds']}s"
+                )
+            )
             + "</p>"
             f"<p>{html.escape(job.get('tags', ''))}</p>{players}</section>"
         )
@@ -472,7 +532,7 @@ def main() -> None:
         candidates = []
         for index, raw in enumerate(raws):
             audio, note, meta = process(job, raw)
-            if job.get("source"):
+            if recorded_layers(job):
                 preview = CACHE_DIR / job["id"] / "candidate_0.ogg"
                 seed = "recorded"
             else:

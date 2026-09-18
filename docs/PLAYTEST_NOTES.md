@@ -3,6 +3,20 @@
 Friction found while playing, newest first. Each entry: date, commit, what happened, severity (blocker / annoying /
 polish), and the follow-up (a ROADMAP item or the commit that fixed it).
 
+## 2026-09-18 — sound-design pass (ADR-0023 amendment)
+
+Completed the Kernel and guardian themes and the victory, defeat and treasure cues, then added one battle piece per
+Shardrun layer. Rebuilt the effects palette as twenty-four sounds: a recorded effect can now be a reproducible mix of
+timed, pitched CC0 layers; fire, frost and spark have distinct launches, and charge, healing, curses, forge work and
+rewards no longer borrow unrelated clips. Repeated bolts get a small deterministic pitch change.
+
+Measured rather than listened: all twelve music files are valid loops, 88 to 151 seconds long, at exactly -20.0 LUFS;
+their true peaks are -1.7 to -9.1 dBTP. Every loop jump is smaller than the largest ordinary sample-to-sample change
+around its endpoints (seam/local ratio 0.02 to 0.65). The three cues are 3.0, 5.0 and 6.0 seconds with no clipping; the
+defeat cue gained another 0.5 dB of headroom after its first Opus encode reached -0.77 dBTP. The effects are 0.11 to
+0.95 seconds and peak no higher than -2.89 dBTP. TypeScript tests cover elemental routing and the new reward/forge
+choices. Listening remains the player's pass through `assets/.audio-cache/all-listen.html`.
+
 ## 2026-09-17 — sound and music (ADR-0023)
 
 Checked in headless Chromium: no sound before a gesture; the main theme decoded and playing after the first click;

@@ -64,9 +64,9 @@ the code editor and terminal, **Press Start 2P** only for the title. Always prov
 
 Audio is optional and never blocks anything. It is on by default with its own Sound menu (a volume and mute for
 music and for game sounds), since the player asked for a soundtrack (ADR-0023, which replaces an earlier "default off"
-note here). Sixteen of these recordings, trimmed and leveled, are the game's sounds: the `recorded` entries in
-`scripts/audio/manifest.json` name each one's `source`, and the results are committed as `generated/audio/sfx-*.ogg`,
-so the game does not need the packs.
+note here). The game's effects use these recordings either alone or in small designed layers: `recorded` entries in
+`scripts/audio/manifest.json` name one `source`, or several timed/pitched `layers`. The mixed, trimmed and levelled
+results are committed as `generated/audio/sfx-*.ogg`, so the game does not need the packs.
 
 ### AI-generated (ComfyUI)
 Wired into the client via `apps/client/src/assets/AssetRegistry.ts` (`assetUrl(category, id)` and
@@ -199,16 +199,16 @@ in `apps/client/src/audio/catalog.ts`.
   - Picks are written to `generated/audio/`.
 - **What it is for:** music and musical cues (fanfares, laments, flourishes). It is a music model, so non-musical
   sound effects (hits, whooshes, clicks) come from the CC0 packs above (`kenney-impact-sounds`,
-  `kenney-interface-sounds`, `kenney-rpg-audio`). The manifest names the recording as a `source`, and the pipeline
-  trims, levels and encodes it like everything else, so the committed files do not need the packs.
+  `kenney-interface-sounds`, `kenney-rpg-audio`). The manifest names one recording as a `source`, or layers several
+  with per-layer delay, gain and playback rate; the pipeline mixes, trims, levels and encodes them like everything
+  else, so the committed files do not need the packs.
 - **The soundtrack:** orchestral and acoustic, one piece per place, 150 to 180 seconds each: the main theme, the
   Bastion (folk), the Foundry, a quiet study theme for fights in code, the Salvage, the Heap, the Kernel (organ and
-  choir), battle, and guardian. Each plays its introduction once and loops a body of whole phrases.
-- **Made so far (2026-09-17):** seven pieces (all but the Kernel and guardian) and the sixteen game sounds. The Kernel's
-  piece, the guardian theme and the three cues (`cue-victory`, `cue-defeat`, `cue-treasure`) are still to render; until
-  then the Kernel plays the Salvage's theme, guardians the battle theme, and the cues are silent. To make them, with
-  ComfyUI running:
-  `~/personal-project/ComfyUI/.venv/bin/python scripts/audio/generate.py --only 'music-kernel,music-guardian,cue-*' --sheet`
+  choir), battle, and guardian. Each plays its introduction once and loops a body of whole phrases. Three additional
+  battle pieces give the Salvage, Heap and Kernel their own combat identity; the general battle theme is their fallback.
+- **Made so far (2026-09-18):** all twelve pieces, all three cues (`cue-victory`, `cue-defeat`, `cue-treasure`), and
+  twenty-four game effects. The listening pages are under `assets/.audio-cache/` (git-ignored); `all-listen.html`
+  collects the current set after a generation pass.
 
 #### The first pass (expeditions and HUD)
 

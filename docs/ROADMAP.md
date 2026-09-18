@@ -171,17 +171,16 @@ Task breakdown:
       "thematic and extensive"):
       - A Sound menu on every screen, and in Shardrun's Options, with a volume and a mute for everything, for the
         music, and for game sounds.
-      - Nine orchestral pieces of about two and a half minutes from ACE-Step 1.5 in ComfyUI (`scripts/audio/`), one
-        per place: the main theme, the Bastion, the Foundry, a quiet theme for fights in code, the Salvage, the Heap,
-        the Kernel, battle, and guardian. Each plays its introduction once and then loops its body seamlessly.
-      - Zones and layers name their music in content.
-      - Game sounds from CC0 recordings, driven by the battle stage's cues and the player's choices, plus a victory
+      - Twelve orchestral pieces of about two and a half minutes from ACE-Step 1.5 in ComfyUI (`scripts/audio/`): the
+        main theme, the Bastion, the Foundry, a quiet theme for fights in code, the Salvage, the Heap, the Kernel,
+        battle, and guardian, plus a distinct battle piece for each layer. Each plays its introduction once and then
+        loops its body seamlessly.
+      - Zones and layers name their music in content; the general battle theme remains the fallback for every layer.
+      - Twenty-four game effects mixed from CC0 recordings, driven by the battle stage's cues and the player's choices:
+        distinct elemental launches, charge, hits, shields, healing, curses, rewards and forge work, plus a victory
         fanfare, a lament, and a treasure flourish.
-      - Made so far: seven pieces and all sixteen game sounds, stopped there for a playable version. **Next:** render
-        the Kernel's piece, the guardian theme and the three cues (`generate.py --only
-        'music-kernel,music-guardian,cue-*'`); until then the Kernel plays the Salvage's theme and guardians the
-        battle theme, since a place's music is a list with themes standing in, and the cues are silent. Then a
-        listening pass by the player, re-seeding any take that does not suit.
+      - All pieces, cues and effects are rendered. **Next:** the player's listening pass through
+        `assets/.audio-cache/all-listen.html`, re-seeding any music take or retuning any effect that misses.
       **Your Turn (easy):** give the Foundry's zone a different piece, or a layer its own battle theme, by editing
       `music` in its YAML and adding a manifest entry.
 - [x] **The damage that lands, one code view, predictions as an option** (ADR-0022, 2026-09-17, the player: two code
@@ -378,8 +377,8 @@ and the main menu opens a mode:
   - a battle stage in painted arenas;
   - a code view whose numbers are exactly what a cast lands.
 - **Shardrun (Experimental)** (ADR-0020): the same climb as a deckbuilder, with a hand, holding, and deck relics.
-- **Sound** (ADR-0023): music that follows the place and game sounds from the battle, with a volume and a mute for each
-  in a Sound menu on every screen. Seven of the nine pieces are rendered.
+- **Sound** (ADR-0023): twelve pieces that follow the place and fight, three musical cues, and twenty-four designed
+  game effects, with a volume and a mute for music and effects in a Sound menu on every screen.
 
 Art comes from `scripts/art/generate.py` and music from `scripts/audio/generate.py` (ComfyUI on this machine).
 Suggested order:
@@ -387,10 +386,9 @@ Suggested order:
    focus. Its top section is the current progress and next steps, and its section 0 ends with questions for the
    player: whether the layer map should read downward, a middle difficulty that hides only damage, and a per-foe
    damage preview.
-1. Finish the soundtrack: render the Kernel's piece, the guardian theme, and the three cues
-   (`generate.py --only 'music-kernel,music-guardian,cue-*'`, about 25 minutes, then a client rebuild), then let the
-   player listen (`assets/.audio-cache/listen.html`) and re-seed any take that does not suit. A session cannot judge
-   music by ear.
+1. Listen through `assets/.audio-cache/all-listen.html`: the complete soundtrack, the three musical cues, and the
+   layered game effects. Re-seed any music take or retune any effect that misses; this session measured levels, loop
+   points and clipping but cannot judge the sound by ear.
 2. Shardrun balance, by play and by headless runs (WIP section 3): both playstyles against the compounding foe HP, and
    whether the deck playstyle's hand, slots and mana are the right squeeze.
 3. The named milestones below, which come from the player: scaling's Phase 2 (higher-order shards, after a sandbox

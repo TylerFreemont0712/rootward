@@ -78,7 +78,7 @@ install command again.
 | `pnpm content:locale ja` | How much of the content a locale translates, what is missing, and what has gone stale |
 | `pnpm test:e2e` | Build, start a server, and in headless Chromium create a character, take a quest, win a practice fight, and play a Shardrun turn in each playstyle |
 | `python scripts/art/generate.py` | The art pipeline: prompts in `scripts/art/manifest.json`, rendered by a local ComfyUI, post-processed into pixel art (usage at the top of the script) |
-| `python scripts/audio/generate.py` | The audio pipeline: music prompts in `scripts/audio/manifest.json` rendered by ACE-Step 1.5 in a local ComfyUI, and CC0 recordings for game sounds, trimmed, looped, leveled, and encoded (usage at the top of the script) |
+| `python scripts/audio/generate.py` | The audio pipeline: music prompts in `scripts/audio/manifest.json` rendered by ACE-Step 1.5 in a local ComfyUI, and CC0 recordings for game sounds, layered, trimmed, leveled, and encoded (usage at the top of the script) |
 
 ## Where things are
 

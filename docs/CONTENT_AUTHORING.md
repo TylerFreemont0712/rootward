@@ -205,7 +205,8 @@ seamless variants `terrain/<id>-0..3`.
 
 Music works the same way (ADR-0023): add a `music` entry to `scripts/audio/manifest.json`, run
 `scripts/audio/generate.py`, add the id to `MUSIC` in `apps/client/src/audio/catalog.ts`, and name it in a zone's
-`music` (or a Shardrun layer's, below).
+`music` (or a Shardrun layer's, below). A game effect is a `recorded` entry with one CC0 `source`, or `layers` with
+per-source gain, delay and playback rate; add its id to `SOUNDS` and map the action in `apps/client/src/audio/cues.ts`.
 
 ## Shardrun: shards, foes, and the run
 

@@ -88,11 +88,8 @@ for a soundtrack.
 
 - A soundtrack costs 8 to 11 minutes of GPU time per 150-second piece on this laptop, because llama.cpp holds a third
   of its memory. The first set is one take each; a take that does not suit is a new seed in the manifest and one render.
-- **Made so far:** seven of the nine pieces (the main theme, the Bastion, the Foundry, the study theme, the Salvage, the
-  Heap, and battle) and all sixteen game sounds. The batch was stopped before the Kernel's piece, the guardian theme,
-  and the three cues, to reach a playable version first. Until they are rendered, the Kernel plays the Salvage's theme
-  and guardians the battle theme (the lists above), and a fight's end and a treasure room have no cue.
-  `scripts/audio/generate.py --only 'music-kernel,music-guardian,cue-*'` makes them.
+- The initial 2026-09-17 batch stopped after seven of the nine pieces and sixteen game sounds to reach a playable
+  version first. The Kernel, guardian and three cue renders were completed in the 2026-09-18 amendment below.
 - The model writes whole pieces with endings, and sometimes drops out mid-piece (the first main theme went silent for
   ten seconds). Loops come from the longest stretch of music between dropouts (three seconds or more under -55 dB,
   longer than a rest between phrases), so a piece that stops early or breaks loops a shorter body.
@@ -101,5 +98,21 @@ for a soundtrack.
 - A missing file is a 200 with the app's page (the server's fallback for deep links), so the engine decodes only
   responses that are audio.
 - The catalog note "audio must be opt-in (default off)" is replaced by this decision.
-- Not done: sounds in the World's map walking and dialogue, and per-layer battle music (every layer's fights share
-  one battle theme, which content can change).
+- Not done: sounds in the World's map walking and dialogue. Per-layer battle music landed in the amendment below.
+
+## Amendment: designed effects and a battle identity per layer (2026-09-18)
+
+The first sound pass proved the routing and timing, but one stock recording per action made the palette read as UI
+samples rather than this game's world. The player asked to make both the music and effects more enticing.
+
+- A `recorded` manifest entry may now contain `layers`: timed CC0 recordings with a gain and playback rate, mixed
+  before the same trim, fixed-gain levelling, and Opus encode as a single-source effect. The recipe stays in the
+  manifest instead of committing an opaque editing project.
+- A cast has a quiet charge and a launch designed for its element. Fire has a low burst, frost has a glassy crack,
+  and spark has a short electrical/metal transient instead of all three pitch-shifting one clip. Healing, curses,
+  forge work, relic/spell rewards, shields, hits and shatters have their own layered signatures too.
+- The Salvage, Heap and Kernel each name their own battle piece in content. Their existing `music-battle` remains the
+  fallback: found-metal percussion and defiant horns for the Salvage, crooked woodwinds and skittering strings for the
+  Heap, and organ, choir and martial low strings for the Kernel. Guardians still share the guardian theme.
+- Sound remains presentation-only and optional. A missing designed effect is silence, and a missing layer battle
+  piece falls back to `music-battle` through the existing preference list.

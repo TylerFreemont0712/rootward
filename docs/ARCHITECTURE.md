@@ -188,7 +188,9 @@ Music and game sounds (ADR-0023) live in `apps/client/src/audio/`, all presentat
   plays its introduction once and then loops between the loop points in `generated/audio/music.json`, and a track
   left behind is picked up where it stopped when the player returns within four minutes.
 - **Game sounds answer what already happens.** `cues.ts` maps the battle stage's cues (ADR-0019) and accepted
-  Shardrun commands and World fight results to sounds, so a hit sounds on the frame it lands.
+  Shardrun commands and World fight results to sounds, so a hit sounds on the frame it lands. Elemental launches,
+  healing, curses, rewards and forge work have distinct effects; a recorded effect can be a timed, pitched mix of
+  CC0 layers declared in the manifest.
 - **Files** are `generated/audio/<id>.ogg`, made by `scripts/audio/generate.py` (ACE-Step 1.5 in ComfyUI for music
   and cues, CC0 recordings for effects), listed in `catalog.ts`, and silent when missing.
 

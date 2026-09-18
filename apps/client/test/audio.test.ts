@@ -3,7 +3,15 @@ import { describe, expect, it } from "vitest";
 import { MUSIC, SOUNDS, audioUrl } from "../src/audio/catalog.ts";
 import { soundsForCommand, soundsForCue, soundsForEncounter } from "../src/audio/cues.ts";
 import { positionIn } from "../src/audio/engine.ts";
-import { BATTLE_THEME, DESCENT_THEME, FOCUS_THEME, GUARDIAN_THEME, musicFor, TITLE_THEME, TOWN_THEME } from "../src/audio/music.ts";
+import {
+  BATTLE_THEME,
+  DESCENT_THEME,
+  FOCUS_THEME,
+  GUARDIAN_THEME,
+  musicFor,
+  TITLE_THEME,
+  TOWN_THEME,
+} from "../src/audio/music.ts";
 import { channelGain, DEFAULT_SOUND, readSettings } from "../src/audio/settings.ts";
 import type { Cue } from "../src/shardrun/fx/timeline.ts";
 
@@ -22,38 +30,72 @@ describe("sound settings (ADR-0023)", () => {
     expect(readSettings(undefined)).toEqual(DEFAULT_SOUND);
     expect(readSettings("not json")).toEqual(DEFAULT_SOUND);
     expect(readSettings(JSON.stringify({ music: 7 }))).toEqual(DEFAULT_SOUND);
-    expect(readSettings(JSON.stringify({ music: 0.25, effectsMuted: true }))).toEqual({ ...DEFAULT_SOUND, music: 0.25, effectsMuted: true });
+    expect(readSettings(JSON.stringify({ music: 0.25, effectsMuted: true }))).toEqual({
+      ...DEFAULT_SOUND,
+      music: 0.25,
+      effectsMuted: true,
+    });
   });
 });
 
 describe("the music a screen plays (ADR-0023)", () => {
   const layer = { music: "music-heap", battleMusic: "music-battle", bossMusic: "music-guardian" };
-  const run = (status: "map" | "battle" | "reward" | "won", battleKind?: "fight" | "elite" | "boss") => ({ status, battleKind, layer });
+  const run = (status: "map" | "battle" | "reward" | "won", battleKind?: "fight" | "elite" | "boss") => ({
+    status,
+    battleKind,
+    layer,
+  });
 
   it("gives the title, the menus and the Codex the main theme, and a fight in code music to think to", () => {
-    for (const screen of [undefined, "profiles", "menu", "codex"] as const) expect(musicFor({ screen, zoneMusic: undefined, shardrun: undefined })).toEqual([TITLE_THEME]);
-    for (const screen of ["encounter", "map", "debrief"] as const) expect(musicFor({ screen, zoneMusic: undefined, shardrun: undefined })).toEqual([FOCUS_THEME]);
+    for (const screen of [undefined, "profiles", "menu", "codex"] as const)
+      expect(musicFor({ screen, zoneMusic: undefined, shardrun: undefined })).toEqual([TITLE_THEME]);
+    for (const screen of ["encounter", "map", "debrief"] as const)
+      expect(musicFor({ screen, zoneMusic: undefined, shardrun: undefined })).toEqual([FOCUS_THEME]);
   });
 
   it("plays the World zone's own music, with the town's theme standing in", () => {
-    expect(musicFor({ screen: "world", zoneMusic: "music-foundry", shardrun: undefined })).toEqual(["music-foundry", TOWN_THEME]);
+    expect(musicFor({ screen: "world", zoneMusic: "music-foundry", shardrun: undefined })).toEqual([
+      "music-foundry",
+      TOWN_THEME,
+    ]);
     expect(musicFor({ screen: "world", zoneMusic: undefined, shardrun: undefined })).toEqual([TOWN_THEME]);
     expect(musicFor({ screen: "board", zoneMusic: TOWN_THEME, shardrun: undefined })).toEqual([TOWN_THEME]);
   });
 
   it("follows a Shardrun layer's music on its map, its fights, and its guardian, with themes standing in", () => {
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("map") })).toEqual(["music-heap", DESCENT_THEME]);
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("reward") })[0]).toBe("music-heap");
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("battle", "elite") })).toEqual([BATTLE_THEME]);
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("map") })).toEqual([
+      "music-heap",
+      DESCENT_THEME,
+    ]);
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("reward") })[0]).toBe(
+      "music-heap",
+    );
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("battle", "elite") })).toEqual([
+      BATTLE_THEME,
+    ]);
     // A guardian's own music, then the guardian theme, then the battle theme if neither was made.
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("battle", "boss") })).toEqual([GUARDIAN_THEME, BATTLE_THEME]);
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("battle", "boss") })).toEqual([
+      GUARDIAN_THEME,
+      BATTLE_THEME,
+    ]);
     // A fight's music plays on while its last blow does, even after the run has moved to its reward.
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("reward", "fight") })[0]).toBe(BATTLE_THEME);
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("reward", "fight") })[0]).toBe(
+      BATTLE_THEME,
+    );
     const bare = { status: "battle" as const, battleKind: "boss" as const, layer: {} };
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: bare })).toEqual([GUARDIAN_THEME, BATTLE_THEME]);
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: { ...bare, battleKind: "fight" } })).toEqual([BATTLE_THEME]);
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("won") })).toEqual([DESCENT_THEME]);
-    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: undefined })).toEqual([DESCENT_THEME]);
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: bare })).toEqual([
+      GUARDIAN_THEME,
+      BATTLE_THEME,
+    ]);
+    expect(
+      musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: { ...bare, battleKind: "fight" } }),
+    ).toEqual([BATTLE_THEME]);
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: run("won") })).toEqual([
+      DESCENT_THEME,
+    ]);
+    expect(musicFor({ screen: "shardrun", zoneMusic: undefined, shardrun: undefined })).toEqual([
+      DESCENT_THEME,
+    ]);
   });
 
   it("only has a URL for the music and sounds in the catalog", () => {
@@ -100,22 +142,70 @@ describe("what makes a sound (ADR-0023)", () => {
     expect(soundsForCue(impact("hit", 0.05), false)[0]?.id).toBe("sfx-hit");
     expect(soundsForCue(impact("hit", 0.6), false)[0]?.id).toBe("sfx-hit-heavy");
     expect(soundsForCue(impact("glance", 0), false)[0]?.id).toBe("sfx-glance");
-    expect(soundsForCue({ kind: "victory", at: 0, duration: 100 }, false)).toEqual([{ id: "cue-victory", duck: 5 }]);
-    expect(soundsForCue({ kind: "turn", at: 0, duration: 100, turn: 2 }, true).map((call) => call.id)).toEqual(["sfx-turn", "sfx-draw"]);
-    expect(soundsForCue({ kind: "turn", at: 0, duration: 100, turn: 2 }, false).map((call) => call.id)).toEqual(["sfx-turn"]);
+    expect(soundsForCue({ kind: "victory", at: 0, duration: 100 }, false)).toEqual([
+      { id: "cue-victory", duck: 5 },
+    ]);
+    expect(
+      soundsForCue({ kind: "turn", at: 0, duration: 100, turn: 2 }, true).map((call) => call.id),
+    ).toEqual(["sfx-turn", "sfx-draw"]);
+    expect(
+      soundsForCue({ kind: "turn", at: 0, duration: 100, turn: 2 }, false).map((call) => call.id),
+    ).toEqual(["sfx-turn"]);
+  });
+
+  it("gives each spell element its own launch and makes charging, healing, and curses audible", () => {
+    const launch = (element: "none" | "fire" | "frost" | "spark"): Cue => ({
+      kind: "launch",
+      at: 0,
+      duration: 100,
+      element,
+      flight: "missile",
+      targets: ["wisp"],
+      pierce: false,
+      mult: 1,
+      bolt: 0,
+    });
+    const elements = ["none", "fire", "frost", "spark"] as const;
+    expect(elements.map((element) => soundsForCue(launch(element), false)[0]?.id)).toEqual([
+      "sfx-cast",
+      "sfx-cast-fire",
+      "sfx-cast-frost",
+      "sfx-cast-spark",
+    ]);
+    expect(
+      soundsForCue(
+        { kind: "charge", at: 0, duration: 100, element: "fire", spell: "Bolt", bolts: 1 },
+        false,
+      )[0]?.id,
+    ).toBe("sfx-charge");
+    expect(
+      soundsForCue({ kind: "heal", at: 0, duration: 100, foe: undefined, amount: 4 }, false)[0]?.id,
+    ).toBe("sfx-heal");
+    expect(soundsForCue({ kind: "curse", at: 0, duration: 100, amount: 3 }, false)[0]?.id).toBe("sfx-curse");
   });
 
   it("gives a claimed reward or forge work its sound, and a skipped reward none", () => {
     expect(soundsForCommand({ type: "take", shardId: "fork" })[0]?.id).toBe("sfx-coins");
     expect(soundsForCommand({ type: "take", shardId: null })).toEqual([]);
-    expect(soundsForCommand({ type: "claim-relic", relicId: "clipboard" })[0]?.id).toBe("sfx-chime");
-    expect(soundsForCommand({ type: "widen", spellId: "spell-1" })[0]?.id).toBe("sfx-glance");
+    expect(soundsForCommand({ type: "claim-relic", relicId: "clipboard" })).toEqual([
+      { id: "cue-treasure", duck: 3 },
+    ]);
+    expect(soundsForCommand({ type: "widen", spellId: "spell-1" })[0]?.id).toBe("sfx-forge");
     expect(soundsForCommand({ type: "end-turn" })).toEqual([]);
   });
 
   it("answers a fight in code: a win, a loss, failing tests, or passing ones", () => {
     const encounter = (status: EncounterView["status"], tests: ("pass" | "fail" | "idle")[]) =>
-      ({ status, tests: tests.map((test, index) => ({ id: `t${index}`, label: "", visibility: "visible", status: test, revealed: false })) }) as unknown as EncounterView;
+      ({
+        status,
+        tests: tests.map((test, index) => ({
+          id: `t${index}`,
+          label: "",
+          visibility: "visible",
+          status: test,
+          revealed: false,
+        })),
+      }) as unknown as EncounterView;
     expect(soundsForEncounter("cast", encounter("won", ["pass"]))[0]?.id).toBe("cue-victory");
     expect(soundsForEncounter("cast", encounter("kernel-panic", ["fail"]))[0]?.id).toBe("cue-defeat");
     expect(soundsForEncounter("probe", encounter("active", ["pass", "fail"]))[0]?.id).toBe("sfx-fail");
