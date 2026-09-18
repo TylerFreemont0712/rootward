@@ -131,8 +131,10 @@ every rule number is under `shardrun` in `config/balance.yaml`. Routes are under
    shuffles the deck into `battle.draw` and deals `battle.hand`; `compose` moves cards between the hand and the spells
    (a multiset check keeps every card in exactly one place), a cast moves its spell's cards to `battle.discard`, and
    ending a turn discards the rest and draws again, reshuffling the discard when the pile runs out. Won cards join the
-   deck, and a forge can `purge` one. The client's table is `Hand.tsx` (the hand and `useComposer`) and `DeckPanel.tsx`;
-   hovering a card on it shows the card's code (`CardTipLayer` in `Card.tsx`).
+   deck, and a forge can `purge` one. The client's table is `Hand.tsx` (the hand and `useTable`) and `DeckPanel.tsx`;
+   hovering a card on it shows the card's code (`CardTipLayer` in `Card.tsx`). The spell that receives a clicked card
+   and the spell shown in the build-code view are separate UI state: the former may advance when full, while the latter
+   changes only when the player clicks a spell or moves a card into one.
 4. **Resolving.** A bolt deals `power x mult` (ADR-0014): the multiplier is the second axis a build grows on, and
    both numbers are clamped (`max_bolt_power`, `max_bolt_mult`) because a shard's output is player code. `mult`
    defaults to 1, so shards written before that ADR keep their meaning and flow it through unchanged.

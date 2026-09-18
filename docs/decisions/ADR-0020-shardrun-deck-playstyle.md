@@ -146,3 +146,19 @@ explanations should be hidden."
   (`kindle(bolts, battle)`) and its code is on hover. On Beginner the card keeps its plain-words summary, and the hover
   adds the code.
 
+## Amendment (2026-09-18): the build-code selection is explicit and sticky
+
+The card target used to own the build-code view. When the last open slot was filled, the target helpfully advanced to
+the next spell with room, but that also replaced the completed function before the player could read it. The player
+asked for a left click on a spell to show its code and for the view not to move unless that spell was being worked on.
+
+- The card target and the inspected spell are separate presentation state. The target may still advance so another
+  hand card has somewhere to go; the inspected spell stays where the player put it.
+- A left click anywhere in a spell selects its build code. A successful card move into a spell also selects that
+  spell, because adding or rearranging its functions is explicit work on it. Filling its final slot does not select
+  the next target.
+- Until the player makes either choice, the initial target supplies the initial build view. Clicking a spell also
+  opens the build view when the automatic *Show code while building* option is off; *Hide* still closes it.
+- The spell whose code is shown has an amber inset mark, distinct from the purple *playing here* target. The browser
+  smoke test fills Left Hand, checks that Right Hand becomes the card target while Left Hand remains in the code view,
+  then switches the view both ways by clicking the spell names.

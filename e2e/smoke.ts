@@ -220,9 +220,9 @@ async function main(): Promise<void> {
     await page.getByRole("button", { name: "Abandon this run" }).click();
     await page.getByRole("heading", { name: "You climbed back out" }).waitFor();
 
-    // Shardrun (Experimental), the deck playstyle (ADR-0020): its own door and its own run. Click one card into the first
-    // blank spell (its code is on screen, growing as it is built), drag a second into a slot, hold a third, cast (on
-    // Beginner no two first-layer cards can finish a first-layer foe), and end the turn: the held card starts the new hand.
+    // Shardrun (Experimental), the deck playstyle (ADR-0020): its own door and its own run. Build the first spell to
+    // capacity and verify its code stays put when the card target advances, click between spell names to inspect their
+    // code, then leave two cards in the first spell, hold a third, cast, and end the turn.
     await page.getByRole("button", { name: "Main menu", exact: true }).click();
     await page.locator(".menu-mode-name", { hasText: "Shardrun (Experimental)" }).click();
     await page.getByRole("button", { name: "Descend in javascript" }).click();
@@ -243,6 +243,17 @@ async function main(): Promise<void> {
     await page.mouse.move(slot.x + slot.width / 2, slot.y + slot.height / 2, { steps: 12 });
     await page.mouse.up();
     await played.nth(1).waitFor();
+    await hand.first().click();
+    await played.nth(2).waitFor();
+    await page.locator(".shr-spell").nth(1).getByRole("button", { name: "playing here" }).waitFor();
+    const buildCode = page.locator(".shr-code-view.mode-build");
+    await buildCode.getByRole("heading", { name: "Left Hand" }).waitFor();
+    await page.locator(".shr-spell").nth(1).getByRole("heading", { name: "Right Hand" }).click();
+    await buildCode.getByRole("heading", { name: "Right Hand" }).waitFor();
+    await leftHand.getByRole("heading", { name: "Left Hand" }).click();
+    await buildCode.getByRole("heading", { name: "Left Hand" }).waitFor();
+    // Take the third card back before holding it, leaving the original two-card cast and hand counts below unchanged.
+    await played.nth(2).click();
     await page.locator(".shr-hand-card").first().hover();
     await page.locator(".shr-hand-card").first().locator(".shr-hold-pin").click();
     await page.locator(".shr-hold .shr-card-button").waitFor();

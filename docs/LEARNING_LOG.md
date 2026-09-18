@@ -525,6 +525,10 @@ language feature took more than a minute to understand.
   transient and a delayed low body reads like this game's machinery. `layers` in `scripts/audio/manifest.json` keeps
   those source, delay, gain and playback-rate choices as a reproducible recipe, and `mix_recorded` renders one small
   file for the browser. The client still plays one effect and knows nothing about the mix.
+- **Keep a convenience default separate from the user's selection.** The deck's card target may automatically advance
+  when a spell fills, but that is not evidence that the player wants to inspect different code. `Arena.tsx` keeps the
+  inspected spell separately and `useTable` reports only successful moves into a spell, so code changes on explicit
+  clicks and edits while click-to-play can still find the next open slot.
 - **Sound waits for a gesture.** Browsers let a page make sound only after the person interacts with it, so the audio
   context is created (or resumed) inside a click or key handler, and whatever music was asked for before then starts
   at that moment (`install` and `unlock` in `apps/client/src/audio/engine.ts`).

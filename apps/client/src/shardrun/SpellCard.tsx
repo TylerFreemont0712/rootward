@@ -21,12 +21,16 @@ export function SpellCard(props: {
   casting: boolean;
   onCast: () => void;
   onExplore: () => void;
+  /** Show this spell in the deck run's sticky build-code view. */
+  onInspect: () => void;
+  /** This spell, rather than the card target, owns the build-code view. */
+  inspected: boolean;
   /** The pointer or focus is on this spell (its element), or has left it (undefined). */
   onReady: (element: ElementView | undefined) => void;
   /** A deck run's table (ADR-0020): this spell's slots hold cards played from the hand. */
   table?: TableControls | undefined;
 }) {
-  const { run, spell, index, disabled, casting, onCast, onExplore, onReady, table } = props;
+  const { run, spell, index, disabled, casting, onCast, onExplore, onInspect, inspected, onReady, table } = props;
   const preview = spell.preview;
   // A deck run shows a move the moment it is made; its preview catches up when the server answers.
   const shards = table?.table.spells.find((candidate) => candidate.id === spell.id)?.shards ?? spell.shards;
@@ -43,7 +47,10 @@ export function SpellCard(props: {
   };
   return (
     <article
-      className={`shr-spell${spell.spent ? " spent" : ""}${casting ? " casting" : ""}${targeted ? " targeted" : ""}${table ? " deck" : ""}`}
+      className={`shr-spell${spell.spent ? " spent" : ""}${casting ? " casting" : ""}${targeted ? " targeted" : ""}${inspected ? " inspected" : ""}${table ? " deck" : ""}`}
+      onClickCapture={(event) => {
+        if (table && event.button === 0) onInspect();
+      }}
       onMouseEnter={ready}
       onMouseLeave={unready}
       onFocus={ready}

@@ -59,7 +59,12 @@ export interface TableControls {
   dragging: string | undefined;
 }
 
-export function useTable(run: ShardrunView, battle: Battle, disabled: boolean): TableControls {
+export function useTable(
+  run: ShardrunView,
+  battle: Battle,
+  disabled: boolean,
+  onBuild: (spellId: string) => void,
+): TableControls {
   const command = useShardrun((s) => s.command);
   const busy = useShardrun((s) => s.busy);
   const [chosen, setChosen] = useState<string | undefined>();
@@ -92,6 +97,9 @@ export function useTable(run: ShardrunView, battle: Battle, disabled: boolean): 
     if (disabled || busy) return;
     const next = moveCard(table, from, to);
     if (!next) return;
+    // The card target may advance when a spell becomes full, but the code follows the spell the player actually
+    // edited. Keeping those two selections separate stops a completed function from vanishing under their pointer.
+    if (to.zone === "spell") onBuild(to.spellId);
     setPending(next);
     void command({
       type: "compose",
